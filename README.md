@@ -1,16 +1,37 @@
-# React + Vite
+# SUSI Community
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Platform penghubung kebutuhan digital komunitas non-teknis dengan talenta IT, berbasis *assisted intake* dan verifikasi dua arah.
 
-Currently, two official plugins are available:
+## Tentang
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Banyak komunitas kecil di Bandung — RT/RW, PKK, karang taruna, UMKM — punya masalah operasional yang sebenarnya bisa diselesaikan teknologi, tapi tidak sadar akan itu, tidak punya anggaran, dan tidak percaya pada developer yang belum dikenal.
 
-## React Compiler
+Di sisi lain, banyak talenta IT (mahasiswa, fresh graduate, career switcher) butuh pengalaman proyek nyata untuk membangun portofolio.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+SUSI Community mempertemukan keduanya: komunitas dapat solusi digital tanpa biaya, talenta dapat pengalaman dan rekam jejak yang terverifikasi.
 
-## Expanding the ESLint configuration
+## Fitur Utama
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- **Assisted Intake** — kebutuhan bisa masuk secara mandiri atau dicatatkan oleh Liaison hasil kunjungan lapangan
+- **Katalog & Pengajuan** — talenta menelusuri kebutuhan terbuka dan mengajukan diri
+- **Kesepakatan Dua Arah** — lingkup kerja & definisi "selesai" disepakati sebelum pengerjaan dimulai
+- **Verifikasi Dua Arah** — status selesai hanya sah jika talenta dan komunitas sama-sama mengonfirmasi
+- **Reputasi Terverifikasi** — profil talenta menampilkan rekam jejak dan testimoni asli
+
+## Tech Stack
+
+| Layer | Teknologi |
+|---|---|
+| Frontend | React + Tailwind CSS |
+| Backend | Node.js + Express (REST API) |
+| Database | MySQL 8 |
+| Auth | JWT + bcrypt |
+
+## Tim
+
+Dikembangkan untuk SATU Creanova 2026 — SMKN 4 Bandung, kategori Web Development.
+
+- Hasby Wira Al Muflih (Ketua)
+- Derien Adelio Rhaivan
+- Mohammad Ezra Putra Arkana
+- Muhammad Khalifa Aisy Hafiy
