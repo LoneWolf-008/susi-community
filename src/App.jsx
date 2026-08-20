@@ -22,7 +22,7 @@ const FLOW_STEPS = [
 const AUTH_ROLES = [
   { num: '01', id: 'requester', label: 'Komunitas', desc: 'Pengurus RT/RW, PKK, UMKM, karang taruna, atau kepanitiaan yang punya persoalan sehari-hari.', field: 'Nama Komunitas / Usaha', ph: 'Mis. PKK RW 03, Warung Bu Ani', fallback: 'Pengurus PKK RW 03' },
   { num: '02', id: 'talent', label: 'Talenta', desc: 'Mahasiswa, fresh graduate, career switcher, atau engineer yang ingin pengalaman proyek nyata.', field: 'Keahlian Utama', ph: 'Mis. React, Node.js, UI/UX', fallback: 'Derien Adelio' },
-  { num: '03', id: 'liaison', label: 'Liaison', desc: 'Anggota inti SUSI yang melakukan kunjungan lapangan dan mencatat kebutuhan komunitas.', field: 'Wilayah Operasi', ph: 'Mis. Bandung Utara', fallback: 'Hasby Wira Al Muflih' },
+  { num: '03', id: 'agensusi', label: 'AgenSUSI', desc: 'Anggota inti SUSI yang melakukan kunjungan lapangan dan mencatat kebutuhan komunitas.', field: 'Wilayah Operasi', ph: 'Mis. Bandung Utara', fallback: 'Hasby Wira Al Muflih' },
   { num: '04', id: 'admin', label: 'Admin', desc: 'Pengelola platform: moderasi, penanganan sengketa, dan keberlanjutan sistem.', field: 'Kode Akses', ph: 'Kode internal tim SUSI', fallback: 'Admin SUSI' },
 ];
 
@@ -100,7 +100,7 @@ function FlowSection({ navigateTo }) {
       `}</style>
 
       <div className="flow-head px-6 lg:px-12 pt-32 pb-24 max-w-[1440px] mx-auto">
-        <p className="text-xs uppercase tracking-[0.4em] text-black/50 font-bold mb-4">Memahami Bagaimana Cara Kami Bekerja</p>
+        <p className="text-xs uppercase tracking-[0.4em] text-black/50 font-bold mb-4">Memahami Bagaimana Cara Kami Bekerja Dalam</p>
         <div className="flex items-end justify-between flex-wrap gap-6">
           <h2 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9]">Delapan Langkah<span className="text-[#FF5733]">.</span></h2>
           <p className="text-[10px] font-mono opacity-40 pb-2">▼ IKUTI GARISNYA SAMPAI SELESAI</p>
@@ -259,6 +259,1203 @@ function Navigation({ currentPage, navigateTo, goToSection, menuOpen, setMenuOpe
   );
 }
 
+/* ============ DASHBOARD AGEN SUSI (LIAISON) ============ */
+function DashboardLiaison({ user, onLogout, navigateTo }) {
+  const [tab, setTab] = useState('beranda');
+  const [visitFilter, setVisitFilter] = useState('SEMUA');
+  const [visits, setVisits] = useState([
+    { id: 1, comm: 'PKK RW 03 Cijerah', sec: 'BARAT–SELATAN', date: 'HARI INI', time: '09.00', addr: 'Jl. Cijerah II No. 12', lat: -6.9210, lng: 107.5900, status: 'DIRENCANAKAN', note: 'Ibu ketua ingin konsultasi rekap iuran warga.' },
+    { id: 2, comm: 'Karang Taruna Cibuntu', sec: 'BARAT–SELATAN', date: 'HARI INI', time: '13.30', addr: 'Sekretariat KT, Jl. Cibuntu Raya', lat: -6.9280, lng: 107.5820, status: 'BERLANGSUNG', note: 'Survei kebutuhan website galeri kegiatan pemuda.' },
+    { id: 3, comm: 'Paguyuban Pedagang Pasar', sec: 'TIMUR–UTARA', date: 'KEMARIN', time: '10.00', addr: 'Blok C Pasar Antapani', lat: -6.9020, lng: 107.6600, status: 'TERDATA', note: 'Katalog produk online. Sudah masuk katalog kebutuhan.' },
+    { id: 4, comm: 'Posyandu Melati', sec: 'TIMUR–UTARA', date: 'BESOK', time: '08.00', addr: 'Posyandu Melati, Jl. Antapani Tengah', lat: -6.9080, lng: 107.6680, status: 'DIRENCANAKAN', note: 'Kader ingin data penimbangan tidak manual.' },
+  ]);
+  const [form, setForm] = useState({ nama: '', tipe: 'PKK', leader: '', issue: '', cat: 'PENCATATAN', addr: '' });
+  const [coords, setCoords] = useState(null);
+  const [gpsMsg, setGpsMsg] = useState('');
+  const [sent, setSent] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef(null);
+  const [notifs, setNotifs] = useState([
+    { id: 1, type: 'kunjungan', title: 'Agenda hari ini: 2 kunjungan', sub: 'PKK RW 03 Cijerah · 09.00', read: false },
+    { id: 2, type: 'intake', title: 'Kebutuhan Anda terdata di katalog', sub: 'Katalog UMKM · Paguyuban Pedagang', read: false },
+    { id: 3, type: 'sistem', title: 'Laporan mingguan siap', sub: 'Unduh di tab Laporan', read: true },
+  ]);
+  const formMapEl = useRef(null); const formMapInst = useRef(null); const formMarker = useRef(null);
+  const areaMapEl = useRef(null); const areaMapInst = useRef(null); const areaMarkers = useRef(null);
+  const rootRef = useRef(null);
+
+  const NOTIF_META = {
+    kunjungan: { c: '#FF5733', l: 'KUNJUNGAN' },
+    intake: { c: '#0E7C66', l: 'INTAKE' },
+    sistem: { c: '#9CA3AF', l: 'SISTEM' },
+  };
+  const unread = notifs.filter((n) => !n.read).length;
+  const markAll = () => setNotifs(notifs.map((n) => ({ ...n, read: true })));
+  const markOne = (id) => setNotifs(notifs.map((n) => (n.id === id ? { ...n, read: true } : n)));
+
+  const ACCOMPANIED = [
+    { n: 'PKK RW 05', v: '12 AGU 2026', need: 'Rekap Iuran Digital', s: 'TERHUBUNG' },
+    { n: 'KT Mekar', v: '08 AGU 2026', need: 'Website Galeri', s: 'PROYEK BERJALAN' },
+    { n: 'Paguyuban Pedagang', v: '02 AGU 2026', need: 'Katalog UMKM', s: 'TERDATA' },
+  ];
+
+  useEffect(() => {
+    const onClick = (e) => { if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false); };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
+  useEffect(() => {
+    if (notifOpen) gsap.fromTo('.notif-panel', { y: -12, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.3, ease: 'power2.out' });
+  }, [notifOpen]);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.fromTo('.dash-item', { y: 30, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, stagger: 0.07, ease: 'power2.out' });
+      gsap.utils.toArray('.counter').forEach((el) => {
+        const t = +el.dataset.target; const o = { val: 0 };
+        gsap.to(o, { val: t, duration: 1.4, ease: 'power1.out', onUpdate: () => { el.textContent = Math.round(o.val); } });
+      });
+      gsap.fromTo('.bar-h', { scaleX: 0 }, { scaleX: 1, duration: 1, ease: 'power3.out', transformOrigin: 'left center', delay: 0.3 });
+    }, rootRef);
+    return () => ctx.revert();
+  }, [tab, sent]);
+
+  /* ===== MAP FORM (CATAT) ===== */
+  useEffect(() => {
+    if (tab !== 'catat' || sent || !formMapEl.current || formMapInst.current) return;
+    const map = L.map(formMapEl.current).setView([-6.9147, 107.6096], 13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
+    map.on('click', (e) => placeFormMarker(e.latlng.lat, e.latlng.lng));
+    formMapInst.current = map;
+    return () => { map.remove(); formMapInst.current = null; formMarker.current = null; };
+  }, [tab, sent]);
+
+  /* ===== MAP WILAYAH ===== */
+  useEffect(() => {
+    if (tab !== 'map' || !areaMapEl.current || areaMapInst.current) return;
+    const map = L.map(areaMapEl.current).setView([-6.9147, 107.6096], 12);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
+    areaMarkers.current = L.layerGroup().addTo(map);
+    areaMapInst.current = map;
+    return () => { map.remove(); areaMapInst.current = null; areaMarkers.current = null; };
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab !== 'map' || !areaMarkers.current) return;
+    areaMarkers.current.clearLayers();
+    const makeIcon = (bg, border, label) => L.divIcon({
+      className: '',
+      html: `<div style="width:28px;height:28px;background:${bg};border:2px solid ${border};transform:rotate(45deg);display:flex;align-items:center;justify-content:center;box-shadow:2px 2px 0 rgba(0,0,0,.4)"><span style="transform:rotate(-45deg);font-family:monospace;font-weight:700;font-size:10px;color:${bg === '#fff' ? '#000' : '#fff'}">${label}</span></div>`,
+      iconSize: [28, 28], iconAnchor: [14, 14],
+    });
+    visits.forEach((v) => {
+      const icon = v.status === 'TERDATA' ? makeIcon('#0E7C66', '#000', v.comm.charAt(0))
+        : v.status === 'BERLANGSUNG' ? makeIcon('#FDE047', '#000', v.comm.charAt(0))
+        : makeIcon('#fff', '#000', v.comm.charAt(0));
+      const m = L.marker([v.lat, v.lng], { icon }).addTo(areaMarkers.current);
+      m.on('click', () => window.open(`https://www.google.com/maps/dir/?api=1&destination=${v.lat},${v.lng}`, '_blank'));
+    });
+  }, [tab, visits]);
+
+  const placeFormMarker = (lat, lng) => {
+    if (!formMapInst.current) return;
+    if (formMarker.current) formMarker.current.setLatLng([lat, lng]);
+    else formMarker.current = L.marker([lat, lng], {
+      icon: L.divIcon({ className: '', html: '<div style="width:20px;height:20px;background:#FF5733;border:2px solid #000;transform:rotate(45deg);box-shadow:2px 2px 0 rgba(0,0,0,.4)"></div>', iconSize: [20, 20], iconAnchor: [10, 10] }),
+    }).addTo(formMapInst.current);
+    setCoords({ lat, lng });
+  };
+
+  const grabGPS = () => {
+    setGpsMsg('MENCARI GPS...');
+    if (!navigator.geolocation) { setGpsMsg('GPS TIDAK DIDUKUNG — KLIK MAP MANUAL'); return; }
+    navigator.geolocation.getCurrentPosition(
+      (p) => { placeFormMarker(p.coords.latitude, p.coords.longitude); setGpsMsg('GPS TERTANGKAP ✓'); },
+      () => { placeFormMarker(-6.9147, 107.6096); setGpsMsg('GPS GAGAL — TITIK TENGAH BANDUNG. KLIK MAP UNTUK GESER.'); },
+    );
+  };
+
+  const quadrantOf = (loc) => `${loc.lng < 107.6191 ? 'BARAT' : 'TIMUR'}–${loc.lat > -6.9175 ? 'UTARA' : 'SELATAN'}`;
+  const openRoute = (v) => window.open(`https://www.google.com/maps/dir/?api=1&destination=${v.lat},${v.lng}`, '_blank');
+  const setVisitStatus = (id, status) => setVisits((v) => v.map((x) => (x.id === id ? { ...x, status } : x)));
+  const recordResult = (v) => {
+    setForm((f) => ({ ...f, nama: v.comm, addr: v.addr }));
+    setCoords({ lat: v.lat, lng: v.lng });
+    setSent(false);
+    setTab('catat');
+  };
+  const submitIntake = () => {
+    if (!form.nama.trim() || !form.issue.trim() || !coords) return;
+    setVisits((v) => [...v, { id: Date.now(), comm: form.nama, sec: quadrantOf(coords), date: 'HARI INI', time: 'SEKARANG', addr: form.addr || '—', lat: coords.lat, lng: coords.lng, status: 'TERDATA', note: form.issue }]);
+    setSent(true);
+  };
+
+  const visitBadge = (s) => {
+    const m = { DIRENCANAKAN: 'bg-white text-black border-2 border-black', BERLANGSUNG: 'bg-yellow-300 text-black', TERDATA: 'bg-[#0E7C66] text-white' };
+    return <span className={`text-[9px] font-mono font-bold px-2 py-1 ${m[s]}`}>{s}</span>;
+  };
+  const accBadge = (s) => {
+    const m = { TERHUBUNG: 'bg-[#0E7C66] text-white', 'PROYEK BERJALAN': 'bg-yellow-300 text-black', TERDATA: 'bg-black text-white' };
+    return <span className={`text-[9px] font-mono font-bold px-2 py-1 ${m[s]}`}>{s}</span>;
+  };
+
+  const first = (user?.name || 'Agen').split(' ')[0];
+  const NAV = [
+    { id: 'beranda', n: '01', l: 'BERANDA' },
+    { id: 'kunjungan', n: '02', l: 'KUNJUNGAN' },
+    { id: 'catat', n: '03', l: 'CATAT KEBUTUHAN' },
+    { id: 'map', n: '04', l: 'MAP WILAYAH' },
+    { id: 'laporan', n: '05', l: 'LAPORAN' },
+  ];
+  const agenda = visits.filter((v) => v.date === 'HARI INI' && v.status !== 'TERDATA');
+  const filteredVisits = visitFilter === 'SEMUA' ? visits : visits.filter((v) => v.status === visitFilter);
+
+  return (
+    <div ref={rootRef} className="bg-[#F4F4F2] text-black min-h-screen">
+      {/* TOPBAR */}
+      <div className="fixed top-0 left-0 right-0 h-20 bg-white border-b-2 border-black z-50">
+        <div className="h-full px-5 lg:px-8 flex items-center gap-4">
+          <button onClick={() => navigateTo('home')} className="text-2xl font-black tracking-tighter hover:text-[#FF5733] transition-colors shrink-0">
+            SUSI<span className="text-[#FF5733]">.</span>
+          </button>
+          <div className="flex-1" />
+          <div className="relative" ref={notifRef}>
+            <button onClick={() => setNotifOpen(!notifOpen)} className={`relative w-10 h-10 border-2 border-black flex items-center justify-center transition-colors ${notifOpen ? 'bg-black text-white' : 'hover:bg-black hover:text-white'}`}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" className="w-5 h-5">
+                <path d="M12 3v2" /><path d="M7 10a5 5 0 0 1 10 0v4l2 3H5l2-3v-4z" /><path d="M10 20h4" />
+              </svg>
+              {unread > 0 && (
+                <>
+                  <span className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 bg-[#FF5733] animate-ping" />
+                  <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-[#FF5733] text-white text-[9px] font-black flex items-center justify-center border-2 border-black px-0.5">{unread}</span>
+                </>
+              )}
+            </button>
+            {notifOpen && (
+              <div className="notif-panel absolute right-0 top-12 w-[340px] md:w-[380px] bg-white border-2 border-black shadow-[6px_6px_0_0_#000] z-[60]">
+                <div className="flex items-center justify-between p-4 border-b-2 border-black">
+                  <div>
+                    <p className="text-sm font-black">NOTIFIKASI</p>
+                    <p className="text-[9px] font-mono opacity-50">{unread} BELUM DIBACA</p>
+                  </div>
+                  <button onClick={markAll} className="text-[9px] font-mono font-bold border-2 border-black px-2 py-1 hover:bg-black hover:text-white transition-colors">TANDAI SEMUA</button>
+                </div>
+                <div className="max-h-[320px] overflow-y-auto">
+                  {notifs.map((n) => (
+                    <button key={n.id} onClick={() => markOne(n.id)} className={`w-full text-left p-4 border-b-2 border-black/10 last:border-b-0 flex gap-3 transition-colors ${n.read ? 'opacity-50 hover:opacity-80' : 'bg-[#FF5733]/5 hover:bg-[#FF5733]/10'}`}>
+                      <span className="w-2 h-2 mt-1.5 shrink-0 rotate-45" style={{ background: NOTIF_META[n.type].c }} />
+                      <div className="flex-1 min-w-0">
+                        <span className="inline-block text-[8px] font-mono font-bold px-1.5 py-0.5 text-white mb-0.5" style={{ background: NOTIF_META[n.type].c }}>{NOTIF_META[n.type].l}</span>
+                        <p className="text-xs font-black leading-snug">{n.title}</p>
+                        <p className="text-[10px] opacity-60 mt-0.5">{n.sub}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 border-2 border-black px-3 py-2 bg-white">
+            <span className="w-6 h-6 bg-[#FF5733] text-white text-[10px] font-black flex items-center justify-center">{user?.name?.charAt(0).toUpperCase()}</span>
+            <div className="hidden sm:block leading-none">
+              <p className="text-xs font-black">{first}</p>
+              <p className="text-[9px] font-mono text-[#FF5733] font-bold mt-0.5">AGEN SUSI</p>
+            </div>
+          </div>
+          <button onClick={onLogout} className="text-[10px] font-mono font-bold border-2 border-black px-3 py-2 hover:bg-black hover:text-white transition-colors">KELUAR</button>
+        </div>
+      </div>
+
+      {/* SIDEBAR */}
+      <aside className="hidden lg:flex fixed left-0 top-20 bottom-0 w-64 bg-white border-r-2 border-black z-40 flex-col justify-between">
+        <div className="p-6">
+          <p className="text-[10px] font-mono font-bold uppercase tracking-widest opacity-50 mb-4">Dasbor Lapangan</p>
+          <div className="space-y-2">
+            {NAV.map((n) => (
+              <button key={n.id} onClick={() => setTab(n.id)} className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-all ${tab === n.id ? 'bg-black text-white shadow-[4px_4px_0_0_#FF5733]' : 'hover:bg-black/5'}`}>
+                <span className={`text-[10px] font-mono font-bold ${tab === n.id ? 'text-[#FF5733]' : 'opacity-40'}`}>{n.n}</span>
+                <span className="text-xs font-black uppercase tracking-wider">{n.l}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="p-6 border-t-2 border-black">
+          <p className="text-[10px] font-mono opacity-50 leading-relaxed">F2 · ASSISTED INTAKE<br />WILAYAH: KOTA BANDUNG</p>
+        </div>
+      </aside>
+
+      {/* NAV MOBILE */}
+      <div className="lg:hidden fixed top-20 left-0 right-0 z-40 bg-white border-b-2 border-black overflow-x-auto">
+        <div className="flex px-4 py-3 gap-2 w-max">
+          {NAV.map((n) => (
+            <button key={n.id} onClick={() => setTab(n.id)} className={`shrink-0 px-4 py-2 text-[10px] font-black uppercase tracking-wider border-2 transition-colors ${tab === n.id ? 'bg-black text-white border-black' : 'border-black/20'}`}>
+              {n.l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* MAIN */}
+      <main className="pt-40 lg:pt-28 lg:pl-64 pb-16">
+        <div className="px-5 lg:px-10 max-w-[1200px]">
+
+          {/* ===== TAB: BERANDA ===== */}
+          {tab === 'beranda' && (
+            <>
+              <div className="dash-item border-2 border-black bg-white p-8 md:p-10 flex flex-wrap items-end justify-between gap-6 mb-6">
+                <div>
+                  <span className="text-[10px] font-mono font-bold text-[#FF5733]">F2 · ASSISTED INTAKE</span>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tight mt-2 mb-3">Halo, Agen {first}.</h1>
+                  <p className="text-sm opacity-60 max-w-xl leading-relaxed">{agenda.length} agenda kunjungan hari ini. Jemput bola — datangkan SUSI ke komunitas yang terkendala perangkat & pengetahuan.</p>
+                </div>
+                <button onClick={() => { setSent(false); setTab('catat'); }} className="bg-[#FF5733] text-white px-8 py-5 text-xs font-black uppercase tracking-widest shadow-[6px_6px_0_0_#000] hover:shadow-none hover:translate-x-1 hover:translate-y-1 hover:bg-black transition-all">
+                  + Catat Kebutuhan
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-black border-2 border-black mb-6">
+                {[
+                  { t: 23, l: 'Kunjungan bulan ini' },
+                  { t: 19, l: 'Kebutuhan terdata' },
+                  { t: 11, l: 'Terhubung ke talenta' },
+                  { t: 8, l: 'Komunitas didampingi' },
+                ].map((s, i) => (
+                  <div key={i} className="dash-item bg-white p-6 hover:bg-[#FF5733] hover:text-white transition-colors">
+                    <div className="text-4xl md:text-5xl font-black tabular-nums"><span className="counter" data-target={s.t}>0</span></div>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-widest opacity-60 mt-1">{s.l}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-12 gap-6">
+                <div className="col-span-12 lg:col-span-8">
+                  <div className="dash-item border-2 border-black bg-white p-7">
+                    <div className="flex justify-between items-start mb-5">
+                      <h3 className="text-xl font-black">Agenda Hari Ini</h3>
+                      <span className="text-[10px] font-mono font-bold bg-black text-white px-2 py-1">{agenda.length} KUNJUNGAN</span>
+                    </div>
+                    <div className="space-y-4">
+                      {agenda.map((v) => (
+                        <div key={v.id} className="border-2 border-black/15 hover:border-black p-5 transition-colors">
+                          <div className="flex justify-between items-start flex-wrap gap-3 mb-2">
+                            <div className="flex items-center gap-3">
+                              <span className="text-lg font-black font-mono">{v.time}</span>
+                              <h4 className="font-black">{v.comm}</h4>
+                            </div>
+                            {visitBadge(v.status)}
+                          </div>
+                          <p className="text-[10px] font-mono opacity-50 mb-2">📍 {v.addr} · SEKTOR {v.sec}</p>
+                          <p className="text-xs opacity-60 mb-4">{v.note}</p>
+                          <div className="flex gap-2 flex-wrap">
+                            {v.status === 'DIRENCANAKAN' && (
+                              <button onClick={() => setVisitStatus(v.id, 'BERLANGSUNG')} className="flex-1 bg-black text-white py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-[#FF5733] transition-colors">Mulai Kunjungan →</button>
+                            )}
+                            {v.status === 'BERLANGSUNG' && (
+                              <button onClick={() => recordResult(v)} className="flex-1 bg-[#0E7C66] text-white py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-black transition-colors">Catat Hasil →</button>
+                            )}
+                            <button onClick={() => openRoute(v)} className="flex-1 border-2 border-black py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-colors"> Rute</button>
+                          </div>
+                        </div>
+                      ))}
+                      {agenda.length === 0 && <p className="text-center text-xs font-mono opacity-50 py-6">TIDAK ADA AGENDA HARI INI.</p>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="col-span-12 lg:col-span-4 space-y-6">
+                  <div className="dash-item border-2 border-black bg-black text-white p-7">
+                    <span className="text-[10px] font-mono font-bold text-[#FF5733]">TARGET BULANAN</span>
+                    <h3 className="text-xl font-black mt-1 mb-5">Progres Agen</h3>
+                    <div className="flex justify-between text-[10px] font-mono font-bold mb-2"><span>KUNJUNGAN</span><span>23 / 30</span></div>
+                    <div className="h-3 bg-white/15 border-2 border-white/30 mb-5"><div className="bar-h h-full bg-[#FF5733]" style={{ width: '76%' }} /></div>
+                    <div className="flex justify-between text-[10px] font-mono font-bold mb-2"><span>INTAKE TERDATA</span><span>19 / 25</span></div>
+                    <div className="h-3 bg-white/15 border-2 border-white/30"><div className="bar-h h-full bg-[#0E7C66]" style={{ width: '76%' }} /></div>
+                  </div>
+                  <div className="dash-item border-2 border-black bg-white p-7">
+                    <h3 className="text-xl font-black mb-4">Tips Lapangan</h3>
+                    <p className="text-sm opacity-70 leading-relaxed">Catat masalah dengan <span className="font-black">bahasa warga</span>, bukan istilah teknis. Contoh: "iuran sering hilang" — bukan "butuh sistem database".</p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ===== TAB: KUNJUNGAN ===== */}
+          {tab === 'kunjungan' && (
+            <>
+              <div className="dash-item flex items-end justify-between flex-wrap gap-4 mb-6">
+                <div>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tight">Kunjungan</h1>
+                  <p className="text-[10px] font-mono opacity-50 mt-2">DIRENCANAKAN → BERLANGSUNG → TERDATA</p>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {['SEMUA', 'DIRENCANAKAN', 'BERLANGSUNG', 'TERDATA'].map((s) => (
+                    <button key={s} onClick={() => setVisitFilter(s)} className={`px-3 py-2 text-[9px] font-mono font-bold border-2 transition-colors ${visitFilter === s ? 'bg-black text-white border-black' : 'border-black/20 hover:border-black'}`}>{s}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-4">
+                {filteredVisits.map((v) => (
+                  <div key={v.id} className="dash-item border-2 border-black bg-white p-6">
+                    <div className="flex justify-between items-start flex-wrap gap-3 mb-2">
+                      <div>
+                        <h4 className="font-black text-lg">{v.comm}</h4>
+                        <p className="text-[10px] font-mono opacity-50 mt-1">{v.date} · {v.time} · 📍 {v.addr} · SEKTOR {v.sec}</p>
+                      </div>
+                      {visitBadge(v.status)}
+                    </div>
+                    <p className="text-xs opacity-60 mb-4">{v.note}</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {v.status === 'DIRENCANAKAN' && (
+                        <button onClick={() => setVisitStatus(v.id, 'BERLANGSUNG')} className="flex-1 bg-black text-white py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-[#FF5733] transition-colors">Mulai Kunjungan →</button>
+                      )}
+                      {v.status === 'BERLANGSUNG' && (
+                        <button onClick={() => recordResult(v)} className="flex-1 bg-[#0E7C66] text-white py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-black transition-colors">Catat Hasil →</button>
+                      )}
+                      {v.status === 'TERDATA' && (
+                        <span className="flex-1 text-center border-2 border-black/20 py-2.5 text-[10px] font-mono font-bold opacity-60">MASUK KATALOG KEBUTUHAN ✓</span>
+                      )}
+                      <button onClick={() => openRoute(v)} className="flex-1 border-2 border-black py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-colors">🧭 Rute</button>
+                    </div>
+                  </div>
+                ))}
+                {filteredVisits.length === 0 && <p className="dash-item border-2 border-black bg-white p-8 text-center text-xs font-mono opacity-50">TIDAK ADA KUNJUNGAN DENGAN STATUS INI.</p>}
+              </div>
+            </>
+          )}
+
+          {/* ===== TAB: CATAT KEBUTUHAN ===== */}
+          {tab === 'catat' && (
+            sent ? (
+              <div className="dash-item border-2 border-black bg-white p-14 text-center max-w-2xl mx-auto">
+                <div className="inline-flex w-24 h-24 bg-[#0E7C66] text-white items-center justify-center text-5xl font-black mb-6">✓</div>
+                <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-3">Kebutuhan terdata.</h1>
+                <p className="text-sm opacity-60 leading-relaxed mb-8">Masuk katalog kebutuhan terbuka dengan label <span className="font-mono font-black bg-black text-white px-2 py-0.5">SUMBER: ASSISTED</span>. Talenta akan melihat & melamar — komunitas tidak perlu pegang HP.</p>
+                <div className="flex gap-3 justify-center flex-wrap">
+                  <button onClick={() => { setSent(false); setForm({ nama: '', tipe: 'PKK', leader: '', issue: '', cat: 'PENCATATAN', addr: '' }); setCoords(null); setGpsMsg(''); }} className="bg-[#FF5733] text-white px-8 py-4 text-[10px] font-black uppercase tracking-widest hover:bg-black transition-colors">+ Catat Lagi</button>
+                  <button onClick={() => setTab('kunjungan')} className="border-2 border-black px-8 py-4 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-colors">Ke Kunjungan →</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="dash-item mb-6">
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tight">Catat Kebutuhan</h1>
+                  <p className="text-[10px] font-mono opacity-50 mt-2">FORM ASSISTED INTAKE — ATAS NAMA KOMUNITAS</p>
+                </div>
+                <div className="grid grid-cols-12 gap-6">
+                  <div className="col-span-12 lg:col-span-6 space-y-6">
+                    <div className="dash-item border-2 border-black bg-white p-7 space-y-5">
+                      <span className="text-[10px] font-mono font-bold text-[#FF5733]">A · DATA KOMUNITAS</span>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest mb-2 block">Nama Komunitas</label>
+                        <input value={form.nama} onChange={(e) => setForm((f) => ({ ...f, nama: e.target.value }))} className="w-full border-2 border-black/20 p-3 text-sm outline-none focus:border-[#FF5733] bg-transparent" placeholder="Mis. PKK RW 03 Cijerah" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest mb-2 block">Jenis Komunitas</label>
+                        <div className="flex flex-wrap gap-1">
+                          {['PKK', 'RT/RW', 'KARANG TARUNA', 'UMKM', 'LAINNYA'].map((t) => (
+                            <button key={t} type="button" onClick={() => setForm((f) => ({ ...f, tipe: t }))} className={`px-3 py-2 text-[9px] font-mono font-bold border-2 transition-colors ${form.tipe === t ? 'bg-black text-white border-black' : 'border-black/20 hover:border-black'}`}>{t}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest mb-2 block">Nama Pengurus (PIC)</label>
+                        <input value={form.leader} onChange={(e) => setForm((f) => ({ ...f, leader: e.target.value }))} className="w-full border-2 border-black/20 p-3 text-sm outline-none focus:border-[#FF5733] bg-transparent" placeholder="Mis. Ibu Siti Aminah" />
+                      </div>
+                    </div>
+                    <div className="dash-item border-2 border-black bg-white p-7 space-y-5">
+                      <span className="text-[10px] font-mono font-bold text-[#FF5733]">B · MASALAH (BAHASA WARGA)</span>
+                      <textarea value={form.issue} onChange={(e) => setForm((f) => ({ ...f, issue: e.target.value }))} className="w-full border-2 border-black/20 p-3 text-sm outline-none focus:border-[#FF5733] bg-transparent h-28 resize-none" placeholder='Contoh: "iuran warga sering hilang, susah direkap tiap bulan"' />
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest mb-2 block">Kategori Kebutuhan</label>
+                        <div className="flex flex-wrap gap-1">
+                          {['PENCATATAN', 'WEBSITE', 'APLIKASI', 'LAINNYA'].map((c) => (
+                            <button key={c} type="button" onClick={() => setForm((f) => ({ ...f, cat: c }))} className={`px-3 py-2 text-[9px] font-mono font-bold border-2 transition-colors ${form.cat === c ? 'bg-[#FF5733] text-white border-[#FF5733]' : 'border-black/20 hover:border-black'}`}>{c}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col-span-12 lg:col-span-6">
+                    <div className="dash-item border-2 border-black bg-white p-7">
+                      <span className="text-[10px] font-mono font-bold text-[#FF5733]">C · LOKASI KOMUNITAS</span>
+                      <div className="flex gap-2 my-4">
+                        <button type="button" onClick={grabGPS} className="flex-1 bg-black text-white py-3 text-[10px] font-black uppercase tracking-widest hover:bg-[#0E7C66] transition-colors">📡 Gunakan GPS Saya</button>
+                      </div>
+                      {gpsMsg && <p className="text-[9px] font-mono font-bold mb-3">{gpsMsg}</p>}
+                      <div className="relative z-0 border-2 border-black h-[280px] mb-4">
+                        <div ref={formMapEl} className="w-full h-full" />
+                      </div>
+                      <p className="text-[10px] font-mono font-bold bg-black text-white inline-block px-2 py-1 mb-4">{coords ? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)} · ${quadrantOf(coords)}` : 'BELUM ADA TITIK — GPS / KLIK MAP'}</p>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest mb-2 block">Alamat / Patokan</label>
+                        <input value={form.addr} onChange={(e) => setForm((f) => ({ ...f, addr: e.target.value }))} className="w-full border-2 border-black/20 p-3 text-sm outline-none focus:border-[#FF5733] bg-transparent" placeholder="Mis. Balai RW 03, sebelah pos ronda" />
+                      </div>
+                      <button onClick={submitIntake} disabled={!form.nama.trim() || !form.issue.trim() || !coords} className={`w-full mt-6 py-4 text-[10px] font-black uppercase tracking-widest transition-colors ${form.nama.trim() && form.issue.trim() && coords ? 'bg-[#FF5733] text-white hover:bg-black' : 'bg-black/10 text-black/40 cursor-not-allowed'}`}>
+                        Simpan ke Katalog →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )
+          )}
+
+          {/* ===== TAB: MAP WILAYAH ===== */}
+          {tab === 'map' && (
+            <>
+              <div className="dash-item flex items-end justify-between flex-wrap gap-4 mb-6">
+                <div>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tight">Map Wilayah</h1>
+                  <p className="text-[10px] font-mono opacity-50 mt-2">KLIK MARKER UNTUK BUKA RUTE GOOGLE MAPS</p>
+                </div>
+                <div className="dash-item border-2 border-black bg-white p-3 flex items-center gap-5 text-[9px] font-mono font-bold">
+                  <span className="flex items-center gap-2"><span className="w-3 h-3 bg-white border-2 border-black rotate-45"></span> DIRENCANAKAN</span>
+                  <span className="flex items-center gap-2"><span className="w-3 h-3 bg-yellow-300 border-2 border-black rotate-45"></span> BERLANGSUNG</span>
+                  <span className="flex items-center gap-2"><span className="w-3 h-3 bg-[#0E7C66] border-2 border-black rotate-45"></span> TERDATA</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-12 gap-6">
+                <div className="col-span-12 lg:col-span-4 space-y-4">
+                  {visits.map((v) => (
+                    <div key={v.id} className="dash-item border-2 border-black bg-white p-4 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-black text-sm truncate">{v.comm}</p>
+                        <p className="text-[9px] font-mono opacity-50">{v.date} · {v.time} · SEKTOR {v.sec}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {visitBadge(v.status)}
+                        <button onClick={() => openRoute(v)} className="text-[9px] font-mono font-bold border-2 border-black px-2 py-1 hover:bg-black hover:text-white transition-colors">🧭</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="col-span-12 lg:col-span-8">
+                  <div className="dash-item relative h-[520px] border-2 border-black bg-white overflow-hidden">
+                    <div className="absolute inset-0 z-0"><div ref={areaMapEl} className="w-full h-full" /></div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ===== TAB: LAPORAN ===== */}
+          {tab === 'laporan' && (
+            <>
+              <div className="dash-item flex items-end justify-between flex-wrap gap-4 mb-6">
+                <div>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tight">Laporan</h1>
+                  <p className="text-[10px] font-mono opacity-50 mt-2">KINERJA AGEN · AGUSTUS 2026</p>
+                </div>
+                <button className="border-2 border-black px-6 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-colors">⬇ Unduh Laporan (PDF)</button>
+              </div>
+              <div className="grid grid-cols-12 gap-6">
+                <div className="dash-item col-span-12 lg:col-span-5 border-2 border-black bg-white p-7">
+                  <h3 className="text-xl font-black mb-5">Kunjungan / Minggu</h3>
+                  <MiniBars data={[{ l: 'M1', v: 5 }, { l: 'M2', v: 7 }, { l: 'M3', v: 6 }, { l: 'M4', v: 5 }]} />
+                  <div className="mt-6">
+                    <div className="flex justify-between text-[10px] font-mono font-bold mb-2"><span>INTAKE ASSISTED DARI TOTAL</span><span>42%</span></div>
+                    <div className="h-2 bg-black/10"><div className="bar-h h-full bg-[#FF5733]" style={{ width: '42%' }} /></div>
+                  </div>
+                </div>
+                <div className="col-span-12 lg:col-span-7 border-2 border-black bg-white p-7 dash-item">
+                  <h3 className="text-xl font-black mb-5">Komunitas Didampingi</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b-2 border-black text-[10px] font-mono uppercase tracking-widest">
+                          <th className="py-3 pr-4">Komunitas</th>
+                          <th className="py-3 pr-4">Kunjungan</th>
+                          <th className="py-3 pr-4">Kebutuhan</th>
+                          <th className="py-3 text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-black/10">
+                        {ACCOMPANIED.map((a, i) => (
+                          <tr key={i} className="hover:bg-black/5 transition-colors">
+                            <td className="py-4 pr-4 font-bold">{a.n}</td>
+                            <td className="py-4 pr-4 text-xs opacity-70">{a.v}</td>
+                            <td className="py-4 pr-4 text-xs opacity-70">{a.need}</td>
+                            <td className="py-4 text-right">{accBadge(a.s)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/* ============ HELPER BADGE ADMIN ============ */
+function ModBadge({ t }) {
+  const m = { KEBUTUHAN: 'bg-[#FF5733] text-white', TALENTA: 'bg-black text-white', TESTIMONI: 'bg-[#0E7C66] text-white' };
+  return <span className={`text-[9px] font-mono font-bold px-2 py-1 ${m[t]}`}>{t}</span>;
+}
+function CaseBadge({ s }) {
+  const m = { MEDIASI: 'bg-yellow-300 text-black', ESKALASI: 'bg-black text-white', SELESAI: 'bg-[#0E7C66] text-white' };
+  return <span className={`text-[9px] font-mono font-bold px-2 py-1 ${m[s]}`}>{s}</span>;
+}
+
+/* ============ DASHBOARD ADMIN ============ */
+function DashboardAdmin({ user, onLogout, navigateTo }) {
+  const [tab, setTab] = useState('ringkasan');
+  const [modFilter, setModFilter] = useState('SEMUA');
+  const [modStats, setModStats] = useState({ approve: 12, reject: 2 });
+  const [queue, setQueue] = useState([
+    { id: 1, type: 'KEBUTUHAN', t: 'Aplikasi Absensi Pemuda', by: 'Karang Taruna Mekar', date: 'HARI INI', d: 'Butuh form absensi kegiatan pemuda via HP, biar tidak rekap manual.' },
+    { id: 2, type: 'TALENTA', t: 'Pendaftaran: Salsabila R.', by: 'Career switcher', date: 'HARI INI', d: 'Klaim skill React + Firebase, portofolio 2 proyek pribadi.' },
+    { id: 3, type: 'TESTIMONI', t: 'Testimoni untuk Ezra P.', by: 'PKK RW 05', date: 'KEMARIN', d: '"Pengerjaan rapi dan sabar mengajarkan pengurus."' },
+    { id: 4, type: 'KEBUTUHAN', t: 'Website Katalog UMKM', by: 'Paguyuban Pedagang', date: 'KEMARIN', d: 'Katalog produk 54 pedagang agar bisa dilihat online.' },
+  ]);
+  const [cases, setCases] = useState([
+    { id: 1, t: 'Sistem Inventaris PKK', comm: 'PKK RW 05', talent: 'Derien A.', days: 6, status: 'MEDIASI', note: 'Komunitas belum konfirmasi 6 hari setelah talenta menandai selesai.' },
+    { id: 2, t: 'Website Galeri', comm: 'KT Mekar', talent: 'Ezra P.', days: 12, status: 'ESKALASI', note: 'Komunitas mengklaim hasil belum sesuai kesepakatan lingkup.' },
+  ]);
+  const [resolveTarget, setResolveTarget] = useState(null);
+  const [userFilter, setUserFilter] = useState('SEMUA');
+  const [users, setUsers] = useState([
+    { id: 1, n: 'Ibu Siti Aminah', role: 'KOMUNITAS', join: 'MEI 2026', rep: '—', status: 'AKTIF' },
+    { id: 2, n: 'Derien Adelio', role: 'TALENTA', join: 'JUN 2026', rep: 12, status: 'AKTIF' },
+    { id: 3, n: 'Hasby Wira', role: 'LIAISON', join: 'MEI 2026', rep: '—', status: 'AKTIF' },
+    { id: 4, n: 'Ezra P.', role: 'TALENTA', join: 'JUL 2026', rep: 9, status: 'AKTIF' },
+    { id: 5, n: 'Akun Uji Coba', role: 'TALENTA', join: 'AGU 2026', rep: 0, status: 'DITANGGUHKAN' },
+  ]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef(null);
+  const [notifs, setNotifs] = useState([
+    { id: 1, type: 'moderasi', title: '4 item menunggu moderasi', sub: '2 kebutuhan · 1 talenta · 1 testimoni', read: false },
+    { id: 2, type: 'sengketa', title: 'Sengketa dieskalasi', sub: 'Website Galeri · KT Mekar × Ezra P.', read: false },
+    { id: 3, type: 'sistem', title: 'Backup harian berhasil', sub: 'Database · 03.00 WIB', read: true },
+  ]);
+  const rootRef = useRef(null);
+
+  const NOTIF_META = {
+    moderasi: { c: '#FF5733', l: 'MODERASI' },
+    sengketa: { c: '#000000', l: 'SENGKETA' },
+    sistem: { c: '#9CA3AF', l: 'SISTEM' },
+  };
+  const unread = notifs.filter((n) => !n.read).length;
+  const markAll = () => setNotifs(notifs.map((n) => ({ ...n, read: true })));
+  const markOne = (id) => setNotifs(notifs.map((n) => (n.id === id ? { ...n, read: true } : n)));
+
+  useEffect(() => {
+    const onClick = (e) => { if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false); };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
+  useEffect(() => {
+    if (notifOpen) gsap.fromTo('.notif-panel', { y: -12, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.3, ease: 'power2.out' });
+  }, [notifOpen]);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.fromTo('.dash-item', { y: 30, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, stagger: 0.07, ease: 'power2.out' });
+      gsap.utils.toArray('.counter').forEach((el) => {
+        const t = +el.dataset.target; const o = { val: 0 };
+        gsap.to(o, { val: t, duration: 1.4, ease: 'power1.out', onUpdate: () => { el.textContent = Math.round(o.val); } });
+      });
+      gsap.fromTo('.bar-h', { scaleX: 0 }, { scaleX: 1, duration: 1, ease: 'power3.out', transformOrigin: 'left center', delay: 0.3 });
+    }, rootRef);
+    return () => ctx.revert();
+  }, [tab]);
+
+  const first = (user?.name || 'Admin').split(' ')[0];
+
+  const NAV = [
+    { id: 'ringkasan', n: '01', l: 'RINGKASAN' },
+    { id: 'moderasi', n: '02', l: 'MODERASI' },
+    { id: 'sengketa', n: '03', l: 'SENGKETA' },
+    { id: 'pengguna', n: '04', l: 'PENGGUNA' },
+    { id: 'liaison', n: '05', l: 'LIAISON' },
+  ];
+
+  const filteredQueue = modFilter === 'SEMUA' ? queue : queue.filter((q) => q.type === modFilter);
+  const filteredUsers = userFilter === 'SEMUA' ? users : users.filter((u) => u.role === userFilter);
+
+  const modAction = (id, action) => {
+    setQueue((q) => q.filter((x) => x.id !== id));
+    setModStats((m) => ({ ...m, [action]: m[action] + 1 }));
+  };
+
+  const resolveCase = (id, decision) => {
+    setCases((cs) => cs.map((c) => c.id === id
+      ? { ...c, status: decision === 'perpanjang' ? 'MEDIASI' : 'SELESAI', days: decision === 'perpanjang' ? 0 : c.days }
+      : c));
+    setResolveTarget(null);
+  };
+
+  const toggleSuspend = (id) => setUsers((u) => u.map((x) => x.id === id ? { ...x, status: x.status === 'AKTIF' ? 'DITANGGUHKAN' : 'AKTIF' } : x));
+
+  const openCases = cases.filter((c) => c.status !== 'SELESAI').length;
+
+  return (
+    <div ref={rootRef} className="bg-[#F4F4F2] text-black min-h-screen">
+      {/* TOPBAR */}
+      <div className="fixed top-0 left-0 right-0 h-20 bg-white border-b-2 border-black z-50">
+        <div className="h-full px-5 lg:px-8 flex items-center gap-4">
+          <button onClick={() => navigateTo('home')} className="text-2xl font-black tracking-tighter hover:text-[#FF5733] transition-colors shrink-0">
+            SUSI<span className="text-[#FF5733]">.</span>
+          </button>
+          <div className="flex-1" />
+          <div className="relative" ref={notifRef}>
+            <button onClick={() => setNotifOpen(!notifOpen)} className={`relative w-10 h-10 border-2 border-black flex items-center justify-center transition-colors ${notifOpen ? 'bg-black text-white' : 'hover:bg-black hover:text-white'}`}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" className="w-5 h-5">
+                <path d="M12 3v2" /><path d="M7 10a5 5 0 0 1 10 0v4l2 3H5l2-3v-4z" /><path d="M10 20h4" />
+              </svg>
+              {unread > 0 && (
+                <>
+                  <span className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 bg-[#FF5733] animate-ping" />
+                  <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] bg-[#FF5733] text-white text-[9px] font-black flex items-center justify-center border-2 border-black px-0.5">{unread}</span>
+                </>
+              )}
+            </button>
+            {notifOpen && (
+              <div className="notif-panel absolute right-0 top-12 w-[340px] md:w-[380px] bg-white border-2 border-black shadow-[6px_6px_0_0_#000] z-[60]">
+                <div className="flex items-center justify-between p-4 border-b-2 border-black">
+                  <div>
+                    <p className="text-sm font-black">NOTIFIKASI</p>
+                    <p className="text-[9px] font-mono opacity-50">{unread} BELUM DIBACA</p>
+                  </div>
+                  <button onClick={markAll} className="text-[9px] font-mono font-bold border-2 border-black px-2 py-1 hover:bg-black hover:text-white transition-colors">TANDAI SEMUA</button>
+                </div>
+                <div className="max-h-[320px] overflow-y-auto">
+                  {notifs.map((n) => (
+                    <button key={n.id} onClick={() => markOne(n.id)} className={`w-full text-left p-4 border-b-2 border-black/10 last:border-b-0 flex gap-3 transition-colors ${n.read ? 'opacity-50 hover:opacity-80' : 'bg-[#FF5733]/5 hover:bg-[#FF5733]/10'}`}>
+                      <span className="w-2 h-2 mt-1.5 shrink-0 rotate-45" style={{ background: NOTIF_META[n.type].c }} />
+                      <div className="flex-1 min-w-0">
+                        <span className="inline-block text-[8px] font-mono font-bold px-1.5 py-0.5 text-white mb-0.5" style={{ background: NOTIF_META[n.type].c }}>{NOTIF_META[n.type].l}</span>
+                        <p className="text-xs font-black leading-snug">{n.title}</p>
+                        <p className="text-[10px] opacity-60 mt-0.5">{n.sub}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 border-2 border-black px-3 py-2 bg-white">
+            <span className="w-6 h-6 bg-[#FF5733] text-white text-[10px] font-black flex items-center justify-center">{user?.name?.charAt(0).toUpperCase()}</span>
+            <div className="hidden sm:block leading-none">
+              <p className="text-xs font-black">{first}</p>
+              <p className="text-[9px] font-mono text-[#FF5733] font-bold mt-0.5">ADMIN</p>
+            </div>
+          </div>
+          <button onClick={onLogout} className="text-[10px] font-mono font-bold border-2 border-black px-3 py-2 hover:bg-black hover:text-white transition-colors">KELUAR</button>
+        </div>
+      </div>
+
+      {/* SIDEBAR */}
+      <aside className="hidden lg:flex fixed left-0 top-20 bottom-0 w-64 bg-white border-r-2 border-black z-40 flex-col justify-between">
+        <div className="p-6">
+          <p className="text-[10px] font-mono font-bold uppercase tracking-widest opacity-50 mb-4">Meja Kendali</p>
+          <div className="space-y-2">
+            {NAV.map((n) => (
+              <button key={n.id} onClick={() => setTab(n.id)} className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-all ${tab === n.id ? 'bg-black text-white shadow-[4px_4px_0_0_#FF5733]' : 'hover:bg-black/5'}`}>
+                <span className={`text-[10px] font-mono font-bold ${tab === n.id ? 'text-[#FF5733]' : 'opacity-40'}`}>{n.n}</span>
+                <span className="text-xs font-black uppercase tracking-wider">{n.l}</span>
+                {n.id === 'moderasi' && queue.length > 0 && <span className="ml-auto text-[9px] font-mono font-black bg-[#FF5733] text-white px-1.5 py-0.5">{queue.length}</span>}
+                {n.id === 'sengketa' && openCases > 0 && <span className="ml-auto text-[9px] font-mono font-black bg-black text-white px-1.5 py-0.5">{openCases}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="p-6 border-t-2 border-black">
+          <p className="text-[10px] font-mono opacity-50 leading-relaxed">F1 · PERAN: ADMIN<br />AKSES PENUH PLATFORM.</p>
+        </div>
+      </aside>
+
+      {/* NAV MOBILE */}
+      <div className="lg:hidden fixed top-20 left-0 right-0 z-40 bg-white border-b-2 border-black overflow-x-auto">
+        <div className="flex px-4 py-3 gap-2 w-max">
+          {NAV.map((n) => (
+            <button key={n.id} onClick={() => setTab(n.id)} className={`shrink-0 px-4 py-2 text-[10px] font-black uppercase tracking-wider border-2 transition-colors ${tab === n.id ? 'bg-black text-white border-black' : 'border-black/20'}`}>
+              {n.l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* MAIN */}
+      <main className="pt-40 lg:pt-28 lg:pl-64 pb-16">
+        <div className="px-5 lg:px-10 max-w-[1200px]">
+
+          {/* ===== TAB: RINGKASAN ===== */}
+          {tab === 'ringkasan' && (
+            <>
+              <div className="dash-item border-2 border-black bg-white p-8 md:p-10 flex flex-wrap items-end justify-between gap-6 mb-6">
+                <div>
+                  <span className="text-[10px] font-mono font-bold text-[#FF5733]">F1 · AKSES PENUH</span>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tight mt-2 mb-3">Halo, {first}.</h1>
+                  <p className="text-sm opacity-60 max-w-xl leading-relaxed">Pantau kesehatan platform, moderasi konten, dan sengketa — semua dari satu meja kendali.</p>
+                </div>
+                <div className="flex items-center gap-2 border-2 border-black px-4 py-3 bg-[#0E7C66] text-white">
+                  <span className="w-2 h-2 bg-white animate-pulse" />
+                  <span className="text-[10px] font-mono font-black">SEMUA SISTEM NORMAL</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-px bg-black border-2 border-black mb-6">
+                {[
+                  { t: 181, l: 'Pengguna aktif' },
+                  { t: 20, l: 'Kebutuhan terbuka' },
+                  { t: 8, l: 'Projek berjalan' },
+                  { t: 127, l: 'Selesai terverifikasi' },
+                  { t: queue.length, l: 'Antrean moderasi' },
+                  { t: openCases, l: 'Sengketa terbuka' },
+                ].map((s, i) => (
+                  <div key={i} className="dash-item bg-white p-6 hover:bg-[#FF5733] hover:text-white transition-colors">
+                    <div className="text-4xl md:text-5xl font-black tabular-nums"><span className="counter" data-target={s.t}>0</span></div>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-widest opacity-60 mt-1">{s.l}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-12 gap-6">
+                <div className="dash-item col-span-12 lg:col-span-5 border-2 border-black bg-white p-7">
+                  <h3 className="text-xl font-black mb-5">Intake Mingguan</h3>
+                  <MiniBars data={[{ l: 'M1', v: 9 }, { l: 'M2', v: 12 }, { l: 'M3', v: 8 }, { l: 'M4', v: 14 }, { l: 'M5', v: 11 }, { l: 'M6', v: 16 }]} />
+                  <p className="text-[10px] font-mono opacity-50 mt-4">F2 · GABUNGAN MANDIRI + ASSISTED</p>
+                </div>
+
+                <div className="dash-item col-span-12 lg:col-span-4 border-2 border-black bg-white p-7">
+                  <h3 className="text-xl font-black mb-5">Distribusi Peran</h3>
+                  <div className="space-y-4">
+                    {[
+                      { l: 'KOMUNITAS', v: 45 },
+                      { l: 'TALENTA', v: 40 },
+                      { l: 'LIAISON', v: 10 },
+                      { l: 'ADMIN', v: 5 },
+                    ].map((s, i) => (
+                      <div key={i}>
+                        <div className="flex justify-between text-[10px] font-mono font-bold mb-1.5"><span>{s.l}</span><span>{s.v}%</span></div>
+                        <div className="h-2 bg-black/10"><div className="bar-h h-full bg-black" style={{ width: `${s.v}%` }} /></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="dash-item col-span-12 lg:col-span-3 border-2 border-black bg-white p-7">
+                  <h3 className="text-xl font-black mb-5">Status Sistem</h3>
+                  <div className="space-y-3">
+                    {[
+                      { l: 'API', s: 'OK' },
+                      { l: 'DATABASE', s: 'OK' },
+                      { l: 'MAP TILES', s: 'OK' },
+                      { l: 'NOTIFIKASI', s: 'OK' },
+                    ].map((s, i) => (
+                      <div key={i} className="flex items-center justify-between border-2 border-black/15 px-3 py-2">
+                        <span className="text-[10px] font-mono font-bold">{s.l}</span>
+                        <span className="flex items-center gap-1.5 text-[9px] font-mono font-black text-[#0E7C66]">
+                          <span className="w-2 h-2 bg-[#0E7C66] animate-pulse" />{s.s}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="dash-item col-span-12 lg:col-span-7 border-2 border-black bg-white p-7">
+                  <h3 className="text-xl font-black mb-4">Aktivitas Platform</h3>
+                  <ActivityFeed items={[
+                    { c: 'bg-[#FF5733]', t: 'Pengaduan baru masuk moderasi', s: 'Website Katalog UMKM · Paguyuban Pedagang', time: '2J' },
+                    { c: 'bg-black', t: 'Sengketa dieskalasi', s: 'Website Galeri · KT Mekar × Ezra P.', time: '5J' },
+                    { c: 'bg-[#0E7C66]', t: 'Verifikasi dua arah selesai', s: 'Galeri Foto · reputasi +1', time: '1H' },
+                    { c: 'bg-black', t: 'Talenta baru mendaftar', s: 'Salsabila R. · menunggu moderasi', time: '3H' },
+                  ]} />
+                </div>
+
+                <div className="dash-item col-span-12 lg:col-span-5 border-2 border-black bg-black text-white p-7">
+                  <span className="text-[10px] font-mono font-bold text-[#FF5733]">F6 · PAPAN REPUTASI</span>
+                  <h3 className="text-xl font-black mt-1 mb-5">Talenta Teratas</h3>
+                  <div className="space-y-4">
+                    {[
+                      { n: 'Derien A.', v: 12 },
+                      { n: 'Ezra P.', v: 9 },
+                      { n: 'Khalifa H.', v: 7 },
+                    ].map((l, i) => (
+                      <div key={i} className="flex items-center gap-4">
+                        <span className="text-2xl font-black text-[#FF5733]">0{i + 1}</span>
+                        <div className="flex-1">
+                          <div className="flex justify-between text-xs font-bold mb-1"><span>{l.n}</span><span className="font-mono">{l.v} PROYEK</span></div>
+                          <div className="h-1.5 bg-white/15"><div className="bar-h h-full bg-[#FF5733]" style={{ width: `${(l.v / 12) * 100}%` }} /></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] font-mono opacity-50 mt-6 leading-relaxed">REPUTASI = NILAI TURUNAN KONFIRMASI GANDA. TIDAK BISA DIKLAIM SEPIHAK.</p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ===== TAB: MODERASI ===== */}
+          {tab === 'moderasi' && (
+            <>
+              <div className="dash-item flex items-end justify-between flex-wrap gap-4 mb-6">
+                <div>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tight">Moderasi</h1>
+                  <p className="text-[10px] font-mono opacity-50 mt-2">ITEM MENUNGGU KEPUTUSAN ANDA</p>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {['SEMUA', 'KEBUTUHAN', 'TALENTA', 'TESTIMONI'].map((s) => (
+                    <button key={s} onClick={() => setModFilter(s)} className={`px-3 py-2 text-[9px] font-mono font-bold border-2 transition-colors ${modFilter === s ? 'bg-black text-white border-black' : 'border-black/20 hover:border-black'}`}>{s}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-px bg-black border-2 border-black mb-6">
+                {[
+                  { t: queue.length, l: 'Menunggu' },
+                  { t: modStats.approve, l: 'Disetujui' },
+                  { t: modStats.reject, l: 'Ditolak' },
+                ].map((s, i) => (
+                  <div key={i} className="dash-item bg-white p-6 hover:bg-[#FF5733] hover:text-white transition-colors">
+                    <div className="text-4xl md:text-5xl font-black tabular-nums"><span className="counter" data-target={s.t}>0</span></div>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-widest opacity-60 mt-1">{s.l}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                {filteredQueue.map((q) => (
+                  <div key={q.id} className="dash-item border-2 border-black bg-white p-6">
+                    <div className="flex justify-between items-start flex-wrap gap-3 mb-3">
+                      <div className="flex items-center gap-3">
+                        <ModBadge t={q.type} />
+                        <span className="text-[9px] font-mono opacity-50">{q.date}</span>
+                      </div>
+                    </div>
+                    <h4 className="font-black text-lg mb-1">{q.t}</h4>
+                    <p className="text-[10px] font-mono opacity-50 mb-3">OLEH: {q.by}</p>
+                    <p className="text-sm opacity-70 leading-relaxed mb-5">{q.d}</p>
+                    <div className="flex gap-3">
+                      <button onClick={() => modAction(q.id, 'approve')} className="flex-1 bg-[#0E7C66] text-white py-3 text-[10px] font-black uppercase tracking-widest hover:bg-black transition-colors">✓ Setujui</button>
+                      <button onClick={() => modAction(q.id, 'reject')} className="flex-1 border-2 border-black py-3 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-colors">Tolak</button>
+                    </div>
+                  </div>
+                ))}
+                {filteredQueue.length === 0 && (
+                  <div className="dash-item border-2 border-black bg-white p-10 text-center">
+                    <p className="text-3xl font-black mb-2">✓</p>
+                    <p className="text-xs font-mono opacity-50">ANTREAN KOSONG — SEMUA SUDAH DIMODERASI.</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ===== TAB: SENGKETA ===== */}
+          {tab === 'sengketa' && (
+            <>
+              <div className="dash-item flex items-end justify-between flex-wrap gap-4 mb-6">
+                <div>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tight">Sengketa</h1>
+                  <p className="text-[10px] font-mono opacity-50 mt-2">VERIFIKASI MACET YANG BUTUH KEPUTUSAN ADMIN</p>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-black text-white px-3 py-2">{openCases} TERBUKA</span>
+              </div>
+
+              <div className="space-y-4">
+                {cases.map((c) => (
+                  <div key={c.id} className={`dash-item border-2 border-black p-6 ${c.status === 'SELESAI' ? 'bg-white opacity-60' : 'bg-white'}`}>
+                    <div className="flex justify-between items-start flex-wrap gap-3 mb-3">
+                      <h4 className="font-black text-lg">{c.t}</h4>
+                      <CaseBadge s={c.status} />
+                    </div>
+                    <p className="text-[10px] font-mono opacity-50 mb-3">{c.comm} × {c.talent} · {c.days} HARI TERBUKA</p>
+                    <p className="text-sm opacity-70 leading-relaxed mb-5">{c.note}</p>
+                    {c.status !== 'SELESAI' && (
+                      <div className="flex gap-3 flex-wrap">
+                        <button className="flex-1 border-2 border-black py-3 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-colors">Hubungi Kedua Pihak</button>
+                        <button onClick={() => setResolveTarget(c)} className="flex-1 bg-[#FF5733] text-white py-3 text-[10px] font-black uppercase tracking-widest hover:bg-black transition-colors">Putuskan →</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* ===== TAB: PENGGUNA ===== */}
+          {tab === 'pengguna' && (
+            <>
+              <div className="dash-item flex items-end justify-between flex-wrap gap-4 mb-6">
+                <div>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tight">Pengguna</h1>
+                  <p className="text-[10px] font-mono opacity-50 mt-2">SEMUA AKUN TERDAFTAR · {users.length} AKUN</p>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {['SEMUA', 'KOMUNITAS', 'TALENTA', 'LIAISON'].map((s) => (
+                    <button key={s} onClick={() => setUserFilter(s)} className={`px-3 py-2 text-[9px] font-mono font-bold border-2 transition-colors ${userFilter === s ? 'bg-black text-white border-black' : 'border-black/20 hover:border-black'}`}>{s}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="dash-item border-2 border-black bg-white p-7">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b-2 border-black text-[10px] font-mono uppercase tracking-widest">
+                        <th className="py-3 pr-4">Nama</th>
+                        <th className="py-3 pr-4">Peran</th>
+                        <th className="py-3 pr-4">Bergabung</th>
+                        <th className="py-3 pr-4">Reputasi</th>
+                        <th className="py-3 pr-4">Status</th>
+                        <th className="py-3 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-black/10">
+                      {filteredUsers.map((u) => (
+                        <tr key={u.id} className="hover:bg-black/5 transition-colors">
+                          <td className="py-4 pr-4 font-bold">{u.n}</td>
+                          <td className="py-4 pr-4"><span className="text-[9px] font-mono font-bold border-2 border-black px-2 py-1">{u.role}</span></td>
+                          <td className="py-4 pr-4 text-xs opacity-70">{u.join}</td>
+                          <td className="py-4 pr-4 font-mono font-bold">{u.rep}</td>
+                          <td className="py-4 pr-4">
+                            <span className={`text-[9px] font-mono font-bold px-2 py-1 ${u.status === 'AKTIF' ? 'bg-[#0E7C66] text-white' : 'bg-black text-white'}`}>{u.status}</span>
+                          </td>
+                          <td className="py-4 text-right">
+                            <button onClick={() => toggleSuspend(u.id)} className={`text-[10px] font-mono font-bold border-2 px-3 py-1.5 transition-colors ${u.status === 'AKTIF' ? 'border-black hover:bg-black hover:text-white' : 'border-[#0E7C66] text-[#0E7C66] hover:bg-[#0E7C66] hover:text-white'}`}>
+                              {u.status === 'AKTIF' ? 'TANGGUHKAN' : 'AKTIFKAN'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ===== TAB: LIAISON ===== */}
+          {tab === 'liaison' && (
+            <>
+              <div className="dash-item flex items-end justify-between flex-wrap gap-4 mb-6">
+                <div>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tight">Liaison</h1>
+                  <p className="text-[10px] font-mono opacity-50 mt-2">KINERJA PENDAMPING LAPANGAN · F2 ASSISTED</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 gap-6">
+                <div className="dash-item col-span-12 lg:col-span-5 border-2 border-black bg-white p-7">
+                  <h3 className="text-xl font-black mb-5">Intake Assisted / Minggu</h3>
+                  <MiniBars data={[{ l: 'M1', v: 4 }, { l: 'M2', v: 6 }, { l: 'M3', v: 5 }, { l: 'M4', v: 8 }]} />
+                  <p className="text-[10px] font-mono opacity-50 mt-4">42% DARI TOTAL INTAKE MASUK VIA LIAISON</p>
+                </div>
+
+                <div className="col-span-12 lg:col-span-7 space-y-4">
+                  {[
+                    { n: 'Hasby Wira Al Muflih', visits: 23, assisted: 19, sector: 'UTARA' },
+                    { n: 'Tim Lapangan 02', visits: 15, assisted: 12, sector: 'SELATAN' },
+                  ].map((l, i) => (
+                    <div key={i} className="dash-item border-2 border-black bg-white p-6 flex items-center justify-between gap-4 flex-wrap">
+                      <div className="flex items-center gap-4">
+                        <span className="w-12 h-12 bg-[#FF5733] text-white flex items-center justify-center text-lg font-black">{l.n.charAt(0)}</span>
+                        <div>
+                          <p className="font-black">{l.n}</p>
+                          <p className="text-[10px] font-mono opacity-50">SEKTOR {l.sector} · {l.visits} KUNJUNGAN · {l.assisted} INTAKE</p>
+                        </div>
+                      </div>
+                      <span className="text-[9px] font-mono font-bold bg-[#0E7C66] text-white px-2 py-1">AKTIF</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </main>
+
+      {/* MODAL PUTUSAN SENGKETA */}
+      {resolveTarget && (
+        <div className="fixed inset-0 z-[500] bg-black/90 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md border-2 border-[#FF5733] p-8 relative">
+            <button onClick={() => setResolveTarget(null)} className="absolute top-4 right-4 w-10 h-10 border-2 border-black flex items-center justify-center text-xl font-black hover:bg-black hover:text-white transition-colors">×</button>
+            <span className="text-[10px] font-mono font-bold text-[#FF5733]">KEPUTUSAN ADMIN</span>
+            <h3 className="text-2xl font-black mt-2 mb-1">{resolveTarget.t}</h3>
+            <p className="text-[10px] font-mono opacity-50 mb-6">{resolveTarget.comm} × {resolveTarget.talent}</p>
+            <div className="space-y-3">
+              <button onClick={() => resolveCase(resolveTarget.id, 'komunitas')} className="w-full border-2 border-black p-4 text-left hover:bg-black hover:text-white transition-colors">
+                <p className="text-[10px] font-black uppercase tracking-widest">Menangkan Komunitas</p>
+                <p className="text-[10px] opacity-60 mt-1">Projek ditandai TIDAK SELESAI · talenta tidak dapat reputasi.</p>
+              </button>
+              <button onClick={() => resolveCase(resolveTarget.id, 'talenta')} className="w-full border-2 border-black p-4 text-left hover:bg-black hover:text-white transition-colors">
+                <p className="text-[10px] font-black uppercase tracking-widest">Menangkan Talenta</p>
+                <p className="text-[10px] opacity-60 mt-1">Projek ditandai SELESAI · reputasi talenta +1.</p>
+              </button>
+              <button onClick={() => resolveCase(resolveTarget.id, 'perpanjang')} className="w-full border-2 border-black p-4 text-left hover:bg-black hover:text-white transition-colors">
+                <p className="text-[10px] font-black uppercase tracking-widest">Perpanjang Deadline 7 Hari</p>
+                <p className="text-[10px] opacity-60 mt-1">Kasus kembali ke MEDIASI · kedua pihak diberi waktu.</p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============ FEATURE SECTION (INTERAKTIF · VERSI BESAR) ============ */
+function FeatureSection() {
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [intake, setIntake] = useState('MANDIRI');
+
+  const FEATURES = [
+    {
+      num: '01', tag: 'F2 · DUA JALUR MASUK', title: 'Assisted Intake',
+      desc: 'SUSI tidak menunggu komunitas mendaftar sendiri. AgenSUSI mendatangi komunitas secara langsung dan mencatatkan kebutuhan mereka ke sistem — komunitas yang belum melek digital pun tetap terjangkau.',
+    },
+    {
+      num: '02', tag: 'F3–F4 · PENCOCOKAN', title: 'Menjembatani Dua Kekosongan',
+      desc: 'Komunitas butuh solusi digital yang tak sanggup mereka bayar. Talenta butuh pengalaman nyata yang tak bisa mereka beli. SUSI mempertemukan keduanya dalam satu sistem yang saling menguatkan.',
+    },
+    {
+      num: '03', tag: 'F6 · REPUTASI', title: 'Modal Berbasis Pengalaman',
+      desc: 'Talenta dibayar dengan portofolio, bukan uang. Komunitas tanpa anggaran tetap terlayani — sesuatu yang mustahil terjadi di marketplace komersial.',
+    },
+  ];
+
+  useEffect(() => {
+    if (paused) return;
+    const t = setInterval(() => setActive((a) => (a + 1) % FEATURES.length), 6000);
+    return () => clearInterval(t);
+  }, [paused]);
+
+  useEffect(() => {
+    gsap.fromTo('.feat-anim', { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, stagger: 0.08, ease: 'power2.out' });
+  }, [active]);
+
+  const f = FEATURES[active];
+
+  return (
+    <section id="fitur" className="py-40 px-6 lg:px-12">
+      <style>{`
+        @keyframes featprog { from { width: 0% } to { width: 100% } }
+        .feat-prog { animation: featprog 6s linear forwards; }
+        @keyframes bridgepulse { 0%,100% { transform: translateX(-8px) } 50% { transform: translateX(8px) } }
+        .bridge-arrow { animation: bridgepulse 1.6s ease-in-out infinite; }
+      `}</style>
+
+      <div className="max-w-[1600px] mx-auto">
+        <div className="flex items-end justify-between mb-14 flex-wrap gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.4em] text-black/50 font-bold mb-4">02 / Fitur</p>
+            <h2 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight">Tiga Pembeda<span className="text-[#FF5733]">.</span></h2>
+          </div>
+          <p className="text-[10px] font-mono text-black/40 font-bold">KLIK UNTUK MENJELAJAH · AUTO-ROTATE 6 DETIK</p>
+        </div>
+
+        {/* PANEL BESAR */}
+        <div
+          className="grid grid-cols-1 lg:grid-cols-12 border-2 border-black bg-white lg:min-h-[680px]"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+        >
+          {/* LIST KIRI */}
+          <div className="col-span-1 lg:col-span-4 lg:border-r-2 border-black border-b-2 lg:border-b-0">
+            {FEATURES.map((ft, i) => (
+              <button
+                key={i}
+                onClick={() => setActive(i)}
+                className={`relative w-full text-left p-8 lg:p-10 transition-colors ${i > 0 ? 'border-t-2 border-black' : ''} ${active === i ? 'bg-black text-white' : 'hover:bg-black/5'}`}
+              >
+                <div className="flex items-center gap-5">
+                  <span className={`text-4xl lg:text-5xl font-black ${active === i ? 'text-[#FF5733]' : 'text-black/15'}`}>{ft.num}</span>
+                  <span className="font-black uppercase tracking-wider text-base lg:text-xl">{ft.title}</span>
+                </div>
+                {active === i && !paused && <span className="feat-prog absolute bottom-0 left-0 h-1 bg-[#FF5733]" />}
+              </button>
+            ))}
+          </div>
+
+          {/* DETAIL KANAN */}
+          <div className="col-span-1 lg:col-span-8 p-10 lg:p-16 relative overflow-hidden">
+            <span className="absolute -top-10 -right-6 text-[14rem] lg:text-[20rem] font-black leading-none text-black/5 select-none">{f.num}</span>
+
+            <span className="feat-anim inline-block text-[10px] font-mono font-bold border-2 border-black px-3 py-1.5 mb-6">{f.tag}</span>
+            <h3 className="feat-anim text-4xl md:text-6xl xl:text-7xl font-black tracking-tight leading-[0.95] mb-6">{f.title}</h3>
+            <p className="feat-anim text-base md:text-xl opacity-70 leading-relaxed mb-10 max-w-3xl">{f.desc}</p>
+
+            {/* DEMO 01: DUA JALUR INTAKE */}
+            {active === 0 && (
+              <div className="feat-anim">
+                <div className="grid grid-cols-2 gap-px bg-black border-2 border-black mb-6">
+                  {['MANDIRI', 'ASSISTED'].map((m) => (
+                    <button key={m} type="button" onClick={() => setIntake(m)} className={`py-4 text-[11px] font-mono font-bold transition-colors ${intake === m ? 'bg-[#FF5733] text-white' : 'bg-white hover:bg-black hover:text-white'}`}>
+                      JALUR {m}
+                    </button>
+                  ))}
+                </div>
+                <div className="border-2 border-black p-6 lg:p-8 bg-[#FAFAFA]">
+                  <p className="text-base md:text-lg leading-relaxed">
+                    {intake === 'MANDIRI'
+                      ? 'Komunitas mengisi formulir sendiri lewat dasbor — bahasa sehari-hari, tanpa istilah teknis.'
+                      : 'AgenSUSI mendatangi komunitas yang gaptek, lalu mencatatkan kebutuhan atas nama mereka.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 mt-6 flex-wrap">
+                  {['CERITA', 'TERCATAT', 'MASUK KATALOG'].map((s, i) => (
+                    <span key={s} className="flex items-center gap-3">
+                      <span className="text-[11px] font-mono font-bold border-2 border-black px-3 py-1.5">{i + 1}. {s}</span>
+                      {i < 2 && <span className="text-[#FF5733] text-lg">→</span>}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* DEMO 02: JEMBATAN */}
+            {active === 1 && (
+              <div className="feat-anim grid grid-cols-[1fr_auto_1fr] items-stretch border-2 border-black">
+                <div className="p-6 lg:p-8">
+                  <p className="text-[10px] font-mono font-bold mb-3">KOMUNITAS</p>
+                  <p className="text-base md:text-lg font-bold leading-snug">"Butuh solusi yang tak sanggup kami bayar."</p>
+                </div>
+                <div className="bg-black text-[#FF5733] flex items-center justify-center px-4 lg:px-6">
+                  <span className="bridge-arrow text-3xl font-black">⇄</span>
+                </div>
+                <div className="p-6 lg:p-8">
+                  <p className="text-[10px] font-mono font-bold mb-3">TALENTA</p>
+                  <p className="text-base md:text-lg font-bold leading-snug">"Butuh pengalaman yang tak bisa kami beli."</p>
+                </div>
+              </div>
+            )}
+
+            {/* DEMO 03: REPUTASI */}
+            {active === 2 && (
+              <div className="feat-anim">
+                <div className="flex justify-between text-[11px] font-mono font-bold mb-3">
+                  <span>REPUTASI TALENTA</span>
+                  <span>12 / 20</span>
+                </div>
+                <div className="h-4 border-2 border-black bg-white">
+                  <div className="h-full bg-[#FF5733]" style={{ width: '60%' }} />
+                </div>
+                <div className="grid grid-cols-3 gap-px bg-black border-2 border-black border-t-0">
+                  {['PEMULA · 0–5', 'TALENTA MUDA · 5–15', 'TERPERCAYA · 15+'].map((l, i) => (
+                    <div key={l} className={`p-4 lg:p-5 text-[10px] lg:text-[11px] font-mono font-bold text-center ${i === 1 ? 'bg-[#FF5733] text-white' : 'bg-white'}`}>{l}</div>
+                  ))}
+                </div>
+                <p className="text-[11px] font-mono opacity-50 mt-4">REPUTASI NAIK HANYA JIKA KOMUNITAS MEMBENARKAN HASIL — F5.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 /* ============ HOME PAGE ============ */
 function HomePage({ navigateTo, goToSection }) {
   const rootRef = useRef(null);
@@ -313,7 +1510,7 @@ function HomePage({ navigateTo, goToSection }) {
                 <span className="block overflow-hidden"><span className="hero-line block">COMMU<span className="text-[#FF5733]">NITY</span></span></span>
               </h1>
               <p className="hero-fade text-lg md:text-2xl text-black/70 max-w-2xl leading-relaxed mb-12">
-                Komunitas cerita masalahnya, talenta menyelesaikannya, kedua pihak saling membenarkan — <span className="font-bold text-black border-b-2 border-[#FF5733]">nama baik tumbuh bersama</span>.
+                Karena setiap masalah layak mendapatkan solusi, <span className="font-bold text-black border-b-2 border-[#FF5733]">bukan hanya yang mampu bayar mahal</span>.
               </p>
               <div className="hero-fade flex flex-wrap gap-4">
                 <Magnetic>
@@ -370,33 +1567,7 @@ function HomePage({ navigateTo, goToSection }) {
       </section>
 
       <section id="fitur" className="py-32 px-6 lg:px-12">
-        <div className="max-w-[1440px] mx-auto">
-          <div className="flex items-end justify-between mb-16 flex-wrap gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-black/50 font-bold mb-4">02 / FITUR</p>
-              <h2 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight">Tiga Pembeda<span className="text-[#FF5733]">.</span></h2>
-            </div>
-          </div>
-          <div className="usp-grid grid grid-cols-1 lg:grid-cols-3 gap-px bg-black">
-            {[
-              { num: '01', title: 'Assisted Intake', desc: 'Kebutuhan masuk dua jalur: mandiri oleh komunitas, atau dicatatkan Liaison yang mendatangi langsung.', detail: 'Langkah 01 pada alur. Kolom sumber_intake & endpoint API terpisah.' },
-              { num: '02', title: 'Verifikasi Hasil Disini', desc: 'Status SELESAI hanya tercapai bila talenta DAN komunitas sama-sama mengonfirmasi.', detail: 'Langkah 06–08 pada alur. Reputasi = nilai turunan konfirmasi ganda.' },
-              { num: '03', title: 'Ekonomi Pengalaman', desc: 'Talenta termotivasi portofolio, bukan tarif. Komunitas tanpa anggaran tetap terlayani.', detail: 'Mustahil terjadi di marketplace komersial yang mensyaratkan pembayaran.' },
-            ].map((f, i) => (
-              <div key={i} className="usp-card bg-white p-10 group hover:bg-black hover:text-white transition-colors duration-500 cursor-pointer">
-                <div className="flex items-start justify-between mb-8">
-                  <span className="text-7xl font-black text-black/10 group-hover:text-white/10">{f.num}</span>
-                  <span className="text-2xl transition-transform duration-300 group-hover:rotate-45">+</span>
-                </div>
-                <h3 className="text-2xl font-black mb-4">{f.title}</h3>
-                <p className="text-sm leading-relaxed opacity-70 mb-6">{f.desc}</p>
-                <div className="border-t-2 border-current pt-4">
-                  <p className="text-xs font-mono leading-relaxed">{f.detail}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <FeatureSection />
       </section>
 
       <section className="py-32 px-6 lg:px-12 bg-[#FF5733] text-white relative overflow-hidden">
@@ -572,14 +1743,14 @@ function VerifyWidget() {
 }
 
 /* ============ AUTH PAGE — SWISS STYLE ============ */
-function AuthPage({ onLogin, goToHome }) {
+function AuthPage({ onLogin, goToHome, goAdmin }) {
   const [mode, setMode] = useState('login');
   const [role, setRole] = useState('requester');
   const [showPass, setShowPass] = useState(false);
   const [name, setName] = useState('');
   const [extra, setExtra] = useState('');
   const rootRef = useRef(null);
-
+  const PUBLIC_ROLES = AUTH_ROLES.filter((r) => r.id !== 'admin');
   const active = AUTH_ROLES.find((r) => r.id === role);
 
   useEffect(() => {
@@ -607,60 +1778,39 @@ function AuthPage({ onLogin, goToHome }) {
     <div ref={rootRef} className="min-h-screen bg-white text-black">
       <div className="max-w-[1440px] mx-auto px-4 md:px-12 py-10 lg:py-14">
         <div className="grid grid-cols-1 lg:grid-cols-12 border-2 border-black min-h-[calc(100vh-8rem)]">
-
           {/* PANEL KIRI: HITAM */}
           <div className="lg:col-span-5 bg-black text-white p-10 lg:p-14 flex flex-col justify-between relative overflow-hidden">
             <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
             <div className="absolute -bottom-16 -right-16 w-56 h-56 border-2 border-[#FF5733]/40" />
             <div className="absolute bottom-8 right-8 w-10 h-10 bg-[#FF5733]" />
-
             <div className="relative z-10">
               <button onClick={goToHome} className="auth-fade text-[10px] font-mono font-bold uppercase tracking-widest opacity-60 hover:opacity-100 hover:text-[#FF5733] transition-all">
                 ← Kembali ke beranda
               </button>
             </div>
-
             <div className="relative z-10 my-16">
               <h1 className="text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.85]">
                 <span className="block overflow-hidden"><span className="auth-line block">{mode === 'login' ? 'MASUK.' : 'DAFTAR.'}</span></span>
                 <span className="block overflow-hidden"><span className="auth-line block text-white/20">SUSI.</span></span>
               </h1>
             </div>
-
             <div className="relative z-10 border-t-2 border-white/20 pt-6">
-              {mode === 'register' ? (
-                <>
-                  <p className="text-[10px] font-mono uppercase tracking-widest opacity-60 mb-3">Peran dipilih</p>
-                  <div key={role} className="role-display flex items-end gap-5">
-                    <span className="text-6xl lg:text-7xl font-black text-[#FF5733] leading-none">{active.num}</span>
-                    <div>
-                      <p className="text-2xl font-black uppercase tracking-tight">{active.label}</p>
-                      <p className="text-xs opacity-60 mt-2 max-w-xs leading-relaxed">{active.desc}</p>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div key="login" className="role-display">
-                  <p className="text-2xl lg:text-3xl font-black uppercase tracking-tight leading-tight">
-                    Satu akun.<br />Semua peran.
-                  </p>
-                  <p className="text-xs opacity-60 mt-3 max-w-xs leading-relaxed">
-                    Masuk untuk melanjutkan ke dasbor sesuai peran akunmu.
-                  </p>
+              <p className="text-[10px] font-mono uppercase tracking-widest opacity-60 mb-3">Peran dipilih</p>
+              <div key={role} className="role-display flex items-end gap-5">
+                <span className="text-6xl lg:text-7xl font-black text-[#FF5733] leading-none">{active.num}</span>
+                <div>
+                  <p className="text-2xl font-black uppercase tracking-tight">{active.label}</p>
+                  <p className="text-xs opacity-60 mt-2 max-w-xs leading-relaxed">{active.desc}</p>
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
           {/* PANEL KANAN: FORM */}
           <div className="lg:col-span-7 bg-white p-10 lg:p-14">
             <div className="form-anim grid grid-cols-2 border-2 border-black mb-10">
-              <button onClick={() => setMode('login')} className={`py-4 text-xs font-black uppercase tracking-[0.25em] transition-colors ${mode === 'login' ? 'bg-black text-white' : 'bg-white hover:bg-black/5'}`}>
-                Masuk
-              </button>
-              <button onClick={() => setMode('register')} className={`py-4 text-xs font-black uppercase tracking-[0.25em] border-l-2 border-black transition-colors ${mode === 'register' ? 'bg-black text-white' : 'bg-white hover:bg-black/5'}`}>
-                Daftar
-              </button>
+              <button onClick={() => setMode('login')} className={`py-4 text-xs font-black uppercase tracking-[0.25em] transition-colors ${mode === 'login' ? 'bg-black text-white' : 'bg-white hover:bg-black/5'}`}>Masuk</button>
+              <button onClick={() => setMode('register')} className={`py-4 text-xs font-black uppercase tracking-[0.25em] border-l-2 border-black transition-colors ${mode === 'register' ? 'bg-black text-white' : 'bg-white hover:bg-black/5'}`}>Daftar</button>
             </div>
 
             <form onSubmit={submit} className="space-y-8">
@@ -686,25 +1836,23 @@ function AuthPage({ onLogin, goToHome }) {
                 </div>
               </div>
 
-              {/* Pemilihan peran — HANYA saat Daftar */}
-              {mode === 'register' && (
-                <div className="form-anim">
-                  <p className="text-xs font-black uppercase tracking-widest mb-3">Daftar sebagai</p>
-                  <div className="grid grid-cols-2 gap-px bg-black border-2 border-black">
-                    {AUTH_ROLES.map((r) => (
-                      <button
-                        type="button"
-                        key={r.id}
-                        onClick={() => setRole(r.id)}
-                        className={`p-5 text-left transition-colors duration-300 ${role === r.id ? 'bg-[#FF5733] text-white' : 'bg-white hover:bg-black hover:text-white'}`}
-                      >
-                        <span className="text-[10px] font-mono font-bold block mb-2">{r.num}</span>
-                        <span className="font-black uppercase tracking-wider text-sm">{r.label}</span>
-                      </button>
-                    ))}
-                  </div>
+              {/* PILIHAN PERAN — HANYA 3 PERAN PUBLIK (ADMIN TERPISAH) */}
+              <div className="form-anim">
+                <p className="text-xs font-black uppercase tracking-widest mb-3">{mode === 'register' ? 'Daftar sebagai' : 'Masuk sebagai'}</p>
+                <div className="grid grid-cols-3 gap-px bg-black border-2 border-black">
+                  {PUBLIC_ROLES.map((r) => (
+                    <button
+                      type="button"
+                      key={r.id}
+                      onClick={() => setRole(r.id)}
+                      className={`p-5 text-left transition-colors duration-300 ${role === r.id ? 'bg-[#FF5733] text-white' : 'bg-white hover:bg-black hover:text-white'}`}
+                    >
+                      <span className="text-[10px] font-mono font-bold block mb-2">{r.num}</span>
+                      <span className="font-black uppercase tracking-wider text-sm">{r.label}</span>
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
 
               {mode === 'register' && (
                 <div className="form-anim">
@@ -718,9 +1866,102 @@ function AuthPage({ onLogin, goToHome }) {
                 <span className="group-hover:translate-x-2 transition-transform">→</span>
               </button>
 
+              {/* LINK KE LOGIN ADMIN (HALAMAN TERPISAH) */}
+              <div className="form-anim flex items-center gap-3">
+                <div className="h-px bg-black/10 flex-1" />
+                <span className="text-[9px] font-mono opacity-40">ATAU</span>
+                <div className="h-px bg-black/10 flex-1" />
+              </div>
+              <button
+                type="button"
+                onClick={goAdmin}
+                className="form-anim w-full border-2 border-black py-3.5 text-[10px] font-mono font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors flex items-center justify-center gap-2"
+              >
+                🔒 Masuk sebagai Admin →
+              </button>
             </form>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+/* ============ ADMIN LOGIN PAGE (HALAMAN TERPISAH) ============ */
+function AdminLoginPage({ onLogin, goToAuth }) {
+  const [email, setEmail] = useState('');
+  const [pass, setPass] = useState('');
+  const [code, setCode] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [error, setError] = useState('');
+  const rootRef = useRef(null);
+  const ADMIN_CODE = 'SUSI2026'; // ← ganti kode akses di sini
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.fromTo('.adm-fade', { y: 30, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.7, stagger: 0.1, ease: 'power3.out' });
+    }, rootRef);
+    return () => ctx.revert();
+  }, []);
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (code.trim().toUpperCase() !== ADMIN_CODE) {
+      setError('KODE AKSES SALAH — AREA INI KHUSUS ADMIN.');
+      gsap.fromTo('.adm-card', { x: 0 }, { x: 14, duration: 0.07, repeat: 5, yoyo: true, clearProps: 'x' });
+      return;
+    }
+    onLogin({ role: 'admin', name: 'Admin SUSI' });
+  };
+
+  const inputCls = 'w-full border-b-2 border-white/20 bg-transparent p-3 text-sm font-medium outline-none focus:border-[#FF5733] transition-colors placeholder:text-white/30';
+  const locked = code.trim() === '';
+
+  return (
+    <div ref={rootRef} className="min-h-screen bg-black text-white flex items-center justify-center px-6 py-16 relative overflow-hidden">
+      <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      <div className="absolute -top-16 -left-16 w-64 h-64 border-2 border-[#FF5733]/40" />
+      <div className="absolute bottom-10 right-10 w-12 h-12 bg-[#FF5733]" />
+
+      <div className="adm-card w-full max-w-md border-2 border-white/20 p-8 md:p-10 relative z-10">
+        <button onClick={goToAuth} className="adm-fade absolute -top-12 left-0 text-[10px] font-mono font-bold uppercase tracking-widest opacity-60 hover:opacity-100 hover:text-[#FF5733] transition-all">
+          ← Kembali ke halaman masuk
+        </button>
+        <span className="adm-fade inline-block text-[9px] font-mono font-bold bg-[#FF5733] text-white px-2 py-1 mb-4">⚠ AREA TERBATAS</span>
+        <h1 className="adm-fade text-5xl md:text-6xl font-black tracking-tighter leading-[0.85] mb-3">ADMIN.</h1>
+        <p className="adm-fade text-xs opacity-60 leading-relaxed mb-8">Meja kendali platform SUSI. Wajib kode akses internal — percobaan asal-asalan akan ditolak.</p>
+
+        <form onSubmit={submit} className="space-y-6">
+          <div className="adm-fade">
+            <label className="text-[10px] font-black uppercase tracking-widest mb-2 block">Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} placeholder="admin@susi.id" required />
+          </div>
+          <div className="adm-fade">
+            <label className="text-[10px] font-black uppercase tracking-widest mb-2 block">Kata Sandi</label>
+            <div className="flex items-center">
+              <input type={showPass ? 'text' : 'password'} value={pass} onChange={(e) => setPass(e.target.value)} className={inputCls} placeholder="••••••••" required />
+              <button type="button" onClick={() => setShowPass(!showPass)} className="shrink-0 border-2 border-white/30 px-3 py-2 text-[10px] font-mono font-bold hover:bg-white hover:text-black transition-colors">
+                {showPass ? 'TUTUP' : 'LIHAT'}
+              </button>
+            </div>
+          </div>
+          <div className="adm-fade">
+            <label className="text-[10px] font-black uppercase tracking-widest mb-2 block">Kode Akses Internal</label>
+            <input value={code} onChange={(e) => { setCode(e.target.value); setError(''); }} className={`${inputCls} ${error ? 'border-[#FF5733]' : ''}`} placeholder="Kode khusus tim SUSI" required />
+            {error && <p className="text-[10px] font-mono font-bold text-[#FF5733] mt-2">⚠ {error}</p>}
+          </div>
+          <button
+            type="submit"
+            disabled={locked}
+            className={`adm-fade w-full py-4 text-sm uppercase tracking-wider font-black transition-colors flex items-center justify-center gap-3 ${
+              locked ? 'bg-white/10 text-white/30 cursor-not-allowed' : 'bg-[#FF5733] text-white hover:bg-white hover:text-black'
+            }`}
+          >
+            Masuk ke Meja Kendali →
+          </button>
+          <p className="adm-fade text-[9px] font-mono opacity-40 text-center">DEMO: KODE AKSES = SUSI2026</p>
+        </form>
       </div>
     </div>
   );
@@ -777,7 +2018,7 @@ function DashboardPage({ user, onLogout, navigateTo }) {
   }, []);
 
   const first = (user?.name || 'Warga').split(' ')[0];
-  const roleLabel = { requester: 'KOMUNITAS', talent: 'TALENTA', liaison: 'LIAISON', admin: 'ADMIN' }[role];
+  const roleLabel = { requester: 'KOMUNITAS', talent: 'TALENTA', agensusi: 'AGENSUSI', admin: 'ADMIN' }[role];
   const cta = role === 'liaison' ? 'CATAT PENGADUAN WARGA' : 'AJUKAN PENGADUAN';
 
   const needs = [
@@ -963,7 +2204,7 @@ function DashboardPage({ user, onLogout, navigateTo }) {
             <h3 className="text-xl font-black mb-4">Aktivitas Platform</h3>
             <ActivityFeed items={[
               { c: 'bg-[#FF5733]', t: 'Pengaduan baru masuk', s: 'RW 05 · sektor Barat–Utara · mandiri', time: '2J' },
-              { c: 'bg-black', t: 'Liaison mencatat kebutuhan', s: 'PKK Cijerah · assisted', time: '4J' },
+              { c: 'bg-black', t: 'AgenSUSI mencatat kebutuhan', s: 'PKK Cijerah · assisted', time: '4J' },
               { c: 'bg-[#0E7C66]', t: 'Verifikasi dua arah selesai', s: 'Galeri Fotografi · reputasi +1', time: '1H' },
               { c: 'bg-black', t: 'Talenta baru mendaftar', s: 'Career switcher · Bandung Timur', time: '3H' },
             ]} />
@@ -2618,19 +3859,20 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const userRef = useRef(null); // ✅ nilai sinkron, biar login tidak mental ke auth
   const overlayRef = useRef(null);
 
   const navigateTo = (page) => {
-    if (page === 'dashboard' && !user) page = 'auth';
+    if (page === 'dashboard' && !userRef.current) page = 'auth';
     if (page === currentPage) return;
     setMenuOpen(false);
     const overlay = overlayRef.current;
     gsap.timeline()
-  .set(overlay, { y: '100%' })
-  .to(overlay, { y: '0%', duration: 0.45, ease: 'power4.inOut' })
-  .add(() => { setCurrentPage(page); window.scrollTo(0, 0); })
-  .to(overlay, { y: '-100%', duration: 0.55, ease: 'power4.inOut', delay: 0.15 })
-  .set(overlay, { y: '100%' });
+      .set(overlay, { y: '100%' })
+      .to(overlay, { y: '0%', duration: 0.45, ease: 'power4.inOut' })
+      .add(() => { setCurrentPage(page); window.scrollTo(0, 0); })
+      .to(overlay, { y: '-100%', duration: 0.55, ease: 'power4.inOut', delay: 0.15 })
+      .set(overlay, { y: '100%' });
   };
 
   const goToSection = (id) => {
@@ -2644,11 +3886,13 @@ export default function App() {
   };
 
   const handleLogin = (userData) => {
+    userRef.current = userData;
     setUser(userData);
     navigateTo('dashboard');
   };
 
   const handleLogout = () => {
+    userRef.current = null;
     setUser(null);
     navigateTo('home');
   };
@@ -2665,13 +3909,12 @@ export default function App() {
       `}</style>
 
       <div ref={overlayRef} className="fixed inset-0 z-[400] bg-[#0E7C66] flex items-center justify-center" style={{ transform: 'translateY(100%)' }}>
-      <span className="text-6xl md:text-9xl font-black tracking-tighter text-white">SUSI.</span>
-    </div>
+        <span className="text-6xl md:text-9xl font-black tracking-tighter text-white">SUSI.</span>
+      </div>
 
       <Cursor />
 
-      {/* Navbar disembunyikan saat di halaman auth */}
-      {currentPage !== 'auth' && currentPage !== 'dashboard' && currentPage !== 'request' && (
+      {currentPage !== 'auth' && currentPage !== 'admin-login' && currentPage !== 'dashboard' && currentPage !== 'request' && (
         <Navigation
           currentPage={currentPage}
           navigateTo={navigateTo}
@@ -2684,18 +3927,25 @@ export default function App() {
       )}
 
       {currentPage === 'home' && <HomePage navigateTo={navigateTo} goToSection={goToSection} />}
-      {currentPage === 'auth' && <AuthPage onLogin={handleLogin} goToHome={goToHome} />}
+      {currentPage === 'auth' && <AuthPage onLogin={handleLogin} goToHome={goToHome} goAdmin={() => navigateTo('admin-login')} />}
+      {currentPage === 'admin-login' && <AdminLoginPage onLogin={handleLogin} goToAuth={() => navigateTo('auth')} />}
       {currentPage === 'request' && user && <RequestPage user={user} navigateTo={navigateTo} />}
+
       {currentPage === 'dashboard' && user && (
-  user.role === 'requester'
-    ? <DashboardRequester user={user} onLogout={handleLogout} navigateTo={navigateTo} />
-    : user.role === 'talent'
-      ? <DashboardTalent user={user} onLogout={handleLogout} navigateTo={navigateTo} />
-      : <DashboardPage user={user} onLogout={handleLogout} navigateTo={navigateTo} />
-)}
+        user.role === 'requester'
+          ? <DashboardRequester user={user} onLogout={handleLogout} navigateTo={navigateTo} />
+          : user.role === 'talent'
+            ? <DashboardTalent user={user} onLogout={handleLogout} navigateTo={navigateTo} />
+            : (user.role === 'liaison' || user.role === 'agensusi')
+              ? <DashboardLiaison user={user} onLogout={handleLogout} navigateTo={navigateTo} />
+              : user.role === 'admin'
+                ? <DashboardAdmin user={user} onLogout={handleLogout} navigateTo={navigateTo} />
+                : <DashboardPage user={user} onLogout={handleLogout} navigateTo={navigateTo} />
+      )}
+
       {currentPage === 'tentang' && <TentangPage />}
 
-      {currentPage !== 'auth' && currentPage !== 'dashboard' && currentPage !== 'request' && <Footer navigateTo={navigateTo} />}
+      {currentPage !== 'auth' && currentPage !== 'admin-login' && currentPage !== 'dashboard' && currentPage !== 'request' && <Footer navigateTo={navigateTo} />}
     </div>
   );
-} 
+}
