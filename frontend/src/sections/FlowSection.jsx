@@ -99,10 +99,7 @@ export default function FlowSection({ navigateTo }) {
         <p className="text-xs uppercase tracking-[0.4em] text-black/50 font-bold mb-4">Memahami Bagaimana Cara Kami Bekerja Dalam</p>
         <div className="flex items-end justify-between flex-wrap gap-6">
           <h2 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9]">Delapan Langkah<span className="text-[#FF5733]">.</span></h2>
-          <div className="text-right">
-            <p className="fd text-[10px] font-mono opacity-40 mb-1">PROGRES SCROLL</p>
-            <p ref={pctRef} className="fd fd-invert text-4xl md:text-5xl font-black text-[#FF5733] tabular-nums">0%</p>
-          </div>
+      
         </div>
       </div>
 

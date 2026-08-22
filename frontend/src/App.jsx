@@ -76,28 +76,28 @@ export default function App() {
       <style>{`
         @font-face {
         font-family: 'Coolvetica';
-        src: url('public/fonts/Coolvetica.otf') format('truetype');
+        src: url('/fonts/Coolvetica.otf') format('truetype');
         font-weight: normal;
         font-style: normal;
         font-display: swap;
       }
       @font-face {
         font-family: 'Nexa';
-        src: url('public/fonts/Nexa.ttf') format('truetype');
+        src: url('/fonts/Nexa.ttf') format('truetype');
         font-weight: normal;
         font-style: normal;
         font-display: swap;
       }
       @font-face {
         font-family: 'Outfit';
-        src: url('public/fonts/Outfit.ttf') format('truetype');
+        src: url('/fonts/Outfit.ttf') format('truetype');
         font-weight: normal;
         font-style: normal;
         font-display: swap;
       }
       @font-face {
         font-family: 'Poppins';
-        src: url('public/fonts/Poppins.ttf') format('truetype');
+        src: url('/fonts/Poppins.ttf') format('truetype');
         font-weight: normal;
         font-style: normal;
         font-display: swap;
