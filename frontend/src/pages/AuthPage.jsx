@@ -133,21 +133,21 @@ export default function AuthPage({ onLogin, goToHome, goAdmin }) {
               {mode === 'register' && (
                 <>
                   <div className="form-anim">
-                    <p className="text-xs font-black uppercase tracking-widest mb-3">Daftar sebagai</p>
-                    <div className="grid grid-cols-3 gap-px bg-black border-2 border-black">
-                      {PUBLIC_ROLES.map((r) => (
+                        <p className="text-xs font-black uppercase tracking-widest mb-3">Daftar sebagai</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-black border-2 border-black">
+                        {PUBLIC_ROLES.map((r) => (
                         <button
-                          type="button"
-                          key={r.id}
-                          onClick={() => setRole(r.id)}
-                          className={`p-5 text-left transition-colors duration-300 ${role === r.id ? 'bg-[#FF5733] text-white' : 'bg-white hover:bg-black hover:text-white'}`}
+                        type="button"
+                        key={r.id}
+                        onClick={() => setRole(r.id)}
+                        className={`p-4 sm:p-5 text-left transition-colors duration-300 ${role === r.id ? 'bg-[#FF5733] text-white' : 'bg-white hover:bg-black hover:text-white'}`}
                         >
-                          <span className="text-[10px] font-mono font-bold block mb-2">{r.num}</span>
-                          <span className="font-black uppercase tracking-wider text-sm">{r.label}</span>
+                        <span className="text-[10px] font-mono font-bold block mb-1 sm:mb-2">{r.num}</span>
+                        <span className="font-black uppercase tracking-wider text-sm leading-tight">{r.label}</span>
                         </button>
-                      ))}
-                    </div>
-                  </div>
+                        ))}
+                        </div>
+                        </div>
                   <div className="form-anim">
                     <label className="text-xs font-black uppercase tracking-widest mb-2 block">{active.field}</label>
                     <input value={extra} onChange={(e) => setExtra(e.target.value)} className={inputCls} placeholder={active.ph} />
