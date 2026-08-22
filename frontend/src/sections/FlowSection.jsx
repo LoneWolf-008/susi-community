@@ -1,12 +1,23 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { FLOW_STEPS } from '../data/constants';
+
+const FLOW_STEPS = [
+  { num: '01', title: 'Komunitas Ceritakan Masalahnya', sub: 'Pihak komunitas atau UMKM cukup mengisi formulir singkat menggunakan bahasa sehari-hari melalui website!', tag: 'START' },
+  { num: '02', title: 'Pendataan Langsung di Lapangan', sub: 'Kalau komunitas belum familiar dengan website, tim AgenSUSI siap datang langsung ke lokasi untuk membantu mencatatkan masalahmu ke dalam sistem.', tag: '02' },
+  { num: '03', title: 'Kebutuhan tampil di Katalog', sub: 'Masalah operasional yang sudah dicatat akan langsung muncul di katalog proyek terbuka agar bisa dilihat oleh para talenta IT.', tag: '03' },
+  { num: '04', title: 'Talenta IT Mengajukan Diri', sub: 'Para developer muda atau mahasiswa IT yang tertarik akan memilih proyek yang sesuai dengan keahlian mereka dan mengirimkan lamaran.', tag: '04' },
+  { num: '05', title: 'Komunitas Pilih Talenta yang Cocok', sub: 'Pihak komunitas bisa melihat rekam jejak serta portofolio para pelamar, lalu memilih satu talenta yang paling pas untuk menggarap proyeknya.', tag: '05' },
+  { num: '06', title: 'Sepakati Batasan & Target Kerja', sub: 'Kedua pihak sama-sama menentukan apa saja yang bakal dibuat dan sepakat mengenai kriteria seperti apa proyek tersebut dianggap "selesai".', tag: '06' },
+  { num: '07', title: 'Pengerjaan Dimulai!', sub: 'Kalau sudah saling setuju, proyek akan langsung digarap!', tag: '07' },
+  { num: '08', title: 'Proyek selesai? Verifikasi dulu!', sub: 'Setelah proyek rampung, Talenta menandai selesai dan komunitas memberikan konfirmasi serta ulasan.', tag: 'END', dashed: true },
+];
 
 export default function FlowSection({ navigateTo }) {
   const rootRef = useRef(null);
   const trackRef = useRef(null);
   const endRef = useRef(null);
+  const pctRef = useRef(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -16,8 +27,17 @@ export default function FlowSection({ navigateTo }) {
         end: 'bottom 60%',
         scrub: 1.2,
       };
+
       gsap.fromTo('.journey-fill', { height: '0%' }, { height: '100%', ease: 'none', scrollTrigger: scrub });
       gsap.fromTo('.journey-marker', { top: '0%' }, { top: '100%', ease: 'none', scrollTrigger: scrub });
+
+      // indikator persen live mengikuti scroll
+      ScrollTrigger.create({
+        ...scrub,
+        onUpdate: (self) => {
+          if (pctRef.current) pctRef.current.textContent = `${Math.round(self.progress * 100)}%`;
+        },
+      });
 
       const steps = gsap.utils.toArray('.journey-step');
       steps.forEach((step, i) => {
@@ -79,6 +99,10 @@ export default function FlowSection({ navigateTo }) {
         <p className="text-xs uppercase tracking-[0.4em] text-black/50 font-bold mb-4">Memahami Bagaimana Cara Kami Bekerja Dalam</p>
         <div className="flex items-end justify-between flex-wrap gap-6">
           <h2 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9]">Delapan Langkah<span className="text-[#FF5733]">.</span></h2>
+          <div className="text-right">
+            <p className="fd text-[10px] font-mono opacity-40 mb-1">PROGRES SCROLL</p>
+            <p ref={pctRef} className="fd fd-invert text-4xl md:text-5xl font-black text-[#FF5733] tabular-nums">0%</p>
+          </div>
         </div>
       </div>
 
@@ -92,10 +116,10 @@ export default function FlowSection({ navigateTo }) {
           const leftSide = i % 2 === 0;
           return (
             <div key={i} className="journey-step relative py-10 md:py-14 pl-14 md:pl-0 md:grid md:grid-cols-2 md:gap-24">
-              {/* NODE: tepat di tengah garis */}
+              {/* NODE */}
               <div className={`journey-node absolute left-4 md:left-1/2 md:-ml-3 top-10 w-6 h-6 border-2 border-black bg-white z-10 ${s.dashed ? 'dashed border-dashed' : ''}`} />
 
-              {/* LENGAN PENGHUBUNG: node ↔ konten, sejajar tengah node */}
+              {/* LENGAN PENGHUBUNG */}
               <div className={`journey-tick hidden md:block absolute top-[51px] h-0.5 w-12 bg-[#FF5733] ${leftSide ? 'right-1/2 from-right' : 'left-1/2 from-left'}`} />
 
               {/* KONTEN */}
@@ -103,10 +127,9 @@ export default function FlowSection({ navigateTo }) {
                 <span className="inline-block text-[10px] font-mono font-bold border-2 border-black bg-white px-3 py-1 mb-4">{s.tag}</span>
                 <h3 className="text-3xl md:text-4xl lg:text-5xl font-black leading-[0.95] tracking-tight mb-4">{s.title}</h3>
                 <p className="text-base md:text-lg opacity-60 mb-5 leading-relaxed">{s.sub}</p>
-                <p className={`text-xs md:text-sm font-mono opacity-70 leading-relaxed border-t-2 border-black/20 pt-4 max-w-md ${leftSide ? 'md:ml-auto' : ''}`}>{s.detail}</p>
               </div>
 
-              {/* NOMOR: penyeimbang simetris di sisi berlawanan */}
+              {/* NOMOR BESAR */}
               <div className={`hidden md:flex items-center ${leftSide ? 'md:col-start-2 md:row-start-1 justify-start pl-8' : 'md:col-start-1 md:row-start-1 justify-end pr-8'}`}>
                 <span className="journey-num text-[10rem] font-black leading-none text-black/5">{s.num}</span>
               </div>

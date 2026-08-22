@@ -76,28 +76,28 @@ export default function App() {
       <style>{`
         @font-face {
         font-family: 'Coolvetica';
-        src: url('src/assets/fonts/Coolvetica.otf') format('truetype');
+        src: url('public/fonts/Coolvetica.otf') format('truetype');
         font-weight: normal;
         font-style: normal;
         font-display: swap;
       }
       @font-face {
         font-family: 'Nexa';
-        src: url('src/assets/fonts/Nexa.ttf') format('truetype');
+        src: url('public/fonts/Nexa.ttf') format('truetype');
         font-weight: normal;
         font-style: normal;
         font-display: swap;
       }
       @font-face {
         font-family: 'Outfit';
-        src: url('src/assets/fonts/Outfit.ttf') format('truetype');
+        src: url('public/fonts/Outfit.ttf') format('truetype');
         font-weight: normal;
         font-style: normal;
         font-display: swap;
       }
       @font-face {
         font-family: 'Poppins';
-        src: url('src/assets/fonts/Poppins.ttf') format('truetype');
+        src: url('public/fonts/Poppins.ttf') format('truetype');
         font-weight: normal;
         font-style: normal;
         font-display: swap;
@@ -114,6 +114,13 @@ export default function App() {
       * { cursor: none !important; }
       input, textarea, select { cursor: text !important; }
     }
+
+        html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+        html, body { overflow-x: clip; }
 
       `}</style>
 
