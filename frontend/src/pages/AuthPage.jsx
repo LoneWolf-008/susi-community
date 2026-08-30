@@ -15,12 +15,12 @@ export default function AuthPage({ onLogin, goToHome, goAdmin }) {
   const active = AUTH_ROLES.find((r) => r.id === role);
 
   useEffect(() => {
-  const ctx = gsap.context(() => {
-    gsap.fromTo('.form-anim', { y: 16, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.45, stagger: 0.06, ease: 'power2.out' });
-    gsap.fromTo('.role-display', { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, ease: 'power3.out' });
-  }, rootRef);
-  return () => ctx.revert();
-}, [mode, role]);
+    const ctx = gsap.context(() => {
+      gsap.fromTo('.form-anim', { y: 16, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.45, stagger: 0.06, ease: 'power2.out' });
+      gsap.fromTo('.role-display', { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, ease: 'power3.out' });
+    }, rootRef);
+    return () => ctx.revert();
+  }, [mode, role]);
 
   useEffect(() => {
     gsap.fromTo('.form-anim', { y: 16, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.45, stagger: 0.06, ease: 'power2.out' });
@@ -38,7 +38,7 @@ export default function AuthPage({ onLogin, goToHome, goAdmin }) {
       try {
         const stored = JSON.parse(localStorage.getItem('susi_accounts') || '[]');
         localStorage.setItem('susi_accounts', JSON.stringify([...stored.filter((a) => a.email !== mail), acc]));
-      } catch (_) {}
+      } catch (_) { }
       onLogin({ role: acc.role, name: acc.name });
       return;
     }
@@ -89,7 +89,7 @@ export default function AuthPage({ onLogin, goToHome, goAdmin }) {
                 </>
               ) : (
                 <div key="login" className="role-display">
-          
+
                 </div>
               )}
             </div>
@@ -133,21 +133,21 @@ export default function AuthPage({ onLogin, goToHome, goAdmin }) {
               {mode === 'register' && (
                 <>
                   <div className="form-anim">
-                        <p className="text-xs font-black uppercase tracking-widest mb-3">Daftar sebagai</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-black border-2 border-black">
-                        {PUBLIC_ROLES.map((r) => (
+                    <p className="text-xs font-black uppercase tracking-widest mb-3">Daftar sebagai</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-black border-2 border-black">
+                      {PUBLIC_ROLES.map((r) => (
                         <button
-                        type="button"
-                        key={r.id}
-                        onClick={() => setRole(r.id)}
-                        className={`p-4 sm:p-5 text-left transition-colors duration-300 ${role === r.id ? 'bg-[#FF5733] text-white' : 'bg-white hover:bg-black hover:text-white'}`}
+                          type="button"
+                          key={r.id}
+                          onClick={() => setRole(r.id)}
+                          className={`p-4 sm:p-5 text-left transition-colors duration-300 ${role === r.id ? 'bg-[#FF5733] text-white' : 'bg-white hover:bg-black hover:text-white'}`}
                         >
-                        <span className="text-[10px] font-mono font-bold block mb-1 sm:mb-2">{r.num}</span>
-                        <span className="font-black uppercase tracking-wider text-sm leading-tight">{r.label}</span>
+                          <span className="text-[10px] font-mono font-bold block mb-1 sm:mb-2">{r.num}</span>
+                          <span className="font-black uppercase tracking-wider text-sm leading-tight">{r.label}</span>
                         </button>
-                        ))}
-                        </div>
-                        </div>
+                      ))}
+                    </div>
+                  </div>
                   <div className="form-anim">
                     <label className="text-xs font-black uppercase tracking-widest mb-2 block">{active.field}</label>
                     <input value={extra} onChange={(e) => setExtra(e.target.value)} className={inputCls} placeholder={active.ph} />
@@ -164,7 +164,7 @@ export default function AuthPage({ onLogin, goToHome, goAdmin }) {
                 <span className="group-hover:translate-x-2 transition-transform">→</span>
               </button>
 
-              
+
 
               {/* LINK ADMIN (opsional, hanya jika goAdmin disediakan) */}
               {goAdmin && (
@@ -179,7 +179,7 @@ export default function AuthPage({ onLogin, goToHome, goAdmin }) {
                     onClick={goAdmin}
                     className="form-anim w-full border-2 border-black py-3.5 text-[10px] font-mono font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors flex items-center justify-center gap-2"
                   >
-                    🔒 Masuk sebagai Admin →
+                    Masuk sebagai Admin →
                   </button>
                 </>
               )}
