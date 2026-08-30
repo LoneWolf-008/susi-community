@@ -36,7 +36,7 @@ export default function FeatureSection() {
     {
       num: '03',
       title: 'Sama-Sama Untung',
-      tagline: 'Komunitas hemat uang, talenta mendapat peluang!.',
+      tagline: 'Komunitas hemat uang, talenta mendapat peluang!',
       desc: 'Komunitas dapat solusi digital tanpa biaya mahal. Talenta mendapatkan pengalaman nyata & portofolio yang bisa dipamerkan.',
       chips: ['GRATIS!'],
       bg: 'bg-[#0E7C66]', ink: 'text-white',
@@ -91,18 +91,40 @@ export default function FeatureSection() {
         },
 
         // === MOBILE (Vertical List / Bukan Stacked) ===
+        // === MOBILE (Vertical List / Bukan Stacked) ===
         "(max-width: 767px)": () => {
           const cards = gsap.utils.toArray('.stack-card');
+
+          // 1. Set initial state dulu biar gak stuck di autoAlpha: 0 saat load
+          gsap.set(cards, { y: 40, autoAlpha: 0 });
+          gsap.set(cards.map(c => c.querySelectorAll('.chip')), { y: 16, autoAlpha: 0 });
+
           cards.forEach((card, i) => {
-            // Animasi fade-up standar saat masuk viewport
-            gsap.fromTo(card, { y: 40, autoAlpha: 0 }, {
-              y: 0, autoAlpha: 1, duration: 0.8, ease: 'power3.out',
-              scrollTrigger: { trigger: card, start: 'top 85%', toggleActions: 'play none none reverse' }
+            // 2. Animasi Card (Gunakan .to() bukan .fromTo())
+            gsap.to(card, {
+              y: 0,
+              autoAlpha: 1,
+              duration: 0.8,
+              ease: 'power3.out',
+              scrollTrigger: {
+                trigger: card,
+                start: 'top 90%', // Dibuat sedikit lebih awal agar pasti trigger di mobile
+                toggleActions: 'play none none none', // Hanya main sekali, tidak hilang saat scroll ke atas
+              }
             });
 
-            gsap.fromTo(card.querySelectorAll('.chip'), { y: 16, autoAlpha: 0 }, {
-              y: 0, autoAlpha: 1, duration: 0.5, stagger: 0.08, ease: 'power2.out',
-              scrollTrigger: { trigger: card, start: 'top 80%', toggleActions: 'play none none reverse' },
+            // 3. Animasi Chips
+            gsap.to(card.querySelectorAll('.chip'), {
+              y: 0,
+              autoAlpha: 1,
+              duration: 0.5,
+              stagger: 0.08,
+              ease: 'power2.out',
+              scrollTrigger: {
+                trigger: card,
+                start: 'top 85%',
+                toggleActions: 'play none none none',
+              },
             });
           });
         }
