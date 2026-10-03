@@ -122,7 +122,7 @@ export default function HomePage({ navigateTo, goToSection, onAsk }) {
         />
 
         {/* Foto melayang */}
-        <div className="hidden md:block absolute top-24 left-1/2 -ml-[120px] w-[240px] h-[130px] rotate-[-2deg]">
+        <div className="absolute top-[22%] md:top-24 left-4 md:left-1/2 md:-ml-[120px] w-[120px] md:w-[240px] h-[80px] md:h-[130px] rotate-[-3deg] opacity-60 md:opacity-100">
           <div className="fp w-full h-full overflow-hidden rounded-sm ring-1 ring-white/10 bg-white/5 shadow-2xl"><img src={PHOTOS.top} alt="" className="w-full h-full object-cover" /></div>
         </div>
         <div className="hidden md:block absolute top-[30%] -left-8 w-[150px] h-[310px] rotate-[-4deg]">
@@ -131,7 +131,7 @@ export default function HomePage({ navigateTo, goToSection, onAsk }) {
         <div className="hidden md:block absolute top-[32%] -right-6 w-[190px] h-[230px] rotate-[3deg]">
           <div className="fp w-full h-full overflow-hidden rounded-sm ring-1 ring-white/10 bg-white/5 shadow-2xl"><img src={PHOTOS.right} alt="" className="w-full h-full object-cover" /></div>
         </div>
-        <div className="hidden md:block absolute -bottom-16 left-1/2 -ml-[190px] w-[380px] h-[220px] rotate-[2deg]">
+        <div className="absolute bottom-[18%] md:-bottom-16 right-3 md:right-auto md:left-1/2 md:-ml-[190px] w-[130px] md:w-[380px] h-[90px] md:h-[220px] rotate-[3deg] opacity-60 md:opacity-100">
           <div className="fp w-full h-full overflow-hidden rounded-sm ring-1 ring-white/10 bg-white/5 shadow-2xl"><img src={PHOTOS.bottom} alt="" className="w-full h-full object-cover" /></div>
         </div>
 
