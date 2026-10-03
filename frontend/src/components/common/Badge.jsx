@@ -1,10 +1,10 @@
 export default function Badge({ type }) {
   const map = {
-    selesai: 'bg-[#0E7C66] text-white',
-    proses: 'bg-yellow-300 text-black',
-    tunggu: 'bg-black text-white',
-    buka: 'bg-white text-black border-2 border-black',
+    selesai: 'bg-[#c9ecd9] text-[#12283c]',
+    proses: 'bg-[#12283c] text-[#f2efe6]',
+    tunggu: 'bg-[#e62b2b] text-white',
+    buka: 'bg-transparent text-[#12283c]',
   };
   const label = { selesai: 'SELESAI', proses: 'PROSES', tunggu: 'MENUNGGU', buka: 'DALAM ANTRIAN' };
-  return <span className={`text-[9px] font-mono font-bold px-2 py-1 ${map[type]}`}>{label[type]}</span>;
+  return <span className={`chip-mono border-0 ${map[type]}`}>{label[type]}</span>;
 }

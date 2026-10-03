@@ -12,179 +12,120 @@ export default function AuthPage({ onLogin, goToHome, goAdmin }) {
   const [error, setError] = useState('');
   const rootRef = useRef(null);
   const PUBLIC_ROLES = AUTH_ROLES.filter((r) => r.id !== 'admin');
-  const active = AUTH_ROLES.find((r) => r.id === role);
-
+  const activeRole = AUTH_ROLES.find((r) => r.id === role);
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.fromTo('.form-anim', { y: 16, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.45, stagger: 0.06, ease: 'power2.out' });
-      gsap.fromTo('.role-display', { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, ease: 'power3.out' });
+      gsap.fromTo('.form-anim', { y: 14, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.4, stagger: 0.05, ease: 'power2.out' });
+      gsap.fromTo('.role-display', { y: 20, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.45, ease: 'power3.out' });
     }, rootRef);
-    return () => ctx.revert();
-  }, [mode, role]);
 
-  useEffect(() => {
-    gsap.fromTo('.form-anim', { y: 16, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.45, stagger: 0.06, ease: 'power2.out' });
-    gsap.fromTo('.role-display', { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, ease: 'power3.out' });
-  }, [mode, role]);
+    // Shortcut rahasia admin: Tekan Ctrl + Shift + A
+    const handleSecretKey = (e) => {
+      if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        if (goAdmin) goAdmin();
+      }
+    };
+    window.addEventListener('keydown', handleSecretKey);
 
-  const submit = (e) => {
-    e.preventDefault();
-    setError('');
+    return () => {
+      ctx.revert();
+      window.removeEventListener('keydown', handleSecretKey);
+    };
+  }, [mode, role, goAdmin]);
+  const handleSubmit = (e) => {
+    e.preventDefault(); setError('');
     const mail = email.trim().toLowerCase();
-
-    // ===== DAFTAR: pilih peran, akun disimpan =====
     if (mode === 'register') {
-      const acc = { email: mail, role, name: name || active.fallback };
+      const acc = { email: mail, role, name: name || activeRole.fallback };
       try {
         const stored = JSON.parse(localStorage.getItem('susi_accounts') || '[]');
         localStorage.setItem('susi_accounts', JSON.stringify([...stored.filter((a) => a.email !== mail), acc]));
-      } catch (_) { }
-      onLogin({ role: acc.role, name: acc.name });
-      return;
+      } catch (_) {}
+      onLogin({ role: acc.role, name: acc.name }); return;
     }
-
-    // ===== MASUK: peran dibaca otomatis dari akun terdaftar =====
     const acc = loadAccounts().find((a) => a.email === mail);
-    if (!acc) {
-      setError('EMAIL BELUM TERDAFTAR, SILAHKAN DAFTAR DULU.');
-      return;
-    }
+    if (!acc) { setError('EMAIL BELUM TERDAFTAR, SILAHKAN DAFTAR DULU.'); return; }
     onLogin({ role: acc.role, name: acc.name });
   };
-
-  const inputCls = 'w-full border-b-2 border-black/20 bg-transparent p-3 text-sm font-medium outline-none focus:border-[#FF5733] transition-colors placeholder:text-black/30';
-
   return (
-    <div ref={rootRef} className="min-h-screen bg-white text-black">
-      <div className="max-w-[1440px] mx-auto px-4 md:px-12 py-10 lg:py-14">
-        <div className="grid grid-cols-1 lg:grid-cols-12 border-2 border-black min-h-[calc(100vh-8rem)]">
-
-          {/* PANEL KIRI: HITAM */}
-          <div className="lg:col-span-5 bg-black text-white p-10 lg:p-14 flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-            <div className="absolute -bottom-16 -right-16 w-56 h-56 border-2 border-[#FF5733]/40" />
-            <div className="absolute bottom-8 right-8 w-10 h-10 bg-[#FF5733]" />
-            <div className="relative z-10">
-              <button onClick={goToHome} className="auth-fade text-[10px] font-mono font-bold uppercase tracking-widest opacity-60 hover:opacity-100 hover:text-[#FF5733] transition-all">
-                ← Kembali ke beranda
-              </button>
-            </div>
-            <div className="relative z-10 my-16">
-              <h1 className="text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.85]">
-                <span className="block overflow-hidden"><span className="auth-line block">{mode === 'login' ? 'MASUK.' : 'DAFTAR.'}</span></span>
-                <span className="block overflow-hidden"><span className="auth-line block text-white/20">SUSI.</span></span>
-              </h1>
-            </div>
-            <div className="relative z-10 border-t-2 border-white/20 pt-6">
-              {mode === 'register' ? (
-                <>
-                  <p className="text-[10px] font-mono uppercase tracking-widest opacity-60 mb-3">Peran dipilih</p>
-                  <div key={role} className="role-display flex items-end gap-5">
-                    <span className="text-6xl lg:text-7xl font-black text-[#FF5733] leading-none">{active.num}</span>
-                    <div>
-                      <p className="text-2xl font-black uppercase tracking-tight">{active.label}</p>
-                      <p className="text-xs opacity-60 mt-2 max-w-xs leading-relaxed">{active.desc}</p>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div key="login" className="role-display">
-
-                </div>
-              )}
-            </div>
+    <div ref={rootRef} className="min-h-screen bg-[#0e2233] text-[#f2efe6] flex items-center justify-center px-4 py-16"
+      style={{ background: 'radial-gradient(90% 90% at 50% 10%, #1b3a5c 0%, #0e2233 60%, #0b1b2b 100%)' }}>
+      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+        {/* PANEL KIRI (GRADIEN NAVY→MAROON) */}
+        <div className="p-10 lg:p-14 flex flex-col justify-between relative overflow-hidden" style={{ background: 'linear-gradient(160deg,#12283c 0%,#12283c 45%,#7a1a1f 100%)' }}>
+          <div className="relative z-10">
+            <button onClick={goToHome} className="font-mono text-[10px] font-bold uppercase tracking-widest opacity-60 hover:opacity-100 hover:text-[#e62b2b] transition-all">← Kembali ke beranda</button>
           </div>
-
-          {/* PANEL KANAN: FORM */}
-          <div className="lg:col-span-7 bg-white p-10 lg:p-14">
-            <div className="form-anim grid grid-cols-2 border-2 border-black mb-10">
-              <button onClick={() => { setMode('login'); setError(''); }} className={`py-4 text-xs font-black uppercase tracking-[0.25em] transition-colors ${mode === 'login' ? 'bg-black text-white' : 'bg-white hover:bg-black/5'}`}>
-                Masuk
-              </button>
-              <button onClick={() => { setMode('register'); setError(''); }} className={`py-4 text-xs font-black uppercase tracking-[0.25em] border-l-2 border-black transition-colors ${mode === 'register' ? 'bg-black text-white' : 'bg-white hover:bg-black/5'}`}>
-                Daftar
-              </button>
+          <div className="relative z-10 my-14">
+            <h1 className="text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.85]">
+              <span className="block">{mode === 'login' ? 'MASUK.' : 'DAFTAR.'}</span>
+              <span className="block text-white/20">SUSI.</span>
+            </h1>
+          </div>
+          <div className="relative z-10 border-t border-white/15 pt-6">
+            {mode === 'register' && activeRole && (
+              <>
+                <p className="label-mono mb-3">Peran dipilih</p>
+                <div key={role} className="role-display flex items-end gap-5">
+                  <span className="text-6xl lg:text-7xl font-black text-[#e62b2b] leading-none">{activeRole.num}</span>
+                  <div>
+                    <p className="text-2xl font-black uppercase tracking-tight">{activeRole.label}</p>
+                    <p className="text-xs opacity-60 mt-2 max-w-xs leading-relaxed">{activeRole.desc}</p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+        {/* PANEL KANAN (KREM) */}
+        <div className="bg-[#f2efe6] text-[#12283c] p-10 lg:p-14">
+          <div className="form-anim flex rounded-full bg-[#12283c]/10 p-1 mb-9">
+            <button type="button" onClick={() => { setMode('login'); setError(''); }} className={`flex-1 rounded-full py-3 text-xs font-black uppercase tracking-[0.25em] transition-colors ${mode === 'login' ? 'bg-[#12283c] text-[#f2efe6]' : 'hover:bg-[#12283c]/5'}`}>Masuk</button>
+            <button type="button" onClick={() => { setMode('register'); setError(''); }} className={`flex-1 rounded-full py-3 text-xs font-black uppercase tracking-[0.25em] transition-colors ${mode === 'register' ? 'bg-[#12283c] text-[#f2efe6]' : 'hover:bg-[#12283c]/5'}`}>Daftar</button>
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-7">
+            {mode === 'register' && (
+              <div className="form-anim">
+                <label className="field-label">Nama Lengkap</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} className="input-line" placeholder="Nama kamu" required />
+              </div>
+            )}
+            <div className="form-anim">
+              <label className="field-label">Email</label>
+              <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(''); }} className="input-line" placeholder="nama@email.com" required />
             </div>
-
-            <form onSubmit={submit} className="space-y-8">
-              {mode === 'register' && (
+            <div className="form-anim">
+              <label className="field-label">Kata Sandi</label>
+              <div className="flex items-center gap-3">
+                <input type={showPass ? 'text' : 'password'} className="input-line" placeholder="••••••••" required />
+                <button type="button" onClick={() => setShowPass(!showPass)} className="chip-mono shrink-0 hover:text-[#e62b2b] transition-colors">{showPass ? 'TUTUP' : 'LIHAT'}</button>
+              </div>
+            </div>
+            {mode === 'register' && activeRole && (
+              <>
                 <div className="form-anim">
-                  <label className="text-xs font-black uppercase tracking-widest mb-2 block">Nama Lengkap</label>
-                  <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="Nama kamu" required />
+                  <p className="field-label">Daftar sebagai</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {PUBLIC_ROLES.map((r) => (
+                      <button type="button" key={r.id} onClick={() => setRole(r.id)} className={`rounded-xl border p-4 text-left transition-colors ${role === r.id ? 'bg-[#e62b2b] text-white border-[#e62b2b]' : 'border-[#12283c]/20 hover:border-[#12283c]'}`}>
+                        <span className="font-mono text-[10px] font-bold block mb-1">{r.num}</span>
+                        <span className="font-black uppercase tracking-wider text-sm leading-tight">{r.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              )}
-
-              <div className="form-anim">
-                <label className="text-xs font-black uppercase tracking-widest mb-2 block">Email</label>
-                <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(''); }} className={inputCls} placeholder="nama@email.com" required />
-              </div>
-
-              <div className="form-anim">
-                <label className="text-xs font-black uppercase tracking-widest mb-2 block">Kata Sandi</label>
-                <div className="flex items-center">
-                  <input type={showPass ? 'text' : 'password'} className={inputCls} placeholder="••••••••" required />
-                  <button type="button" onClick={() => setShowPass(!showPass)} className="shrink-0 border-2 border-black px-3 py-2 text-[10px] font-mono font-bold hover:bg-black hover:text-white transition-colors">
-                    {showPass ? 'TUTUP' : 'LIHAT'}
-                  </button>
+                <div className="form-anim">
+                  <label className="field-label">{activeRole.field}</label>
+                  <input value={extra} onChange={(e) => setExtra(e.target.value)} className="input-line" placeholder={activeRole.ph} />
                 </div>
-              </div>
-
-              {/* PILIHAN PERAN — HANYA MUNCUL SAAT DAFTAR */}
-              {mode === 'register' && (
-                <>
-                  <div className="form-anim">
-                    <p className="text-xs font-black uppercase tracking-widest mb-3">Daftar sebagai</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-black border-2 border-black">
-                      {PUBLIC_ROLES.map((r) => (
-                        <button
-                          type="button"
-                          key={r.id}
-                          onClick={() => setRole(r.id)}
-                          className={`p-4 sm:p-5 text-left transition-colors duration-300 ${role === r.id ? 'bg-[#FF5733] text-white' : 'bg-white hover:bg-black hover:text-white'}`}
-                        >
-                          <span className="text-[10px] font-mono font-bold block mb-1 sm:mb-2">{r.num}</span>
-                          <span className="font-black uppercase tracking-wider text-sm leading-tight">{r.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="form-anim">
-                    <label className="text-xs font-black uppercase tracking-widest mb-2 block">{active.field}</label>
-                    <input value={extra} onChange={(e) => setExtra(e.target.value)} className={inputCls} placeholder={active.ph} />
-                  </div>
-                </>
-              )}
-
-              {error && (
-                <p className="form-anim text-[10px] font-mono font-bold text-[#FF5733]">⚠ {error}</p>
-              )}
-
-              <button type="submit" className="form-anim group w-full bg-black text-white py-5 text-sm uppercase tracking-wider font-black hover:bg-[#FF5733] transition-colors flex items-center justify-center gap-3">
-                {mode === 'login' ? 'Masuk' : 'Buat Akun'}
-                <span className="group-hover:translate-x-2 transition-transform">→</span>
-              </button>
-
-
-
-              {/* LINK ADMIN (opsional, hanya jika goAdmin disediakan) */}
-              {goAdmin && (
-                <>
-                  <div className="form-anim flex items-center gap-3">
-                    <div className="h-px bg-black/10 flex-1" />
-                    <span className="text-[9px] font-mono opacity-40">ATAU</span>
-                    <div className="h-px bg-black/10 flex-1" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={goAdmin}
-                    className="form-anim w-full border-2 border-black py-3.5 text-[10px] font-mono font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors flex items-center justify-center gap-2"
-                  >
-                    Masuk sebagai Admin →
-                  </button>
-                </>
-              )}
-            </form>
-          </div>
+              </>
+            )}
+            {error && <p className="form-anim font-mono text-[10px] font-bold text-[#e62b2b]">⚠ {error}</p>}
+            <button type="submit" className="form-anim btn-pill btn-navy w-full">
+              {mode === 'login' ? 'Masuk' : 'Buat Akun'} <span>→</span>
+            </button>
+          </form>
         </div>
       </div>
     </div>

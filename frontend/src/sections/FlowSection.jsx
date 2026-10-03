@@ -1,17 +1,9 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { FLOW_STEPS } from '../data/constants';
 
-const FLOW_STEPS = [
-  { num: '01', title: 'Komunitas Ceritakan Masalahnya', sub: 'Pihak komunitas atau UMKM cukup mengisi formulir singkat menggunakan bahasa sehari-hari melalui website!', tag: 'START' },
-  { num: '02', title: 'Pendataan Langsung di Lapangan', sub: 'Kalau komunitas belum familiar dengan website, tim AgenSUSI siap datang langsung ke lokasi untuk membantu mencatatkan masalahmu ke dalam sistem.', tag: '02' },
-  { num: '03', title: 'Kebutuhan tampil di Katalog', sub: 'Masalah operasional yang sudah dicatat akan langsung muncul di katalog proyek terbuka agar bisa dilihat oleh para talenta IT.', tag: '03' },
-  { num: '04', title: 'Talenta IT Mengajukan Diri', sub: 'Para developer muda atau mahasiswa IT yang tertarik akan memilih proyek yang sesuai dengan keahlian mereka dan mengirimkan lamaran.', tag: '04' },
-  { num: '05', title: 'Komunitas Pilih Talenta yang Cocok', sub: 'Pihak komunitas bisa melihat rekam jejak serta portofolio para pelamar, lalu memilih satu talenta yang paling pas untuk menggarap proyeknya.', tag: '05' },
-  { num: '06', title: 'Sepakati Batasan & Target Kerja', sub: 'Kedua pihak sama-sama menentukan apa saja yang bakal dibuat dan sepakat mengenai kriteria seperti apa proyek tersebut dianggap "selesai".', tag: '06' },
-  { num: '07', title: 'Pengerjaan Dimulai!', sub: 'Kalau sudah saling setuju, proyek akan langsung digarap!', tag: '07' },
-  { num: '08', title: 'Proyek selesai? Verifikasi dulu!', sub: 'Setelah proyek rampung, Talenta menandai selesai dan komunitas memberikan konfirmasi serta ulasan.', tag: 'END', dashed: true },
-];
+const NOISE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
 
 export default function FlowSection({ navigateTo }) {
   const rootRef = useRef(null);
@@ -21,126 +13,111 @@ export default function FlowSection({ navigateTo }) {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      const scrub = {
-        trigger: trackRef.current,
-        start: 'top 70%',
-        end: 'bottom 60%',
-        scrub: 1.2,
-      };
-
+      const scrub = { trigger: trackRef.current, start: 'top 65%', end: 'bottom 55%', scrub: 0.8 };
       gsap.fromTo('.journey-fill', { height: '0%' }, { height: '100%', ease: 'none', scrollTrigger: scrub });
       gsap.fromTo('.journey-marker', { top: '0%' }, { top: '100%', ease: 'none', scrollTrigger: scrub });
-
-      // indikator persen live mengikuti scroll
       ScrollTrigger.create({
         ...scrub,
-        onUpdate: (self) => {
-          if (pctRef.current) pctRef.current.textContent = `${Math.round(self.progress * 100)}%`;
-        },
+        onUpdate: (self) => { if (pctRef.current) pctRef.current.textContent = String(Math.round(self.progress * 100)).padStart(2, '0'); },
       });
+
+      gsap.fromTo('.flow-head > *', { y: 36, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9, stagger: 0.1, ease: 'power3.out' });
+      gsap.to('.scroll-hint span', { y: 6, duration: 0.9, yoyo: true, repeat: -1, ease: 'sine.inOut' });
 
       const steps = gsap.utils.toArray('.journey-step');
       steps.forEach((step, i) => {
-        ScrollTrigger.create({
-          trigger: step,
-          start: 'top 62%',
-          onEnter: () => step.classList.add('on'),
-          onLeaveBack: () => step.classList.remove('on'),
-        });
-        gsap.fromTo(
-          step.querySelector('.journey-content'),
-          { x: i % 2 === 0 ? -60 : 60, autoAlpha: 0 },
-          { x: 0, autoAlpha: 1, duration: 0.7, ease: 'power2.out', scrollTrigger: { trigger: step, start: 'top 78%' } }
-        );
-        gsap.fromTo(
-          step.querySelector('.journey-num'),
-          { scale: 0.5, autoAlpha: 0 },
-          { scale: 1, autoAlpha: 1, duration: 0.6, ease: 'back.out(1.7)', scrollTrigger: { trigger: step, start: 'top 70%' } }
-        );
+        ScrollTrigger.create({ trigger: step, start: 'top 60%', onEnter: () => step.classList.add('on'), onLeaveBack: () => step.classList.remove('on') });
+        ScrollTrigger.create({ trigger: step, start: 'bottom 45%', onEnter: () => step.classList.add('passed'), onLeaveBack: () => step.classList.remove('passed') });
+
+        const tl = gsap.timeline({ scrollTrigger: { trigger: step, start: 'top 75%' } });
+        tl.fromTo(step.querySelector('.journey-content'), { x: i % 2 === 0 ? -56 : 56, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.9, ease: 'power3.out' })
+          .fromTo(step.querySelector('.step-title'), { yPercent: 110 }, { yPercent: 0, duration: 0.8, ease: 'power3.out' }, '-=0.6')
+          .fromTo(step.querySelector('.step-sub'), { y: 18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.6, ease: 'power3.out' }, '-=0.5');
+
+        const num = step.querySelector('.journey-num');
+        if (num) {
+          gsap.fromTo(num, { autoAlpha: 0, scale: 0.9 }, { autoAlpha: 1, scale: 1, duration: 0.8, ease: 'power3.out', scrollTrigger: { trigger: step, start: 'top 78%' } });
+          gsap.fromTo(num, { y: 60 }, { y: -60, ease: 'none', scrollTrigger: { trigger: step, start: 'top bottom', end: 'bottom top', scrub: 1 } });
+        }
       });
 
-      ScrollTrigger.create({
-        trigger: endRef.current,
-        start: 'top 60%',
-        onEnter: () => rootRef.current.classList.add('end-active'),
-        onLeaveBack: () => rootRef.current.classList.remove('end-active'),
+      /* End: reveal konten saja — background sudah gradient utuh, tanpa class toggle */
+      gsap.fromTo('.end-content > *', { y: 44, autoAlpha: 0 }, {
+        y: 0, autoAlpha: 1, duration: 0.9, stagger: 0.12, ease: 'power3.out',
+        scrollTrigger: { trigger: endRef.current, start: 'top 65%' },
       });
-
-      gsap.fromTo('.end-content', { y: 60, autoAlpha: 0 }, {
-        y: 0, autoAlpha: 1, duration: 1, ease: 'power3.out',
-        scrollTrigger: { trigger: endRef.current, start: 'top 70%' },
-      });
-
-      gsap.fromTo('.flow-head', { y: 40, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9, ease: 'power3.out' });
     }, rootRef);
     gsap.delayedCall(0.2, () => ScrollTrigger.refresh());
     return () => ctx.revert();
   }, []);
 
   return (
-    <section id="alur" ref={rootRef} className="journey-section relative">
+    <section id="alur" ref={rootRef} className="relative bg-[#f2efe6]">
       <style>{`
-        .journey-node { transition: transform .4s cubic-bezier(.34,1.56,.64,1), background .3s, border-color .3s; }
-        .journey-step.on .journey-node { background: #FF5733; border-color: #000; transform: rotate(45deg) scale(1.25); }
-        .journey-step.on .journey-node.dashed { background: #fff; }
-        .journey-tick { transform: scaleX(0); opacity: 0; transition: transform .5s .15s, opacity .5s .15s; }
-        .journey-step.on .journey-tick { transform: scaleX(1); opacity: 1; }
+        .journey-node { transition: transform .45s cubic-bezier(.34,1.56,.64,1), background-color .35s, border-color .35s; }
+        .journey-step.on .journey-node, .journey-step.passed .journey-node { background: #e62b2b; border-color: #12283c; transform: rotate(45deg) scale(1.2); }
+        .journey-step.on .journey-node.dashed, .journey-step.passed .journey-node.dashed { background: #f2efe6; }
+        .journey-tick { transform: scaleX(0); opacity: 0; transition: transform .6s .1s cubic-bezier(.65,0,.35,1), opacity .4s .1s; }
+        .journey-step.on .journey-tick, .journey-step.passed .journey-tick { transform: scaleX(1); opacity: 1; }
         .journey-tick.from-right { transform-origin: right center; }
         .journey-tick.from-left { transform-origin: left center; }
-        .journey-section { background: #fff; transition: background-color 1.2s ease; }
-        .journey-section.end-active { background: #0E7C66; }
-        .journey-section .fd { transition: color 1.2s ease, background-color 1.2s ease, border-color 1.2s ease; }
-        .end-active .fd-invert { color: #fff !important; }
-        .end-active .fd-soft { color: rgba(255,255,255,.75) !important; }
-        .end-active .fd-cta { background: #fff !important; color: #0E7C66 !important; }
       `}</style>
 
-      <div className="flow-head px-6 lg:px-12 pt-32 pb-24 max-w-[1440px] mx-auto">
-        <p className="text-xs uppercase tracking-[0.4em] text-black/50 font-bold mb-4">Memahami Bagaimana Cara Kami Bekerja Dalam</p>
-        <div className="flex items-end justify-between flex-wrap gap-6">
-          <h2 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9]">Delapan Langkah<span className="text-[#FF5733]">.</span></h2>
-      
+      {/* HEADER */}
+      <div className="flow-head px-6 lg:px-12 pt-28 md:pt-36 pb-16 md:pb-24 max-w-[1440px] mx-auto">
+        <div className="flex items-end justify-between flex-wrap gap-8">
+          <h2 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9] text-[#12283c]">Memahami <span className="text-[#e62b2b]">SUSI</span> Dalam Delapan Langkah<span className="text-[#e62b2b]">.</span></h2>
+        </div>
+        <div className="scroll-hint mt-10 flex items-center gap-3 text-[#12283c]/50">
         </div>
       </div>
 
+      {/* TRACK */}
       <div ref={trackRef} className="relative max-w-[1200px] mx-auto px-6">
-        {/* GARIS PUNGGUNG TENGAH */}
-        <div className="fd absolute left-[27px] md:left-1/2 md:-ml-px top-0 bottom-0 w-0.5 bg-black/10" />
-        <div className="journey-fill absolute left-[27px] md:left-1/2 md:-ml-px top-0 w-0.5 bg-[#FF5733]" style={{ height: '0%' }} />
-        <div className="journey-marker fd absolute left-[27px] md:left-1/2 -ml-[7px] w-3.5 h-3.5 bg-black rotate-45 z-20" style={{ top: '0%' }} />
+        <div className="absolute left-[27px] md:left-1/2 md:-ml-px top-0 bottom-0 w-0.5 bg-[#12283c]/15" />
+        <div className="journey-fill absolute left-[27px] md:left-1/2 md:-ml-px top-0 w-0.5 bg-[#e62b2b]" style={{ height: '0%' }} />
+        <div className="journey-marker absolute left-[27px] md:left-1/2 -ml-[9px] w-[18px] h-[18px] bg-[#e62b2b] border-2 border-[#12283c] rotate-45 z-20" style={{ top: '0%' }}>
+        </div>
 
         {FLOW_STEPS.map((s, i) => {
-          const leftSide = i % 2 === 0;
+          const isLeft = i % 2 === 0;
           return (
-            <div key={i} className="journey-step relative py-10 md:py-14 pl-14 md:pl-0 md:grid md:grid-cols-2 md:gap-24">
-              {/* NODE */}
-              <div className={`journey-node absolute left-4 md:left-1/2 md:-ml-3 top-10 w-6 h-6 border-2 border-black bg-white z-10 ${s.dashed ? 'dashed border-dashed' : ''}`} />
-
-              {/* LENGAN PENGHUBUNG */}
-              <div className={`journey-tick hidden md:block absolute top-[51px] h-0.5 w-12 bg-[#FF5733] ${leftSide ? 'right-1/2 from-right' : 'left-1/2 from-left'}`} />
-
-              {/* KONTEN */}
-              <div className={`journey-content ${leftSide ? 'md:col-start-1 md:text-right' : 'md:col-start-2'}`}>
-                <span className="inline-block text-[10px] font-mono font-bold border-2 border-black bg-white px-3 py-1 mb-4">{s.tag}</span>
-                <h3 className="text-3xl md:text-4xl lg:text-5xl font-black leading-[0.95] tracking-tight mb-4">{s.title}</h3>
-                <p className="text-base md:text-lg opacity-60 mb-5 leading-relaxed">{s.sub}</p>
+            <div key={i} className="journey-step relative py-12 md:py-16 pl-14 md:pl-0 md:grid md:grid-cols-2 md:gap-24">
+              <div className={`journey-node absolute left-4 md:left-1/2 md:-ml-3 top-12 w-6 h-6 border-2 border-[#12283c] bg-[#f2efe6] z-10 ${s.dashed ? 'dashed border-dashed' : ''}`} />
+              <div className={`journey-tick hidden md:block absolute top-[57px] h-0.5 w-12 bg-[#e62b2b] ${isLeft ? 'right-1/2 from-right' : 'left-1/2 from-left'}`} />
+              <div className={`journey-content ${isLeft ? 'md:col-start-1 md:text-right' : 'md:col-start-2'}`}>
+                <div className="overflow-hidden">
+                  <h3 className="step-title text-3xl md:text-4xl lg:text-5xl font-black leading-[1.02] tracking-tight mb-4 text-[#12283c]">{s.title}</h3>
+                </div>
+                <p className={`step-sub text-base md:text-lg text-[#12283c]/60 leading-relaxed max-w-md ${isLeft ? 'md:ml-auto' : ''}`}>{s.sub}</p>
               </div>
-
-              {/* NOMOR BESAR */}
-              <div className={`hidden md:flex items-center ${leftSide ? 'md:col-start-2 md:row-start-1 justify-start pl-8' : 'md:col-start-1 md:row-start-1 justify-end pr-8'}`}>
-                <span className="journey-num text-[10rem] font-black leading-none text-black/5">{s.num}</span>
+              <div className={`hidden md:flex items-center ${isLeft ? 'md:col-start-2 md:row-start-1 justify-start pl-8' : 'md:col-start-1 md:row-start-1 justify-end pr-8'}`}>
+                <span className="journey-num text-[9rem] lg:text-[12rem] font-black leading-none text-[#12283c]/[0.07] select-none">{s.num}</span>
               </div>
             </div>
           );
         })}
       </div>
 
-      <div ref={endRef} className="min-h-screen flex items-center justify-center px-6 relative">
-        <div className="end-content text-center max-w-5xl">
-          <p className="fd fd-soft text-xs font-mono font-bold uppercase tracking-[0.4em] mb-8 opacity-60">Apa Dampaknya?</p>
-          <h3 className="fd fd-invert text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9] mb-8">Nama baik tumbuh.<br />Siklus berulang<span className="text-[#FF5733]">.</span></h3>
-          <p className="fd fd-soft text-base md:text-xl opacity-60 mb-12 max-w-2xl mx-auto leading-relaxed">Setiap proyek yang selesai akan menambah poin rekam jejak talenta, dan komunitas akan terbantu dengan proyek yang dikerjakan.</p>
-          <button onClick={() => navigateTo('dashboard')} className="fd fd-cta bg-black text-white px-10 py-5 text-sm uppercase tracking-wider font-bold hover:bg-[#FF5733] hover:text-white transition-colors">Gabung Sekarang →</button>
+      {/* ===== END: SATU GRADIENT UTUH krem → peach → merah → maroon → navy (mulus ke footer) ===== */}
+      <div ref={endRef} className="relative min-h-screen flex items-center justify-center px-6 overflow-hidden">
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #f2efe6 0%, #e8b7ae 12%, #e62b2b 34%, #c2232b 55%, #57141d 80%, #0e2233 100%)' }} />
+        <div className="absolute inset-0 opacity-15 mix-blend-overlay pointer-events-none" style={{ backgroundImage: NOISE, backgroundSize: '240px 240px' }} />
+        <div className="absolute -top-16 -right-16 w-72 h-72 border-2 border-dashed border-[#f2efe6]/25 rounded-full rot-slow pointer-events-none" />
+
+        <div className="end-content relative z-10 text-center max-w-5xl py-24">
+          <h3 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9] mb-8 text-[#f2efe6]">
+            Nama baik tumbuh.<br />Siklus berulang<span className="text-[#f2efe6]">.</span>
+          </h3>
+          <p className="text-base md:text-xl mb-12 max-w-2xl mx-auto leading-relaxed text-[#f2efe6]/80">
+            Setiap proyek yang selesai menambah poin rekam jejak talenta, dan komunitas terbantu oleh solusi yang benar-benar dipakai.
+          </p>
+          <button
+            onClick={() => navigateTo('dashboard')}
+            className="bg-[#f2efe6] text-[#7a1a1f] px-10 py-5 text-sm font-bold rounded-full hover:bg-[#12283c] hover:text-[#f2efe6] transition-colors"
+          >
+            Mulai Perjalananmu →
+          </button>
         </div>
       </div>
     </section>

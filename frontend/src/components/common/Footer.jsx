@@ -4,11 +4,8 @@ import { FaInstagram, FaDiscord, FaGithub, FaWhatsapp } from 'react-icons/fa';
 
 export default function Footer({ navigateTo, goToSection }) {
   const ref = useRef(null);
- 
   const [now, setNow] = useState(null);
-  const [copied, setCopied] = useState(false);
 
-  /* Jam markas live (WIB) */
   useEffect(() => {
     const tick = () => setNow(new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })));
     tick();
@@ -22,8 +19,6 @@ export default function Footer({ navigateTo, goToSection }) {
         y: 0, autoAlpha: 1, duration: 0.8, stagger: 0.08, ease: 'power3.out',
         scrollTrigger: { trigger: ref.current, start: 'top 88%' },
       });
-      gsap.to('.foot-marquee', { xPercent: -50, ease: 'none', duration: 25, repeat: -1 });
-        gsap.to('.foot-giant', { xPercent: -50, ease: 'none', duration: 40, repeat: -1 });
     }, ref);
     return () => ctx.revert();
   }, []);
@@ -32,95 +27,84 @@ export default function Footer({ navigateTo, goToSection }) {
   const mm = now ? String(now.getMinutes()).padStart(2, '0') : '--';
   const ss = now ? String(now.getSeconds()).padStart(2, '0') : '--';
 
-  const copyEmail = () => {
-    try { navigator.clipboard.writeText('halosusi@gmail.com'); } catch (_) {}  
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const scrollTop = () => gsap.to(window, { scrollTo: { y: 0 }, duration: 1.2, ease: 'power3.inOut' });
-
-  const LINKS = [
-    { l: 'CARA KERJA', fn: () => (goToSection ? goToSection('alur') : navigateTo('home')) },
-    { l: 'FITUR', fn: () => (goToSection ? goToSection('fitur') : navigateTo('home')) },
-    { l: 'TENTANG KAMI', fn: () => navigateTo('tentang') },
+  const COL1 = [
+    { l: 'Cara Kerja', fn: () => goToSection('alur') },
+    { l: 'Fitur', fn: () => goToSection('fitur') },
+    { l: 'Tentang Kami', fn: () => navigateTo('tentang') },
   ];
- const SOCIALS = [
-  { l: 'Instagram', href: 'https://instagram.com', Icon: FaInstagram },
-  { l: 'Discord', href: 'https://discord.com', Icon: FaDiscord },
-  { l: 'GitHub', href: 'https://github.com', Icon: FaGithub },
-  { l: 'WhatsApp', href: 'https://wa.me/62221234567', Icon: FaWhatsapp },
-];
+  const COL2 = [
+    { l: 'Masuk / Dasbor', fn: () => navigateTo('dashboard') },
+    { l: 'Ajukan Pengaduan', fn: () => navigateTo('dashboard') },
+    { l: 'Kontak Tim', fn: () => navigateTo('tentang') },
+  ];
+  const SOCIALS = [
+    { l: 'Instagram', href: 'https://instagram.com', Icon: FaInstagram },
+    { l: 'Discord', href: 'https://discord.com', Icon: FaDiscord },
+    { l: 'GitHub', href: 'https://github.com', Icon: FaGithub },
+    { l: 'WhatsApp', href: 'https://wa.me/62221234567', Icon: FaWhatsapp },
+  ];
 
   return (
-    <footer ref={ref} className="bg-black text-white relative overflow-hidden">
-    
-    
-      {/* GRID INFO */}
-      <div className="max-w-[1440px] mx-auto px-6 lg:px-12 py-16 grid grid-cols-2 lg:grid-cols-4 gap-10">
-        {/* LOGO + SOSMED */}
-        <div className="foot-reveal col-span-2 lg:col-span-1">
-          <h2 className="text-3xl font-black tracking-tighter">SUSI<span className="text-[#FF5733]">.</span></h2>
-          <p className="text-xs opacity-40 mt-4 leading-relaxed">BUILD THE FUTURE.</p>
-          <div className="flex gap-2 mt-6">
-              {SOCIALS.map(({ l, href, Icon }) => (
-                <a
-                  key={l}
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={l}
-                  className="w-10 h-10 border-2 border-white/30 flex items-center justify-center hover:bg-[#FF5733] hover:border-[#FF5733] hover:-translate-y-1 transition-all"
-                >
-                      <Icon className="w-4 h-4" />
-                    </a>
-                  ))}
-                </div>
+    <footer
+      ref={ref}
+      className="relative overflow-hidden text-[#f2efe6]"
+      style={{ background: 'linear-gradient(180deg,#0e2233 0%,#12283c 30%,#5c1216 62%,#a81f28 100%)' }}
+    >
+      <div className="px-6 lg:px-12 pt-24 pb-10 max-w-[1440px] mx-auto">
+        {/* WORDMARK RAKSASA */}
+        <h2 className="foot-reveal font-black tracking-tight leading-[0.85] text-[#e62b2b] text-[50px]">
+          <span className="text-[#ffffff]">SUSI</span><br />Community<span className="text-[#f2efe6]">.</span>
+        </h2>
+
+        <div className="mt-16 grid grid-cols-1 md:grid-cols-12 gap-10 lg:gap-16 items-start">
+          {/* KOLOM KIRI: Brand & Info Kontak */}
+          <div className="foot-reveal md:col-span-5 lg:col-span-4 space-y-4">
+            <p className="font-mono text-[10px] font-bold tracking-[0.35em] text-[#f2efe6]/50">KANTOR</p>
+            <p className="text-sm text-[#f2efe6]/80 leading-relaxed">
+              Jl. Kliningan No. 4, Kota Bandung<br />
+              Jawa Barat, 40132, Indonesia
+            </p>
+            <div className="pt-2 font-mono text-xs text-[#f2efe6]/60 space-y-1">
+              <p>halosusi@gmail.com</p>
+              <p>+62 22 123 4567</p>
+            </div>
+          </div>
+
+          {/* KOLOM TENGAH: Navigasi Tautan */}
+          <div className="foot-reveal md:col-span-3 lg:col-span-4 grid grid-cols-2 gap-6">
+            <div>
+              <p className="font-mono text-[10px] font-bold tracking-[0.35em] text-[#f2efe6]/50 mb-4">JELAJAH</p>
+              <ul className="space-y-2.5">
+                {COL1.map((x) => (
+                  <li key={x.l}>
+                    <button onClick={x.fn} className="text-sm font-medium text-[#f2efe6]/80 hover:text-white transition-colors">{x.l}</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* KOLOM KANAN: Card Jam Live Digital & Status Bandung */}
+          <div className="foot-reveal md:col-span-4 rounded-2xl bg-white/[0.04] border border-white/10 p-6 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-mono text-[10px] font-bold tracking-[0.3em] text-[#f2efe6]/50">WAKTU SAAT INI</span>
+            </div>
+            <p className="font-mono text-4xl lg:text-5xl font-black tracking-tight tabular-nums text-white">
+              {hh}:{mm}:{ss} <span className="text-xs font-bold text-[#f2efe6]/50">WIB</span>
+            </p>
+          </div>
         </div>
 
-        {/* NAVIGASI */}
-        <div className="foot-reveal">
-          <p className="text-[10px] font-mono font-bold opacity-40 mb-5">JELAJAH</p>
-          <ul className="space-y-3">
-            {LINKS.map((l) => (
-              <li key={l.l}>
-                <button onClick={l.fn} className="group flex items-center gap-2 text-sm font-bold hover:text-[#FF5733] transition-colors">
-                  <span className="w-0 group-hover:w-3 h-0.5 bg-[#FF5733] transition-all" />
-                  {l.l}
-                </button>
-              </li>
+        {/* BAR BAWAH */}
+        <div className="mt-16 pt-6 border-t border-white/15 flex flex-wrap items-center justify-between gap-4">
+          <p className="text-xs text-[#f2efe6]/70">© 2026 - SUSI Community</p>
+          <div className="flex items-center gap-5">
+            {SOCIALS.map(({ l, href, Icon }) => (
+              <a key={l} href={href} target="_blank" rel="noreferrer" title={l} className="text-[#f2efe6]/80 hover:text-white transition-colors">
+                <Icon className="w-4 h-4" />
+              </a>
             ))}
-          </ul>
-        </div>
-
-        {/* KONTAK */}
-        <div className="foot-reveal">
-          <p className="text-[10px] font-mono font-bold opacity-40 mb-5">KONTAK</p>
-          <button onClick={copyEmail} className="group flex items-center gap-2 text-sm font-bold hover:text-[#FF5733] transition-colors">
-            {copied ? '✓ TERSALIN!' : 'halosusi@gmail.com'}
-            {!copied && <span className="text-[10px] font-mono opacity-40 group-hover:opacity-100">⧉</span>}
-          </button>
-          <p className="text-sm font-bold mt-3">+62 22 123 4567</p>
-          <p className="text-xs opacity-40 mt-4 leading-relaxed">Jl. Kliningan No. 4<br />Kota Bandung, Jawa Barat, Indonesia, 40132</p>
-        </div>
-
-        {/* JAM MARKAS LIVE */}
-        <div className="foot-reveal">
-          <p className="text-[10px] font-mono font-bold opacity-40 mb-5">WAKTU SAAT INI</p>
-          <p className="text-3xl font-mono font-black tabular-nums">{hh}:{mm}:{ss}<span className="text-xs ml-1 opacity-40">WIB</span></p>
-          
-          
-        </div>
-      </div>
-
-
-      {/* BAR BAWAH */}
-      <div className="border-t border-white/10">
-        <div className="max-w-[1440px] mx-auto px-6 lg:px-12 py-5 flex flex-wrap items-center justify-between gap-4">
-          <p className="text-[10px] font-mono opacity-40">© 2026 · SUSI COMMUNITY</p>
-          <button onClick={scrollTop} className="group flex items-center gap-2 text-[10px] font-mono font-bold hover:text-[#FF5733] transition-colors">
-            KEMBALI KE ATAS <span className="inline-block group-hover:-translate-y-1 transition-transform">↑</span>
-          </button>
+          </div>
         </div>
       </div>
     </footer>

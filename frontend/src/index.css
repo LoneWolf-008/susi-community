@@ -1,12 +1,79 @@
-/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Optional: Reset margin body biar rapi */
-body {
-  margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@font-face { font-family: 'Coolvetica'; src: url('/fonts/Coolvetica.otf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'Nexa'; src: url('/fonts/Nexa.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'Outfit'; src: url('/fonts/Outfit.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'Poppins'; src: url('/fonts/Poppins.ttf') format('truetype'); font-display: swap; }
+
+:root {
+  --navy: #12283c;
+  --navy-deep: #0e2233;
+  --red: #e62b2b;
+  --maroon: #7a1a1f;
+  --cream: #f2efe6;
+  --paper: #fdfcf7;
+  --mint: #c9ecd9;
 }
+
+* { box-sizing: border-box; }
+html { scroll-behavior: auto; max-width: 100vw; overflow-x: hidden; }
+body {
+  margin: 0; max-width: 100vw; overflow-x: hidden;
+  background: var(--navy-deep); color: var(--cream);
+  font-family: 'Nexa', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.font-mono { font-family: 'Outfit', monospace !important; }
+h1, h2, h3 { letter-spacing: -0.02em; }
+
+/* ===== GRAIN / NOISE GLOBAL — VERSI LEMBUT ===== */
+.noise-overlay {
+  position: fixed;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.5;
+  mix-blend-mode: soft-light;   
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.6'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 240px 240px;
+  animation: grain 2.0s steps(6) infinite;  /* lebih lambat → tidak berkedip */
+}
+
+@keyframes grain {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-1%, 1%); }
+  40% { transform: translate(1%, -1%); }
+  60% { transform: translate(-1%, -1%); }
+  80% { transform: translate(1%, 1%); }
+}
+
+/* ===== DESIGN SYSTEM THINK CO ===== */
+.label-mono { font-family: 'Outfit', monospace; font-size: 10px; font-weight: 700; letter-spacing: .35em; text-transform: uppercase; opacity: .55; }
+.chip-mono { font-family: 'Outfit', monospace; font-size: 9px; font-weight: 700; letter-spacing: .08em; border: 1px solid currentColor; border-radius: 9999px; padding: .3rem .8rem; }
+.btn-pill { display: inline-flex; align-items: center; justify-content: center; gap: .6rem; border-radius: 9999px; padding: .95rem 2rem; font-size: .85rem; font-weight: 700; transition: all .3s; cursor: pointer; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-red:hover { background: var(--navy); }
+.btn-navy { background: var(--navy); color: var(--cream); }
+.btn-navy:hover { background: var(--red); }
+.btn-ghost-light { border: 1px solid rgba(242,239,230,.25); color: var(--cream); }
+.btn-ghost-light:hover { background: rgba(242,239,230,.1); }
+.btn-ghost-dark { border: 1px solid rgba(18,40,60,.3); color: var(--navy); }
+.btn-ghost-dark:hover { border-color: var(--navy); }
+.btn-circle { width: 3rem; height: 3rem; border-radius: 9999px; background: var(--red); color: #fff; display: flex; align-items: center; justify-content: center; transition: background .3s; cursor: pointer; flex-shrink: 0; }
+.btn-circle:hover { background: var(--navy); }
+.card-light { background: var(--paper); border: 1px solid rgba(18,40,60,.12); border-radius: 1rem; }
+.card-dark { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 1rem; }
+.input-line { width: 100%; background: transparent; border: 0; border-bottom: 2px solid rgba(18,40,60,.2); padding: .7rem .25rem; font-size: .9rem; outline: none; transition: border-color .3s; color: inherit; }
+.input-line:focus { border-color: var(--red); }
+.input-line-dark { border-bottom-color: rgba(242,239,230,.25); }
+.field-label { display: block; font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; margin-bottom: .5rem; }
+.input-pill-wrap { display: flex; align-items: center; gap: .5rem; border-radius: 9999px; background: var(--cream); padding: .4rem .4rem .4rem 1.5rem; }
+.input-pill-wrap input { flex: 1; background: transparent; border: 0; outline: none; color: var(--navy); font-size: .9rem; }
+
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes rotSlow { to { transform: rotate(360deg); } }
+.rot-slow { animation: rotSlow 14s linear infinite; }
