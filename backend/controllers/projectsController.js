@@ -3,7 +3,7 @@ import { pool } from '../config/db.js';
 import { success, created, fail } from '../utils/response.js';
 import { parsePagination, paged } from '../utils/pagination.js';
 import { HttpError } from '../utils/httpError.js';
-import { notify, addProjectEvent } from '../utils/activity.js';
+import { notify, addProjectEvent, audit } from '../utils/activity.js';
 import {
   parseDeliveryFilePath, deliveryAbsolutePath, removeDeliveryFile,
 } from '../utils/uploads.js';
@@ -42,10 +42,14 @@ export const getMyProjects = async (req, res, next) => {
 
 export const getProjectById = async (req, res, next) => {
   try {
+    // Kontak kedua pihak hanya untuk mereka yang terlibat: kolaborasi berjalan di luar
+    // sistem (WhatsApp), jadi setelah talenta dipilih keduanya perlu bisa saling menghubungi.
     const [rows] = await pool.query(
       `SELECT p.*, n.title AS project_title, n.description AS project_description,
-              n.category, c.name AS community_name,
-              t.name AS talent_name, r.name AS requester_name
+              n.category, n.source, c.name AS community_name,
+              t.name AS talent_name, t.email AS talent_email, t.phone AS talent_phone,
+              r.name AS requester_name, r.email AS requester_email, r.phone AS requester_phone,
+              r.role AS requester_role
        FROM projects p
        JOIN needs n ON n.id = p.need_id
        LEFT JOIN communities c ON c.id = p.community_id
@@ -114,6 +118,10 @@ export const agreeProject = async (req, res, next) => {
     await addProjectEvent(conn, {
       projectId: project.id, actorId: req.user.id, eventType: 'STARTED',
       label: 'Talenta menyetujui dan mulai mengerjakan',
+    });
+    await notify(conn, {
+      userId: project.requester_id, type: 'talenta', title: 'Kesepakatan disetujui talenta',
+      body: 'Talenta menyetujui lingkup kerja dan mulai mengerjakan', refType: 'project', refId: project.id,
     });
 
     await conn.commit();
@@ -395,8 +403,159 @@ export const openDispute = async (req, res, next) => {
       projectId: project.id, actorId: req.user.id, eventType: 'DISPUTED', label: 'Sengketa dibuka',
     });
 
+    // Pihak lawan diberi tahu agar bisa mengisi pernyataannya (POST /:id/dispute/statement).
+    const counterpart = isTalent ? project.requester_id : project.talent_id;
+    const others = req.user.role === 'admin' ? [project.requester_id, project.talent_id] : [counterpart];
+    for (const userId of new Set(others)) {
+      await notify(conn, {
+        userId, type: 'sengketa', title: 'Sengketa dibuka',
+        body: 'Ada sengketa pada proyek Anda. Silakan isi pernyataan Anda untuk mediasi admin.',
+        refType: 'project', refId: project.id,
+      });
+    }
+
     await conn.commit();
     return created(res, { id: disputeRes.insertId }, 'Sengketa dibuka, menunggu mediasi admin');
+  } catch (err) {
+    await conn.rollback();
+    next(err);
+  } finally {
+    conn.release();
+  }
+};
+
+// Talenta mundur (PRD §7: COCOK/DIKERJAKAN → TERBUKA). Proyek CANCELLED, kebutuhan kembali
+// OPEN sehingga talenta lain bisa melamar dan proyek baru boleh dibuat (uq_project_active_need).
+const CANCELLABLE_STATUSES = ['AGREEMENT', 'IN_PROGRESS', 'REVISION'];
+
+export const cancelProject = async (req, res, next) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [rows] = await conn.query(
+      `SELECT p.*, n.title AS need_title FROM projects p JOIN needs n ON n.id = p.need_id
+       WHERE p.id = ? AND p.talent_id = ? FOR UPDATE`,
+      [req.params.id, req.user.id]
+    );
+    if (!rows[0]) throw new HttpError(404, 'Proyek tidak ditemukan');
+    const project = rows[0];
+
+    if (!CANCELLABLE_STATUSES.includes(project.status)) {
+      throw new HttpError(409, `Tidak bisa mundur pada status ${project.status}`);
+    }
+
+    const { reason } = req.body;
+    await conn.query(`UPDATE projects SET status = 'CANCELLED' WHERE id = ?`, [project.id]);
+    await conn.query(
+      `UPDATE needs SET status = 'OPEN' WHERE id = ? AND status = 'IN_PROGRESS'`,
+      [project.need_id]
+    );
+    if (project.application_id) {
+      await conn.query(
+        `UPDATE applications SET status = 'DITOLAK', decided_at = NOW() WHERE id = ?`,
+        [project.application_id]
+      );
+    }
+
+    await addProjectEvent(conn, {
+      projectId: project.id, actorId: req.user.id, eventType: 'CANCELLED',
+      label: `Talenta mundur: ${reason}`,
+    });
+    await notify(conn, {
+      userId: project.requester_id, type: 'talenta', title: 'Talenta mundur dari proyek',
+      body: `"${project.need_title}" kembali terbuka untuk talenta lain. Alasan: ${reason}`,
+      refType: 'need', refId: project.need_id,
+    });
+    await audit(conn, {
+      actorId: req.user.id, action: 'CANCEL', entity: 'projects', entityId: project.id,
+      title: project.need_title, meta: { reason },
+    });
+
+    await conn.commit();
+    const [updated] = await pool.query(`SELECT * FROM projects WHERE id = ?`, [project.id]);
+    return success(res, updated[0], 'Anda mundur dari proyek; kebutuhan kembali terbuka');
+  } catch (err) {
+    await conn.rollback();
+    next(err);
+  } finally {
+    conn.release();
+  }
+};
+
+async function loadProjectForParty(projectId, user) {
+  const [rows] = await pool.query(
+    `SELECT p.id, p.status, p.talent_id, p.requester_id FROM projects p WHERE p.id = ?`,
+    [projectId]
+  );
+  const project = rows[0];
+  if (!project) throw new HttpError(404, 'Proyek tidak ditemukan');
+  const isParty = Number(project.talent_id) === Number(user.id) || Number(project.requester_id) === Number(user.id);
+  if (!isParty && user.role !== 'admin') throw new HttpError(403, 'Akses ditolak');
+  return project;
+}
+
+// Pihak proyek bisa melihat sengketanya sendiri: status, pernyataan, kronologi, pesan admin.
+export const getProjectDispute = async (req, res, next) => {
+  try {
+    const project = await loadProjectForParty(req.params.id, req.user);
+    const [disputes] = await pool.query(
+      `SELECT * FROM disputes WHERE project_id = ? ORDER BY opened_at DESC, id DESC LIMIT 1`,
+      [project.id]
+    );
+    if (!disputes[0]) return fail(res, 'Belum ada sengketa untuk proyek ini', 404);
+
+    const dispute = disputes[0];
+    const [events] = await pool.query(
+      `SELECT id, label, created_at FROM dispute_events WHERE dispute_id = ? ORDER BY created_at ASC, id ASC`,
+      [dispute.id]
+    );
+    const [messages] = await pool.query(
+      `SELECT am.id, am.body, am.sent_at, u.name AS sender_name
+       FROM admin_messages am JOIN users u ON u.id = am.sender_id
+       WHERE am.target_type = 'DISPUTE' AND am.target_id = ?
+       ORDER BY am.sent_at ASC, am.id ASC`,
+      [dispute.id]
+    );
+    return success(res, { ...dispute, project_status: project.status, events, messages });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Pihak lawan mengisi (atau memperbarui) pernyataannya selama sengketa belum diputus (T3.7).
+export const submitDisputeStatement = async (req, res, next) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.query(
+      `SELECT p.id, p.talent_id, p.requester_id FROM projects p WHERE p.id = ? FOR UPDATE`,
+      [req.params.id]
+    );
+    const project = rows[0];
+    if (!project) throw new HttpError(404, 'Proyek tidak ditemukan');
+
+    const isTalent = Number(project.talent_id) === Number(req.user.id);
+    const isOwner = Number(project.requester_id) === Number(req.user.id);
+    if (!isTalent && !isOwner) throw new HttpError(403, 'Hanya pihak proyek yang bisa mengisi pernyataan');
+
+    const [disputes] = await conn.query(
+      `SELECT * FROM disputes WHERE project_id = ? AND status <> 'SELESAI' ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+      [project.id]
+    );
+    if (!disputes[0]) throw new HttpError(409, 'Tidak ada sengketa yang sedang berjalan');
+    const dispute = disputes[0];
+
+    const column = isTalent ? 'statement_talent' : 'statement_community';
+    await conn.query(`UPDATE disputes SET ${column} = ? WHERE id = ?`, [req.body.statement, dispute.id]);
+    await conn.query(
+      `INSERT INTO dispute_events (dispute_id, label) VALUES (?, ?)`,
+      [dispute.id, isTalent ? 'Talenta mengisi pernyataan' : 'Komunitas mengisi pernyataan']
+    );
+
+    await conn.commit();
+    const [updated] = await pool.query(`SELECT * FROM disputes WHERE id = ?`, [dispute.id]);
+    return success(res, updated[0], 'Pernyataan tersimpan');
   } catch (err) {
     await conn.rollback();
     next(err);
