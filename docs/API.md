@@ -127,11 +127,11 @@ lamaran, dan proyek di atas.
 
 | Method | Path | Keterangan |
 |---|---|---|
-| GET | `/admin/stats` | `v_platform_stats` lengkap |
-| GET | `/admin/moderation` | Filter `item_type, decision` |
+| GET | `/admin/stats` | `v_platform_stats` lengkap + `moderation {pending, approved, rejected}`, `users_by_role` (akun aktif), `weekly_visits[6]` (kunjungan situs per minggu, terlama → minggu ini) |
+| GET | `/admin/moderation` | Filter `item_type, decision`. Tiap item membawa `detail`: isi kebutuhan (`description, category, community_name, created_by_name, …`) atau testimoni (`text, from_name, to_name, project_title`) |
 | PATCH | `/admin/moderation/:id` | `decision: APPROVED\|REJECTED, reject_reason (wajib saat REJECTED: SPAM\|DUPLIKAT\|SALAH KATEGORI\|TIDAK LAYAK), checklist_layak?, checklist_kategori?`. Hanya saat `PENDING` |
 | PATCH | `/admin/testimonials/:id/takedown` | `reason?` |
-| GET | `/admin/disputes` · `/admin/disputes/:id` | Filter `status` |
+| GET | `/admin/disputes` · `/admin/disputes/:id` | Filter `status`. Memuat `requester_name, talent_name`; detail juga `scope, done_definition, deadline, events[], messages[]` |
 | PATCH | `/admin/disputes/:id/resolve` | `decision: MARK_COMPLETE\|EXTEND_7_DAYS, statement_admin?` |
 | POST | `/admin/disputes/:id/messages` | `body` (kedua pihak diberi notifikasi) |
 | GET | `/admin/users` · PATCH `/admin/users/:id/status` | Filter `role, status, search`; `status: AKTIF\|DITANGGUHKAN` |
