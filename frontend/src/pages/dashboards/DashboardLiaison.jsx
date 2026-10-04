@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import DashShell from '../../components/common/DashShell';
 import MiniBars from '../../components/common/MiniBars';
+import GoogleMapsEmbed from '../../components/common/GoogleMapsEmbed';
 
 const CHIP = { green: 'bg-[#c9ecd9] text-[#12283c]', navy: 'bg-[#12283c] text-[#f2efe6]', red: 'bg-[#e62b2b] text-white', ghost: 'bg-[#12283c]/10 text-[#12283c]/70' };
 const chip = (k, t) => <span className={`chip-mono border-0 ${CHIP[k]}`}>{t}</span>;
@@ -15,6 +14,7 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
   const [form, setForm] = useState({ nama: '', tipe: 'PKK', leader: '', issue: '', cat: 'PENCATATAN', addr: '' });
   const [coords, setCoords] = useState(null);
   const [gpsMsg, setGpsMsg] = useState('');
+  const [addressSearching, setAddressSearching] = useState(false);
   const [sent, setSent] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState(null);
   const [visits, setVisits] = useState([
@@ -28,8 +28,6 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
     { id: 2, type: 'intake', title: 'Pengaduan baru masuk antrian', sub: 'Paguyuban Pedagang · Baratlaut', read: false },
     { id: 3, type: 'sistem', title: 'Laporan mingguan siap', sub: 'Unduh di tab Laporan', read: true },
   ]);
-  const formMapEl = useRef(null); const formMapInst = useRef(null); const formMarker = useRef(null);
-  const areaMapEl = useRef(null); const areaMapInst = useRef(null); const areaMarkers = useRef(null);
   const rootRef = useRef(null);
   const NOTIF_META = { kunjungan: { c: '#e62b2b', l: 'KUNJUNGAN' }, intake: { c: '#c9ecd9', l: 'INTAKE' }, sistem: { c: '#9CA3AF', l: 'SISTEM' } };
   const NAV = [
@@ -53,54 +51,34 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
     setVisits((v) => [...v, { id: Date.now(), comm: form.nama, sec: quadrantOf(coords), date: 'HARI INI', time: 'SEKARANG', addr: form.addr || '—', lat: coords.lat, lng: coords.lng, status: 'TERDATA', note: form.issue }]);
     setSent(true);
   };
-  const placeFormMarker = (lat, lng) => {
-    if (!formMapInst.current) return;
-    if (formMarker.current) formMarker.current.setLatLng([lat, lng]);
-    else formMarker.current = L.marker([lat, lng], { icon: L.divIcon({ className: '', html: '<div style="width:20px;height:20px;background:#e62b2b;border:2px solid #12283c;transform:rotate(45deg)"></div>', iconSize: [20, 20], iconAnchor: [10, 10] }) }).addTo(formMapInst.current);
-    setCoords({ lat, lng });
+  const searchFormAddress = async () => {
+    if (!form.addr.trim() || addressSearching) return;
+    setAddressSearching(true);
+    setGpsMsg('');
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(`${form.addr}, Kota Bandung`)}`);
+      if (!response.ok) throw new Error('Layanan pencarian alamat sedang tidak tersedia.');
+      const results = await response.json();
+      if (!results[0]) {
+        setGpsMsg('ALAMAT TIDAK DITEMUKAN — COBA TAMBAHKAN KELURAHAN.');
+        return;
+      }
+      setCoords({ lat: Number(results[0].lat), lng: Number(results[0].lon) });
+      setGpsMsg('ALAMAT DITEMUKAN ✓');
+    } catch (error) {
+      setGpsMsg(error instanceof Error ? error.message : 'PENCARIAN ALAMAT GAGAL. COBA LAGI.');
+    } finally {
+      setAddressSearching(false);
+    }
   };
   const grabGPS = () => {
     setGpsMsg('MENCARI GPS...');
-    if (!navigator.geolocation) { setGpsMsg('GPS TIDAK DIDUKUNG — KLIK MAP MANUAL'); return; }
+    if (!navigator.geolocation) { setGpsMsg('GPS TIDAK DIDUKUNG — CARI ALAMAT KOMUNITAS.'); return; }
     navigator.geolocation.getCurrentPosition(
-      (p) => { placeFormMarker(p.coords.latitude, p.coords.longitude); setGpsMsg('GPS TERTANGKAP ✓'); },
-      () => { placeFormMarker(-6.9147, 107.6096); setGpsMsg('GPS GAGAL, PASTIKAN GPS AKTIF.'); },
+      (p) => { setCoords({ lat: p.coords.latitude, lng: p.coords.longitude }); setGpsMsg('GPS TERTANGKAP ✓'); },
+      () => setGpsMsg('GPS GAGAL — PERIKSA IZIN LOKASI ATAU CARI ALAMAT.'),
     );
   };
-  useEffect(() => {
-    if (tab !== 'catat' || sent || !formMapEl.current || formMapInst.current) return;
-    const map = L.map(formMapEl.current).setView([-6.9147, 107.6096], 13);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
-    map.on('click', (e) => placeFormMarker(e.latlng.lat, e.latlng.lng));
-    formMapInst.current = map;
-    return () => { map.remove(); formMapInst.current = null; formMarker.current = null; };
-  }, [tab, sent]);
-  useEffect(() => {
-    if (tab !== 'map' || !areaMapEl.current || areaMapInst.current) return;
-    const map = L.map(areaMapEl.current).setView([-6.9147, 107.6096], 12);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
-    areaMarkers.current = L.layerGroup().addTo(map);
-    areaMapInst.current = map;
-    return () => { map.remove(); areaMapInst.current = null; areaMarkers.current = null; };
-  }, [tab]);
-  useEffect(() => {
-    if (tab !== 'map' || !areaMarkers.current) return;
-    areaMarkers.current.clearLayers();
-    const makeIcon = (bg, border, label, big) => L.divIcon({ className: '', html: `<div style="width:${big ? 38 : 28}px;height:${big ? 38 : 28}px;background:${bg};border:2px solid ${border};transform:rotate(45deg);display:flex;align-items:center;justify-content:center;box-shadow:2px 2px 0 rgba(0,0,0,.25)"><span style="transform:rotate(-45deg);font-family:monospace;font-weight:700;font-size:${big ? 12 : 10}px;color:${bg === '#fdfcf7' ? '#12283c' : '#fff'}">${label}</span></div>`, iconSize: [big ? 38 : 28, big ? 38 : 28], iconAnchor: [big ? 19 : 14, big ? 19 : 14] });
-    visits.forEach((v) => {
-      const isSel = selectedVisit && selectedVisit.id === v.id;
-      const icon = isSel ? makeIcon('#e62b2b', '#12283c', v.comm.charAt(0), true)
-        : v.status === 'TERDATA' ? makeIcon('#c9ecd9', '#12283c', v.comm.charAt(0))
-        : v.status === 'BERLANGSUNG' ? makeIcon('#e62b2b', '#12283c', v.comm.charAt(0))
-        : makeIcon('#fdfcf7', '#12283c', v.comm.charAt(0));
-      const m = L.marker([v.lat, v.lng], { icon, zIndexOffset: isSel ? 1000 : 0 }).addTo(areaMarkers.current);
-      m.on('click', () => setSelectedVisit(isSel ? null : v));
-    });
-  }, [tab, visits, selectedVisit]);
-  useEffect(() => {
-    if (tab !== 'map' || !areaMapInst.current || !selectedVisit) return;
-    areaMapInst.current.flyTo([selectedVisit.lat, selectedVisit.lng], 15, { duration: 0.8 });
-  }, [selectedVisit, tab]);
   useEffect(() => {
     const ctx = gsap.context(() => {
       gsap.fromTo('.dash-item', { y: 30, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, stagger: 0.07, ease: 'power2.out' });
@@ -251,9 +229,16 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
                   <span className="label-mono !text-[#e62b2b] !opacity-100">C · LOKASI KOMUNITAS</span>
                   <div className="my-4"><button type="button" onClick={grabGPS} className="w-full btn-pill btn-navy !py-3 text-[10px]">📡 Gunakan GPS Saya</button></div>
                   {gpsMsg && <p className="font-mono text-[9px] font-bold mb-3">{gpsMsg}</p>}
-                  <div className="relative z-0 rounded-xl border border-[#12283c]/15 h-[280px] mb-4 overflow-hidden"><div ref={formMapEl} className="w-full h-full" /></div>
-                  <p className="chip-mono border-0 bg-[#12283c] text-[#f2efe6] inline-block mb-4">{coords ? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)} · ${quadrantOf(coords)}` : 'BELUM ADA TITIK — GPS / KLIK MAP'}</p>
-                  <div><label className="field-label">Alamat / Patokan</label><input value={form.addr} onChange={(e) => setForm((f) => ({ ...f, addr: e.target.value }))} className="input-line" placeholder="Mis. Balai RW 03, sebelah pos ronda" /></div>
+                  <div className="relative z-0 rounded-xl border border-[#12283c]/15 h-[280px] mb-4 overflow-hidden"><GoogleMapsEmbed lat={coords?.lat} lng={coords?.lng} query={form.addr || 'Bandung, Indonesia'} zoom={coords ? 16 : 12} title="Peta Google Maps lokasi komunitas" /></div>
+                  <p className="chip-mono border-0 bg-[#12283c] text-[#f2efe6] inline-block mb-4">{coords ? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)} · ${quadrantOf(coords)}` : 'BELUM ADA TITIK — CARI ALAMAT / GUNAKAN GPS'}</p>
+                  <div>
+                    <label className="field-label">Alamat / Patokan</label>
+                    <div className="flex gap-2">
+                      <input value={form.addr} onChange={(e) => { setForm((f) => ({ ...f, addr: e.target.value })); setCoords(null); }} className="input-line" placeholder="Mis. Balai RW 03, sebelah pos ronda" />
+                      <button type="button" onClick={searchFormAddress} disabled={addressSearching || !form.addr.trim()} className="btn-pill btn-ghost-dark !px-5 !py-2 text-[9px] shrink-0">{addressSearching ? '...' : 'Cari'}</button>
+                    </div>
+                  </div>
+                  {coords && <a href={`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`} target="_blank" rel="noreferrer" className="inline-block mt-3 font-mono text-[10px] font-bold text-[#e62b2b] underline">BUKA LOKASI DI GOOGLE MAPS ↗</a>}
                   <button onClick={submitIntake} disabled={!form.nama.trim() || !form.issue.trim() || !coords} className={`btn-pill w-full mt-6 ${form.nama.trim() && form.issue.trim() && coords ? 'btn-red' : 'bg-[#12283c]/10 text-[#12283c]/40 cursor-not-allowed'}`}>Simpan Kedalam Antrian →</button>
                 </div>
               </div>
@@ -266,11 +251,7 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
           <>
             <div className="dash-item flex items-end justify-between flex-wrap gap-4 mb-6">
               <div><h1 className="text-4xl md:text-5xl font-black tracking-tight">Map Komunitas Terdaftar</h1><p className="label-mono mt-2">DAFTAR KOMUNITAS YANG TERDAFTAR</p></div>
-              <div className="dash-item card-light p-3 flex items-center gap-5 font-mono text-[9px] font-bold">
-                <span className="flex items-center gap-2"><span className="w-3 h-3 bg-[#fdfcf7] border-2 border-[#12283c] rotate-45"></span> DIRENCANAKAN</span>
-                <span className="flex items-center gap-2"><span className="w-3 h-3 bg-[#e62b2b] border-2 border-[#12283c] rotate-45"></span> BERLANGSUNG</span>
-                <span className="flex items-center gap-2"><span className="w-3 h-3 bg-[#c9ecd9] border-2 border-[#12283c] rotate-45"></span> TERDATA</span>
-              </div>
+              <p className="label-mono">PILIH KUNJUNGAN UNTUK MELIHAT LOKASI DI GOOGLE MAPS</p>
             </div>
             <div className="grid grid-cols-12 gap-6">
               <div className="col-span-12 lg:col-span-4 space-y-4">
@@ -300,7 +281,7 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
               </div>
               <div className="col-span-12 lg:col-span-8">
                 <div className="dash-item relative h-[520px] rounded-xl border border-[#12283c]/15 overflow-hidden">
-                  <div className="absolute inset-0 z-0"><div ref={areaMapEl} className="w-full h-full" /></div>
+                  <div className="absolute inset-0 z-0"><GoogleMapsEmbed lat={selectedVisit?.lat} lng={selectedVisit?.lng} query="Bandung, Indonesia" zoom={selectedVisit ? 16 : 12} title={selectedVisit ? `Google Maps ${selectedVisit.comm}` : 'Google Maps Bandung'} /></div>
                   {selectedVisit && (
                     <div className="absolute top-3 right-3 z-10 w-[270px] card-light p-4 shadow-xl">
                       <button onClick={() => setSelectedVisit(null)} className="absolute top-2 right-2 w-6 h-6 rounded-full border border-[#12283c]/30 flex items-center justify-center text-xs font-black hover:bg-[#e62b2b] hover:text-white hover:border-[#e62b2b]">×</button>

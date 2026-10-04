@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import DashShell from '../../components/common/DashShell';
 import ProjSteps from '../../components/common/ProjSteps';
 import SetToggle from '../../components/common/SetToggle';
 import AiAgent from '../../components/common/AiAgent';
+import GoogleMapsEmbed from '../../components/common/GoogleMapsEmbed';
+import { loadProjectSubmissions, saveProjectSubmissions } from '../../utils/projectSubmissions';
 
 const CHIP = { green: 'bg-[#c9ecd9] text-[#12283c]', navy: 'bg-[#12283c] text-[#f2efe6]', red: 'bg-[#e62b2b] text-white', ghost: 'bg-[#12283c]/10 text-[#12283c]/70' };
 const chip = (k, t) => <span className={`chip-mono border-0 ${CHIP[k]}`}>{t}</span>;
@@ -18,6 +18,8 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
   const [sets, setSets] = useState({ email: true, lokasi: true, whatsapp: false, notifTalenta: true, notifDiskusi: true });
   const [selectedProj, setSelectedProj] = useState(null);
   const [testi, setTesti] = useState('');
+  const [projectSubmissions, setProjectSubmissions] = useState(loadProjectSubmissions);
+  const [reviewNotes, setReviewNotes] = useState({});
   const [settingsTab, setSettingsTab] = useState('profil');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [notifs, setNotifs] = useState([
@@ -55,12 +57,13 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
   /* ===== MAP ===== */
   const [mapComm, setMapComm] = useState(null);
   const [markMode, setMarkMode] = useState(false);
-  const markModeRef = useRef(false);
   const [tempLoc, setTempLoc] = useState(null);
+  const [locationSearch, setLocationSearch] = useState('');
+  const [locationMessage, setLocationMessage] = useState('');
+  const [locationSearching, setLocationSearching] = useState(false);
   const [myCommName, setMyCommName] = useState('');
   const [myCommCat, setMyCommCat] = useState('KELUARGA');
   const [myComms, setMyComms] = useState([]);
-  const mapEl = useRef(null); const mapInst = useRef(null); const markersLayer = useRef(null); const tempMarker = useRef(null);
   const rootRef = useRef(null);
 
   const first = (user?.name || 'Warga').split(' ')[0];
@@ -172,39 +175,46 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
     const u = { ...selectedProj, status: 'DIPROSES' };
     setProjects((ps) => ps.map((p) => (p.id === u.id ? u : p))); setSelectedProj(u); setTesti('');
   };
+  const reviewSubmission = (submissionId, status) => {
+    const reviewNote = (reviewNotes[submissionId] || '').trim();
+    if (status === 'REVISI' && !reviewNote) return;
+    const updated = projectSubmissions.map((submission) => submission.id === submissionId
+      ? { ...submission, status, reviewNote, reviewedAt: new Date().toISOString() }
+      : submission);
+    saveProjectSubmissions(updated);
+    setProjectSubmissions(updated);
+  };
 
   /* ===== MAP ===== */
   const quadrantOf = (loc) => `${loc.lng < 107.6191 ? 'BARAT' : 'TIMUR'}–${loc.lat > -6.9175 ? 'UTARA' : 'SELATAN'}`;
-  const focusComm = (c) => { setMapComm({ ...c, mine: !!c.mine }); mapInst.current?.flyTo([c.lat, c.lng], 15, { duration: 0.8 }); };
+  const focusComm = (c) => { setMapComm({ ...c, mine: !!c.mine }); setTempLoc(null); };
+  const searchCommunityLocation = async () => {
+    if (!locationSearch.trim() || locationSearching) return;
+    setLocationSearching(true);
+    setLocationMessage('');
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(`${locationSearch}, Kota Bandung`)}`);
+      if (!response.ok) throw new Error('Layanan pencarian alamat sedang tidak tersedia.');
+      const results = await response.json();
+      if (!results[0]) {
+        setLocationMessage('Alamat tidak ditemukan. Coba tambahkan nama jalan atau kelurahan.');
+        return;
+      }
+      setTempLoc({ lat: Number(results[0].lat), lng: Number(results[0].lon) });
+      setMapComm(null);
+      setLocationMessage('Lokasi ditemukan. Periksa peta sebelum menyimpan komunitas.');
+    } catch (error) {
+      setLocationMessage(error instanceof Error ? error.message : 'Pencarian alamat gagal. Coba lagi.');
+    } finally {
+      setLocationSearching(false);
+    }
+  };
   const saveMyComm = () => {
     if (!myCommName.trim() || !tempLoc) return;
     const init = (user?.name || 'A').charAt(0).toUpperCase();
     setMyComms([...myComms, { n: myCommName.trim(), s: quadrantOf(tempLoc), m: 1, t: myCommCat, leader: { n: user?.name || first, r: 'Pemimpin', i: init }, est: 'AGU 2026', wa: '—', desc: `Komunitas baru ditandai oleh ${user?.name || first}.`, lat: tempLoc.lat, lng: tempLoc.lng, mine: true }]);
     setTempLoc(null); setMyCommName(''); setMarkMode(false);
   };
-  useEffect(() => { markModeRef.current = markMode; }, [markMode]);
-  useEffect(() => {
-    if (tab !== 'map' || !mapEl.current || mapInst.current) return;
-    const map = L.map(mapEl.current).setView([-6.9147, 107.6096], 12);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
-    markersLayer.current = L.layerGroup().addTo(map);
-    map.on('click', (e) => { if (markModeRef.current) setTempLoc({ lat: e.latlng.lat, lng: e.latlng.lng }); });
-    mapInst.current = map;
-    return () => { map.remove(); mapInst.current = null; markersLayer.current = null; tempMarker.current = null; };
-  }, [tab]);
-  useEffect(() => {
-    if (tab !== 'map' || !markersLayer.current) return;
-    markersLayer.current.clearLayers();
-    const makeIcon = (bg, label) => L.divIcon({ className: '', html: `<div style="width:30px;height:30px;background:${bg};border:2px solid #12283c;transform:rotate(45deg);display:flex;align-items:center;justify-content:center;box-shadow:2px 2px 0 rgba(0,0,0,.25)"><span style="transform:rotate(-45deg);font-family:monospace;font-weight:700;font-size:10px;color:${bg === '#fdfcf7' ? '#12283c' : '#fff'}">${label}</span></div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
-    COMMUNITIES.forEach((c) => { const m = L.marker([c.lat, c.lng], { icon: makeIcon('#e62b2b', c.leader.i) }).addTo(markersLayer.current); m.on('click', () => setMapComm({ ...c, mine: false })); });
-    myComms.forEach((c) => { const m = L.marker([c.lat, c.lng], { icon: makeIcon('#c9ecd9', '★') }).addTo(markersLayer.current); m.on('click', () => setMapComm({ ...c, mine: true })); });
-  }, [tab, myComms]);
-  useEffect(() => {
-    if (!mapInst.current) return;
-    if (tempMarker.current) { mapInst.current.removeLayer(tempMarker.current); tempMarker.current = null; }
-    if (tempLoc) tempMarker.current = L.marker([tempLoc.lat, tempLoc.lng], { icon: L.divIcon({ className: '', html: '<div style="width:26px;height:26px;background:#12283c;border:2px dashed #f2efe6;transform:rotate(45deg)"></div>', iconSize: [26, 26], iconAnchor: [13, 13] }) }).addTo(mapInst.current);
-  }, [tempLoc]);
-
   /* ===== ANIMASI ===== */
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -311,6 +321,45 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
                 </div>
               ))}
             </div>
+            <section className="dash-item card-light p-6 md:p-8 mb-6">
+              <div className="flex items-end justify-between flex-wrap gap-3 mb-5">
+                <div>
+                  <h2 className="text-2xl font-black">Pengiriman Proyek Talenta</h2>
+                  <p className="label-mono mt-1">TINJAU HASIL SEBELUM KONFIRMASI</p>
+                </div>
+                <span className="chip-mono border-0 bg-[#12283c] text-[#f2efe6]">{projectSubmissions.filter((submission) => submission.status !== 'DISETUJUI').length} PERLU DICEK</span>
+              </div>
+              {projectSubmissions.length === 0 && <p className="rounded-xl border border-dashed border-[#12283c]/20 p-5 text-sm text-[#12283c]/60">Belum ada hasil proyek yang dikirim talenta.</p>}
+              <div className="space-y-4">
+                {projectSubmissions.map((submission) => (
+                  <article key={submission.id} className="rounded-xl border border-[#12283c]/15 p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                      <div>
+                        <h3 className="text-lg font-black">{submission.project}</h3>
+                        <p className="font-mono text-[10px] opacity-60">{submission.community} · DIKIRIM OLEH {submission.talent} · {new Date(submission.submittedAt).toLocaleDateString('id-ID')}</p>
+                      </div>
+                      <span className={`chip-mono border-0 ${submission.status === 'DISETUJUI' ? 'bg-[#c9ecd9] text-[#12283c]' : submission.status === 'REVISI' ? 'bg-[#f4d4d4] text-[#12283c]' : 'bg-[#12283c] text-[#f2efe6]'}`}>
+                        {submission.status === 'DISETUJUI' ? 'DISETUJUI' : submission.status === 'REVISI' ? 'PERLU PERBAIKAN' : 'MENUNGGU TINJAUAN'}
+                      </span>
+                    </div>
+                    <p className="text-sm leading-relaxed mb-3">{submission.summary}</p>
+                    <a href={submission.link} target="_blank" rel="noreferrer" className="font-mono text-xs font-bold text-[#e62b2b] underline break-all">BUKA HASIL / DEMO ↗</a>
+                    {submission.notes && <p className="mt-3 text-xs text-[#12283c]/70"><strong>Catatan talenta:</strong> {submission.notes}</p>}
+                    {submission.reviewNote && <p className="mt-3 rounded-lg bg-[#f4d4d4] p-3 text-xs"><strong>Catatan komunitas:</strong> {submission.reviewNote}</p>}
+                    {submission.status !== 'DISETUJUI' && (
+                      <div className="mt-5 border-t border-[#12283c]/10 pt-4">
+                        <label htmlFor={`review-note-${submission.id}`} className="field-label">Catatan perbaikan (wajib jika meminta revisi)</label>
+                        <textarea id={`review-note-${submission.id}`} value={reviewNotes[submission.id] || ''} onChange={(event) => setReviewNotes((notes) => ({ ...notes, [submission.id]: event.target.value }))} className="input-line h-20 resize-y" placeholder="Jelaskan bagian yang perlu diperbaiki..." />
+                        <div className="flex flex-wrap gap-3 mt-4">
+                          <button onClick={() => reviewSubmission(submission.id, 'REVISI')} disabled={!(reviewNotes[submission.id] || '').trim()} className={`btn-pill flex-1 !py-3 text-[10px] ${reviewNotes[submission.id]?.trim() ? 'btn-ghost-dark' : 'bg-[#12283c]/10 text-[#12283c]/40 cursor-not-allowed'}`}>Minta Perbaikan</button>
+                          <button onClick={() => reviewSubmission(submission.id, 'DISETUJUI')} className="btn-pill flex-1 !py-3 text-[10px] bg-[#c9ecd9] text-[#12283c] hover:bg-[#e62b2b] hover:text-white">✓ Konfirmasi Selesai</button>
+                        </div>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </section>
             <div className="dash-item flex items-center justify-between flex-wrap gap-4 mb-4">
               <div><h3 className="text-2xl font-black">Papan Projek & Verifikasi</h3><p className="label-mono mt-1">KLIK KARTU UNTUK DETAIL</p></div>
               <div className="flex flex-wrap gap-2">
@@ -455,6 +504,30 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
               <div><h1 className="text-4xl md:text-5xl font-black tracking-tight">Map Komunitas</h1><p className="label-mono mt-2">{COMMUNITIES.length + myComms.length} KOMUNITAS TERDAFTAR</p></div>
               <button onClick={() => { setMarkMode(!markMode); setTempLoc(null); setMapComm(null); }} className={`btn-pill ${markMode ? 'btn-navy' : 'btn-red'}`}>{markMode ? '✕ Batalkan' : '+ Tandai Komunitasku'}</button>
             </div>
+            {markMode && (
+              <div className="dash-item card-light p-5 mb-6">
+                <p className="field-label">Cari alamat komunitas untuk memilih titik lokasi</p>
+                <div className="flex flex-wrap gap-3">
+                  <input value={locationSearch} onChange={(event) => setLocationSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); searchCommunityLocation(); } }} className="input-line flex-1 min-w-[220px]" placeholder="Mis. Balai RW 05, Sukajadi, Bandung" />
+                  <button onClick={searchCommunityLocation} disabled={locationSearching || !locationSearch.trim()} className="btn-pill btn-navy !py-3 text-[10px]">{locationSearching ? 'MENCARI...' : 'Cari Alamat →'}</button>
+                  <button onClick={() => {
+                    if (!navigator.geolocation) {
+                      setLocationMessage('GPS tidak didukung browser ini. Cari alamat untuk menentukan titik lokasi.');
+                      return;
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                      (position) => {
+                        setTempLoc({ lat: position.coords.latitude, lng: position.coords.longitude });
+                        setMapComm(null);
+                        setLocationMessage('Lokasi GPS ditemukan. Periksa peta sebelum menyimpan komunitas.');
+                      },
+                      () => setLocationMessage('Lokasi GPS tidak dapat diakses. Periksa izin lokasi atau cari alamat.'),
+                    );
+                  }} className="btn-pill btn-ghost-dark !py-3 text-[10px]">Gunakan GPS</button>
+                </div>
+                {locationMessage && <p role="status" className="font-mono text-[10px] mt-3">{locationMessage}</p>}
+              </div>
+            )}
             <div className="grid grid-cols-12 gap-6">
               <div className="col-span-12 lg:col-span-4 space-y-4">
                 {[...COMMUNITIES, ...myComms].map((c, i) => (
@@ -466,12 +539,12 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
               </div>
               <div className="col-span-12 lg:col-span-8">
                 <div className="dash-item relative h-[520px] md:h-[560px] rounded-xl border border-[#12283c]/15 overflow-hidden">
-                  <div className="absolute inset-0 z-0"><div ref={mapEl} className="w-full h-full" /></div>
-                  {markMode && !tempLoc && <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 chip-mono border-0 bg-[#12283c] text-[#f2efe6] animate-pulse">KLIK PETA UNTUK MENARUH LOKASI</div>}
+                  <div className="absolute inset-0 z-0"><GoogleMapsEmbed lat={(tempLoc || mapComm)?.lat} lng={(tempLoc || mapComm)?.lng} query="Bandung, Indonesia" zoom={(tempLoc || mapComm) ? 16 : 12} title="Peta Google Maps komunitas" /></div>
                   {mapComm && !tempLoc && (
                     <div className="absolute top-3 right-3 z-10 w-[280px] card-light p-5 shadow-xl">
                       <button onClick={() => setMapComm(null)} className="absolute top-2 right-2 w-7 h-7 rounded-full border border-[#12283c]/30 flex items-center justify-center text-sm font-black hover:bg-[#e62b2b] hover:text-white hover:border-[#e62b2b]">×</button>
                       <h3 className="text-xl font-black leading-tight mb-1">{mapComm.n}</h3>
+                      <a href={`https://www.google.com/maps/dir/?api=1&destination=${mapComm.lat},${mapComm.lng}`} target="_blank" rel="noreferrer" className="block font-mono text-[10px] font-bold text-[#e62b2b] underline mb-3">BUKA RUTE ↗</a>
                       <button onClick={() => setTab('komunitas')} className="btn-pill btn-navy w-full !py-3 text-[10px]">Ke Mading Komunitas →</button>
                     </div>
                   )}

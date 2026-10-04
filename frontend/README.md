@@ -13,9 +13,11 @@ SUSI Community mempertemukan keduanya: komunitas dapat solusi digital tanpa biay
 ## Fitur Utama
 
 - **Assisted Intake** — kebutuhan bisa masuk secara mandiri atau dicatatkan oleh Liaison hasil kunjungan lapangan
+- **Peta Google Maps** — lokasi komunitas dan kebutuhan tampil lewat embed Google Maps tanpa API key; lokasi dipilih melalui pencarian alamat atau GPS
 - **Katalog & Pengajuan** — talenta menelusuri kebutuhan terbuka dan mengajukan diri
 - **Kesepakatan Dua Arah** — lingkup kerja & definisi "selesai" disepakati sebelum pengerjaan dimulai
-- **Verifikasi Dua Arah** — status selesai hanya sah jika talenta dan komunitas sama-sama mengonfirmasi
+- **Pengiriman & Verifikasi Hasil** — talenta mengirim ringkasan dan tautan demo untuk ditinjau komunitas; komunitas dapat mengonfirmasi atau meminta perbaikan
+- **Verifikasi Dua Arah** — status selesai hanya sah jika talenta mengirim hasil dan komunitas mengonfirmasi
 - **Reputasi Terverifikasi** — profil talenta menampilkan rekam jejak dan testimoni asli
 
 ## Tech Stack

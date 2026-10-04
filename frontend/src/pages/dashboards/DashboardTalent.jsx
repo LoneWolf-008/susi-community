@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import DashShell from '../../components/common/DashShell';
 import ProjSteps from '../../components/common/ProjSteps';
 import AiAgent from '../../components/common/AiAgent';
+import GoogleMapsEmbed from '../../components/common/GoogleMapsEmbed';
+import { loadProjectSubmissions, saveProjectSubmissions } from '../../utils/projectSubmissions';
 
 const CHIP = { green: 'bg-[#c9ecd9] text-[#12283c]', navy: 'bg-[#12283c] text-[#f2efe6]', red: 'bg-[#e62b2b] text-white', ghost: 'bg-[#12283c]/10 text-[#12283c]/70' };
 const chip = (k, t) => <span className={`chip-mono border-0 ${CHIP[k]}`}>{t}</span>;
@@ -19,24 +19,35 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
   const [applyMsg, setApplyMsg] = useState('');
   const [histFilter, setHistFilter] = useState('SEMUA');
   const [agreeTarget, setAgreeTarget] = useState(null);
+  const [completionTarget, setCompletionTarget] = useState(null);
+  const [completionForm, setCompletionForm] = useState({ summary: '', link: '', notes: '' });
   const [notifs, setNotifs] = useState([
     { id: 1, type: 'verifikasi', title: 'PKK RW 05 belum mengonfirmasi', sub: 'Formulir Pendaftaran · menunggu langkah 07', read: false },
     { id: 2, type: 'talenta', title: 'Lamaran Anda dilihat', sub: 'Katalog Inventaris PKK · 3 jam lalu', read: false },
     { id: 3, type: 'diskusi', title: 'PKK RW 05 membalas diskusi Anda', sub: 'Forum Diskusi · 1 hari lalu', read: false },
     { id: 4, type: 'sistem', title: 'Reputasi Anda: 12 / 20', sub: '2 proyek lagi menuju level berikutnya', read: true },
   ]);
-  const [projects, setProjects] = useState([
-    { id: 1, t: 'Aplikasi Iuran Warga', comm: 'PKK RW 05', scope: 'Form rekap iuran + dashboard sederhana, akses via HP.', deadline: '30 AGU 2026', status: 'PROSES' },
-    { id: 2, t: 'Website Galeri Karang Taruna', comm: 'Karang Taruna Mekar', scope: 'Landing page + galeri foto kegiatan.', deadline: '12 SEP 2026', status: 'KESEPAKATAN' },
-    { id: 3, t: 'Formulir Pendaftaran Digital', comm: 'Forum Warga Bandung', scope: 'Form pendaftaran warga baru.', deadline: '01 AGU 2026', status: 'VERIFIKASI' },
-  ]);
+  const [projects, setProjects] = useState(() => {
+    const initialProjects = [
+      { id: 1, t: 'Aplikasi Iuran Warga', comm: 'PKK RW 05', scope: 'Form rekap iuran + dashboard sederhana, akses via HP.', deadline: '30 AGU 2026', status: 'PROSES' },
+      { id: 2, t: 'Website Galeri Karang Taruna', comm: 'Karang Taruna Mekar', scope: 'Landing page + galeri foto kegiatan.', deadline: '12 SEP 2026', status: 'KESEPAKATAN' },
+      { id: 3, t: 'Formulir Pendaftaran Digital', comm: 'Forum Warga Bandung', scope: 'Form pendaftaran warga baru.', deadline: '01 AGU 2026', status: 'VERIFIKASI' },
+    ];
+    const submissions = loadProjectSubmissions().filter((submission) => submission.talent === user?.name);
+    return initialProjects.map((project) => {
+      const submission = submissions.find((item) => item.projectId === project.id);
+      if (!submission) return project;
+      const status = { MENUNGGU: 'VERIFIKASI', REVISI: 'REVISI', DISETUJUI: 'SELESAI' }[submission.status];
+      return status ? { ...project, status, submission } : project;
+    });
+  });
   const [applications, setApplications] = useState([
     { id: 1, t: 'Aplikasi Iuran Warga', comm: 'PKK RW 05', date: '02 AGU 2026', status: 'DITERIMA' },
     { id: 2, t: 'Website Galeri', comm: 'KT Mekar', date: '05 AGU 2026', status: 'DITERIMA' },
     { id: 3, t: 'Katalog Inventaris PKK', comm: 'PKK RW 05', date: '10 AGU 2026', status: 'MENUNGGU' },
     { id: 4, t: 'Sistem Absensi Pemuda', comm: 'KT Mekar', date: '28 JUL 2026', status: 'DITOLAK' },
   ]);
-  const detailMapEl = useRef(null); const detailMapInst = useRef(null); const rootRef = useRef(null);
+  const rootRef = useRef(null);
 
   const NEEDS = [
     { id: 10, t: 'Rekap Iuran Warga RW 05', comm: 'PKK RW 05', leader: 'Ibu Siti Aminah', m: 48, cat: 'PENCATATAN', sec: 'BARAT–UTARA', apps: 3, time: '2J', d: 'Iuran masih dicatat di buku tulis, sering hilang & susah direkap.', full: 'Setiap bulan pengurus PKK harus merekap iuran dari 48 kepala keluarga secara manual. Buku catatan sering tertukar atau hilang. Kami butuh cara sederhana supaya warga bisa cek iuran sendiri lewat HP.', addr: 'Balai RW 05, Kel. Sukajadi', lat: -6.8850, lng: 107.5750, skill: ['PENCATATAN', 'WEB SEDERHANA'] },
@@ -60,14 +71,6 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
   const first = (user?.name || 'Talenta').split(' ')[0];
 
   useEffect(() => {
-    if (!selectedNeed || !detailMapEl.current || detailMapInst.current) return;
-    const map = L.map(detailMapEl.current).setView([selectedNeed.lat, selectedNeed.lng], 14);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
-    L.marker([selectedNeed.lat, selectedNeed.lng], { icon: L.divIcon({ className: '', html: '<div style="width:22px;height:22px;background:#e62b2b;border:2px solid #12283c;transform:rotate(45deg)"></div>', iconSize: [22, 22], iconAnchor: [11, 11] }) }).addTo(map);
-    detailMapInst.current = map;
-    return () => { map.remove(); detailMapInst.current = null; };
-  }, [selectedNeed]);
-  useEffect(() => {
     const ctx = gsap.context(() => {
       gsap.fromTo('.dash-item', { y: 30, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, stagger: 0.07, ease: 'power2.out' });
       gsap.utils.toArray('.counter').forEach((el) => { const t = +el.dataset.target; const o = { val: 0 }; gsap.to(o, { val: t, duration: 1.4, ease: 'power1.out', onUpdate: () => { el.textContent = Math.round(o.val); } }); });
@@ -87,6 +90,27 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
     setApplyMsg('');
   };
   const setProjStatus = (id, status) => setProjects((p) => p.map((x) => (x.id === id ? { ...x, status } : x)));
+  const submitCompletion = (event) => {
+    event.preventDefault();
+    if (!completionTarget) return;
+    const submissions = loadProjectSubmissions();
+    const submission = {
+      id: Date.now(),
+      projectId: completionTarget.id,
+      project: completionTarget.t,
+      community: completionTarget.comm,
+      talent: user?.name || 'Talenta',
+      summary: completionForm.summary.trim(),
+      link: completionForm.link.trim(),
+      notes: completionForm.notes.trim(),
+      status: 'MENUNGGU',
+      submittedAt: new Date().toISOString(),
+    };
+    saveProjectSubmissions([...submissions.filter((item) => item.projectId !== submission.projectId || item.talent !== submission.talent), submission]);
+    setProjects((current) => current.map((project) => project.id === submission.projectId ? { ...project, status: 'VERIFIKASI', submission } : project));
+    setCompletionTarget(null);
+    setCompletionForm({ summary: '', link: '', notes: '' });
+  };
   const onTab = (id) => { setTab(id); setSelectedNeed(null); };
   const shellNotifs = notifs.map((n) => ({ ...n, color: NOTIF_META[n.type]?.c, label: NOTIF_META[n.type]?.l }));
 
@@ -165,8 +189,9 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
                       <p className="label-mono">LOKASI KOMUNITAS</p>
                       <span className="chip-mono border-0 bg-[#12283c] text-[#f2efe6]">{n.lat.toFixed(3)}, {n.lng.toFixed(3)}</span>
                     </div>
-                    <div className="relative z-0 rounded-xl border border-[#12283c]/15 h-[240px] overflow-hidden"><div ref={detailMapEl} className="w-full h-full" /></div>
+                    <div className="relative z-0 rounded-xl border border-[#12283c]/15 h-[240px] overflow-hidden"><GoogleMapsEmbed lat={n.lat} lng={n.lng} title={`Peta lokasi ${n.comm}`} /></div>
                     <p className="font-mono text-[10px] opacity-60 mt-3">📍 {n.addr} · SEKTOR {n.sec}</p>
+                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${n.lat},${n.lng}`} target="_blank" rel="noreferrer" className="inline-block mt-2 font-mono text-[10px] font-bold text-[#e62b2b] underline">BUKA RUTE GOOGLE MAPS ↗</a>
                   </div>
                 </div>
               </div>
@@ -230,6 +255,8 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
                     <div><h3 className="text-2xl font-black leading-tight">{p.t}</h3><p className="font-mono text-[10px] opacity-50 mt-1">{p.comm} · DEADLINE {p.deadline}</p></div>
                     {p.status === 'VERIFIKASI' && chip('ghost', 'MENUNGGU VERIFIKASI')}
                     {p.status === 'PROSES' && chip('navy', 'SEDANG DIKERJAKAN')}
+                    {p.status === 'REVISI' && chip('red', 'PERLU PERBAIKAN')}
+                    {p.status === 'SELESAI' && chip('green', 'TERVERIFIKASI')}
                     {p.status === 'KESEPAKATAN' && chip('red', 'BUTUH AKSI')}
                   </div>
                   <div className="grid grid-cols-12 gap-6 items-start">
@@ -238,8 +265,10 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
                       <ProjSteps status={p.status} />
                       <div className="mt-4">
                         {p.status === 'KESEPAKATAN' && <button onClick={() => setAgreeTarget(p)} className="btn-pill btn-red w-full !py-3 text-[10px]">Lihat Kesepakatan & Setuju →</button>}
-                        {p.status === 'PROSES' && <button onClick={() => setProjStatus(p.id, 'VERIFIKASI')} className="btn-pill btn-navy w-full !py-3 text-[10px]">Tandai Selesai →</button>}
+                        {(p.status === 'PROSES' || p.status === 'REVISI') && <button onClick={() => { setCompletionTarget(p); setCompletionForm({ summary: '', link: '', notes: '' }); }} className="btn-pill btn-navy w-full !py-3 text-[10px]">{p.status === 'REVISI' ? 'Kirim Ulang Proyek →' : 'Kirim Proyek untuk Ditinjau →'}</button>}
                         {p.status === 'VERIFIKASI' && <p className="w-full text-center rounded-full border border-[#12283c]/20 py-3 font-mono text-[10px] font-bold opacity-60">PROYEK DIKIRIM! TUNGGU VERIFIKASI KOMUNITAS.</p>}
+                        {p.status === 'REVISI' && p.submission?.reviewNote && <p className="mt-3 rounded-xl bg-[#f4d4d4] p-3 text-xs leading-relaxed"><strong>Catatan komunitas:</strong> {p.submission.reviewNote}</p>}
+                        {p.status === 'SELESAI' && <p className="w-full text-center rounded-full bg-[#c9ecd9] py-3 font-mono text-[10px] font-bold">✓ DISETUJUI KOMUNITAS</p>}
                       </div>
                     </div>
                   </div>
@@ -325,6 +354,34 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
           </div>
         )}
       </div>
+      {completionTarget && (
+        <div className="fixed inset-0 z-[500] bg-[#0e2233]/90 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={submitCompletion} className="bg-[#fdfcf7] text-[#12283c] w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl p-7 md:p-9 relative">
+            <button type="button" onClick={() => setCompletionTarget(null)} aria-label="Tutup formulir" className="absolute top-4 right-4 w-10 h-10 rounded-full border border-[#12283c]/20 flex items-center justify-center text-xl font-black hover:bg-[#e62b2b] hover:text-white">×</button>
+            <p className="label-mono mb-2">SERAHKAN HASIL KERJA</p>
+            <h2 className="text-3xl font-black mb-2">{completionTarget.t}</h2>
+            <p className="text-sm text-[#12283c]/60 mb-6">Kirim ringkasan dan tautan hasil agar komunitas dapat meninjau proyek sebelum mengonfirmasi selesai.</p>
+            <div className="space-y-5">
+              <div>
+                <label htmlFor="completion-summary" className="field-label">Ringkasan hasil proyek</label>
+                <textarea id="completion-summary" required minLength={10} maxLength={1000} value={completionForm.summary} onChange={(event) => setCompletionForm((form) => ({ ...form, summary: event.target.value }))} className="input-line h-28 resize-y" placeholder="Jelaskan fitur yang sudah dibuat dan cara menggunakannya..." />
+              </div>
+              <div>
+                <label htmlFor="completion-link" className="field-label">Tautan hasil / demo</label>
+                <input id="completion-link" type="url" required value={completionForm.link} onChange={(event) => setCompletionForm((form) => ({ ...form, link: event.target.value }))} className="input-line" placeholder="https://..." />
+              </div>
+              <div>
+                <label htmlFor="completion-notes" className="field-label">Catatan untuk komunitas (opsional)</label>
+                <textarea id="completion-notes" maxLength={500} value={completionForm.notes} onChange={(event) => setCompletionForm((form) => ({ ...form, notes: event.target.value }))} className="input-line h-20 resize-y" placeholder="Info akun demo, panduan akses, atau hal yang perlu diperhatikan..." />
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button type="button" onClick={() => setCompletionTarget(null)} className="btn-pill btn-ghost-dark flex-1">Batal</button>
+                <button type="submit" className="btn-pill btn-red flex-1">Kirim ke Komunitas →</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
       <AiAgent role='talent' />
     </DashShell>
   );
