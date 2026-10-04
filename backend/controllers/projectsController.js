@@ -86,8 +86,18 @@ export const getProjectById = async (req, res, next) => {
        WHERE pr.project_id = ? ORDER BY pr.requested_at DESC, pr.id DESC`,
       [project.id]
     );
+    // Testimoni dua arah untuk proyek ini; yang diturunkan admin tidak ikut.
+    const [testimonials] = await pool.query(
+      `SELECT t.id, t.from_user_id, t.to_user_id, t.text, t.moderation_status, t.created_at,
+              u.name AS from_name
+       FROM testimonials t
+       JOIN users u ON u.id = t.from_user_id
+       WHERE t.project_id = ? AND t.moderation_status <> 'REJECTED'
+       ORDER BY t.created_at ASC, t.id ASC`,
+      [project.id]
+    );
 
-    return success(res, { ...project, deliveries, events, revisions });
+    return success(res, { ...project, deliveries, events, revisions, testimonials });
   } catch (err) {
     next(err);
   }

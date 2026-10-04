@@ -131,3 +131,30 @@ describe('Kebutuhan: validasi komunitas & visibilitas (T2.8)', () => {
     expect((await api().get(`/api/needs/${need.id}`).set(requester.auth)).status).toBe(200);
   });
 });
+
+describe('Kebutuhan: proyek terbaru di GET /needs/:id (regresi T6)', () => {
+  it('pemilik & admin mendapat project_id/project_status terbaru; pengguna lain tidak', async () => {
+    const owner = await createUser('requester');
+    const talent = await createUser('talent');
+    const admin = await createUser('admin');
+    const need = await createNeed(owner);
+
+    const before = await api().get(`/api/needs/${need.id}`).set(owner.auth);
+    expect(before.body.data).toMatchObject({ project_id: null, project_status: null });
+
+    // Proyek pertama batal, lalu talenta lain dipilih: yang dikembalikan adalah proyek terbaru.
+    const cancelled = await createProject({ need, owner, talent, status: 'AGREEMENT' });
+    await pool.query(`UPDATE projects SET status = 'CANCELLED' WHERE id = ?`, [cancelled.id]);
+    const project = await createProject({ need, owner, talent: await createUser('talent') });
+
+    for (const viewer of [owner, admin]) {
+      const res = await api().get(`/api/needs/${need.id}`).set(viewer.auth);
+      expect(res.body.data).toMatchObject({ project_id: project.id, project_status: 'AGREEMENT' });
+    }
+
+    const other = await api().get(`/api/needs/${need.id}`).set(talent.auth);
+    expect(other.status).toBe(200);
+    expect(other.body.data).not.toHaveProperty('project_id');
+    expect(other.body.data).not.toHaveProperty('project_status');
+  });
+});

@@ -53,6 +53,20 @@ describe('Auth (T2.1, T2.6)', () => {
     expect(refresh.body.data.accessToken).toBeTruthy();
   });
 
+  it('refresh mengembalikan profil lengkap seperti login (regresi T6: bio/telepon hilang setelah reload)', async () => {
+    const user = await createUser('requester');
+    const profile = { phone: '0812-3456-7890', bio: 'Pengurus PKK RW 05', extra_info: 'PKK RW 05 Sukajadi' };
+    const patch = await api().patch('/api/auth/me').set(user.auth).send(profile);
+    expect(patch.status).toBe(200);
+
+    const login = await api().post('/api/auth/login').send({ email: user.email, password: user.password });
+    const refresh = await api().post('/api/auth/refresh').set('Cookie', refreshCookie(login).split(';')[0]);
+    expect(refresh.status).toBe(200);
+    expect(refresh.body.data.user).toMatchObject({ id: user.id, role: 'requester', ...profile });
+    expect(Object.keys(refresh.body.data.user).sort()).toEqual(Object.keys(login.body.data.user).sort());
+    expect(refresh.body.data.user).not.toHaveProperty('password_hash');
+  });
+
   it('logout tidak mensyaratkan access token; cookie refresh dicabut (regresi T2.6)', async () => {
     const user = await createUser('requester');
     const login = await api().post('/api/auth/login').send({ email: user.email, password: user.password });

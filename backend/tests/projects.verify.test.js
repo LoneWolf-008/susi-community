@@ -59,6 +59,21 @@ describe('Verifikasi proyek (T2.2 — celah reputasi)', () => {
     expect(pub.body.data.items.map((t) => t.text)).toContain('Kerja rapi dan komunikatif.');
   });
 
+  it('detail proyek memuat testimoni untuk kedua pihak; yang diturunkan admin hilang (T6)', async () => {
+    for (const viewer of [requesterA, talent]) {
+      const res = await api().get(`/api/projects/${project.id}`).set(viewer.auth);
+      expect(res.body.data.testimonials).toEqual([
+        expect.objectContaining({ text: 'Kerja rapi dan komunikatif.', from_user_id: requesterA.id, to_user_id: talent.id, from_name: expect.any(String) }),
+      ]);
+    }
+
+    const testi = await one(`SELECT id FROM testimonials WHERE project_id = ?`, [project.id]);
+    const down = await api().patch(`/api/admin/testimonials/${testi.id}/takedown`).set(admin.auth).send({ reason: 'Uji' });
+    expect(down.status).toBe(200);
+    const after = await api().get(`/api/projects/${project.id}`).set(requesterA.auth);
+    expect(after.body.data.testimonials).toEqual([]);
+  });
+
   it('verifikasi dua kali → 409 dan poin tidak dobel', async () => {
     const res = await api().post(`/api/projects/${project.id}/verify`).set(requesterA.auth).send({});
     expect(res.status).toBe(409);

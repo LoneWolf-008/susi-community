@@ -129,7 +129,9 @@ export const getNeedById = async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       `SELECT n.*, c.name AS community_name, c.leader_name, c.members_count,
-              u.name AS requester_name
+              u.name AS requester_name,
+              (SELECT p.id FROM projects p WHERE p.need_id = n.id ORDER BY p.id DESC LIMIT 1) AS project_id,
+              (SELECT p.status FROM projects p WHERE p.need_id = n.id ORDER BY p.id DESC LIMIT 1) AS project_status
        FROM needs n
        LEFT JOIN communities c ON c.id = n.community_id
        LEFT JOIN users u ON u.id = n.requester_id
@@ -139,9 +141,15 @@ export const getNeedById = async (req, res, next) => {
     const need = rows[0];
     if (!need) return fail(res, 'Kebutuhan tidak ditemukan', 404);
 
+    const privileged = req.user.role === 'admin' || isNeedOwner(need, req.user.id);
     // Kebutuhan yang belum lolos moderasi hanya terlihat oleh pemilik dan admin.
-    if (need.moderation_status !== 'APPROVED' && req.user.role !== 'admin' && !isNeedOwner(need, req.user.id)) {
+    if (need.moderation_status !== 'APPROVED' && !privileged) {
       return fail(res, 'Kebutuhan tidak ditemukan', 404);
+    }
+    // Proyek terbaru (bisa CANCELLED) hanya untuk pemilik & admin; status sengketa bukan konsumsi umum.
+    if (!privileged) {
+      delete need.project_id;
+      delete need.project_status;
     }
 
     const [withSkills] = await attachSkills([need]);

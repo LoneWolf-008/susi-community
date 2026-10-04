@@ -214,8 +214,10 @@ export const refresh = async (req, res, next) => {
 
     const decoded = verifyRefreshToken(token);
 
+    // Kolom sama dengan payload login, agar profil lengkap tetap ada setelah reload.
     const [users] = await pool.query(
-      `SELECT id, name, email, role, status FROM users WHERE id = ? AND deleted_at IS NULL`,
+      `SELECT id, name, email, role, status, phone, bio, extra_info, avatar_url
+       FROM users WHERE id = ? AND deleted_at IS NULL`,
       [decoded.userId]
     );
 
