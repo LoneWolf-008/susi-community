@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+coverage/
+
+# Environment & secrets (template .env.example tetap di-commit)
+.env
+.env.*
+!.env.example
+
+# Unggahan pengguna (hasil kerja talenta)
+uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor & OS
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# Artefak tes E2E
+test-results/
+playwright-report/
