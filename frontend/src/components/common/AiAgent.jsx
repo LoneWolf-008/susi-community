@@ -76,6 +76,11 @@ export default function AiAgent({ role = 'komunitas' }) {
   const bodyRef = useRef(null);
   const greetSent = useRef(false);
 
+  /* ===== KIRIM PESAN ===== */
+  const pushMsg = (who, text) => {
+    setMsgs((m) => [...m, { who, text, id: Date.now() + Math.random() }]);
+  };
+
   /* ===== ANIMASI BUKA / TUTUP ===== */
   useEffect(() => {
     if (open) {
@@ -89,19 +94,19 @@ export default function AiAgent({ role = 'komunitas' }) {
         gsap.fromTo('.ai-quick', { y: 12, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.06, duration: 0.35, ease: 'power3.out', delay: 0.1 });
       }
 
-      /* Salam pertama */
-      if (!greetSent.current && msgs.length === 0) {
+      /* Salam pertama (sekali per sesi panel) */
+      if (!greetSent.current) {
         greetSent.current = true;
         const greet = role === 'talent'
           ? 'Halo Talenta! 🚀\nSaya Agen SUSI AI. Butuh info soal katalog proyek, reputasi, atau verifikasi? Tanyakan saja!'
           : 'Halo Komunitas! 👋\nSaya Agen SUSI AI. Mau tanya soal pengajuan proyek, mading, atau peta komunitas?';
-        setTimeout(() => pushMsg('ai', greet), 400);
+        setTimeout(() => setMsgs((m) => [...m, { who: 'ai', text: greet, id: Date.now() }]), 400);
       }
     } else {
       // Pastikan tombol floating selalu muncul kembali
       gsap.to(btnRef.current, { scale: 1, autoAlpha: 1, duration: 0.35, ease: 'back.out(1.7)', overwrite: true });
     }
-  }, [open]);
+  }, [open, role]);
 
   /* ===== AUTO SCROLL KE BAWAH ===== */
   useEffect(() => {
@@ -110,11 +115,6 @@ export default function AiAgent({ role = 'komunitas' }) {
     }
   }, [msgs, typing]);
 
-  /* ===== KIRIM PESAN ===== */
-  const pushMsg = (who, text) => {
-    setMsgs((m) => [...m, { who, text, id: Date.now() + Math.random() }]);
-  };
-
   const send = (text) => {
     const t = (text ?? input).trim();
     if (!t) return;
@@ -122,13 +122,12 @@ export default function AiAgent({ role = 'komunitas' }) {
     setInput('');
     setTyping(true);
 
-    /* Simulasi "berpikir" 800-1400ms */
-    const delay = 800 + Math.random() * 600;
+    /* Simulasi "berpikir" (diganti streaming jawaban nyata di T14) */
     setTimeout(() => {
       const reply = findReply(t);
       setTyping(false);
       pushMsg('ai', reply);
-    }, delay);
+    }, 1000);
   };
 
   const onKey = (e) => {

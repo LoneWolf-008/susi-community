@@ -5,6 +5,7 @@ import ProjSteps from '../../components/common/ProjSteps';
 import SetToggle from '../../components/common/SetToggle';
 import AiAgent from '../../components/common/AiAgent';
 import GoogleMapsEmbed from '../../components/common/GoogleMapsEmbed';
+import { geocode, sectorOf } from '../../lib/geocode';
 import { loadProjectSubmissions, saveProjectSubmissions } from '../../utils/projectSubmissions';
 
 const CHIP = { green: 'bg-[#c9ecd9] text-[#12283c]', navy: 'bg-[#12283c] text-[#f2efe6]', red: 'bg-[#e62b2b] text-white', ghost: 'bg-[#12283c]/10 text-[#12283c]/70' };
@@ -22,7 +23,7 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
   const [reviewNotes, setReviewNotes] = useState({});
   const [settingsTab, setSettingsTab] = useState('profil');
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [notifs, setNotifs] = useState([
+  const [notifs] = useState([
     { id: 1, type: 'talenta', title: 'Derien A. melamar kebutuhan Anda', sub: 'Aplikasi Iuran Warga · 2 jam lalu', read: false },
     { id: 2, type: 'verifikasi', title: 'Proyek menunggu verifikasi Anda', sub: 'Rekap Iuran Digital · 5 jam lalu', read: false },
     { id: 3, type: 'diskusi', title: 'Budi Santoso membalas diskusi Anda', sub: 'Forum Diskusi · 1 hari lalu', read: false },
@@ -62,7 +63,7 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
   const [locationMessage, setLocationMessage] = useState('');
   const [locationSearching, setLocationSearching] = useState(false);
   const [myCommName, setMyCommName] = useState('');
-  const [myCommCat, setMyCommCat] = useState('KELUARGA');
+  const [myCommCat] = useState('KELUARGA');
   const [myComms, setMyComms] = useState([]);
   const rootRef = useRef(null);
 
@@ -186,21 +187,19 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
   };
 
   /* ===== MAP ===== */
-  const quadrantOf = (loc) => `${loc.lng < 107.6191 ? 'BARAT' : 'TIMUR'}–${loc.lat > -6.9175 ? 'UTARA' : 'SELATAN'}`;
+  const quadrantOf = sectorOf;
   const focusComm = (c) => { setMapComm({ ...c, mine: !!c.mine }); setTempLoc(null); };
   const searchCommunityLocation = async () => {
     if (!locationSearch.trim() || locationSearching) return;
     setLocationSearching(true);
     setLocationMessage('');
     try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(`${locationSearch}, Kota Bandung`)}`);
-      if (!response.ok) throw new Error('Layanan pencarian alamat sedang tidak tersedia.');
-      const results = await response.json();
-      if (!results[0]) {
+      const found = await geocode(locationSearch);
+      if (!found) {
         setLocationMessage('Alamat tidak ditemukan. Coba tambahkan nama jalan atau kelurahan.');
         return;
       }
-      setTempLoc({ lat: Number(results[0].lat), lng: Number(results[0].lon) });
+      setTempLoc({ lat: found.lat, lng: found.lng });
       setMapComm(null);
       setLocationMessage('Lokasi ditemukan. Periksa peta sebelum menyimpan komunitas.');
     } catch (error) {

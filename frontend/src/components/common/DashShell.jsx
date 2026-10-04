@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
+import { CONTACT } from '../../data/contact';
 
 /* Shell dasbor gaya Think Co: chrome navy gelap + area konten krem.
    Pemakaian di setiap dashboard:
@@ -9,10 +10,11 @@ import gsap from 'gsap';
    </DashShell>
    Item notifs: { id, title, sub, read, color, label } */
 export default function DashShell({ user, roleLabel, nav, tab, onTab, notifs = [], onLogout, navigateTo, children }) {
-  const [items, setItems] = useState(notifs);
+  // Status "dibaca" disimpan sebagai id; daftar diturunkan dari props (tanpa setState di efek).
+  const [readIds, setReadIds] = useState(() => new Set());
+  const items = notifs.map((n) => (readIds.has(n.id) ? { ...n, read: true } : n));
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  useEffect(() => setItems(notifs), [notifs]);
   useEffect(() => {
     const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', onClick);
@@ -22,8 +24,8 @@ export default function DashShell({ user, roleLabel, nav, tab, onTab, notifs = [
     if (open) gsap.fromTo('.notif-panel', { y: -10, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.25, ease: 'power2.out' });
   }, [open]);
   const unread = items.filter((n) => !n.read).length;
-  const markAll = () => setItems(items.map((n) => ({ ...n, read: true })));
-  const markOne = (id) => setItems(items.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  const markAll = () => setReadIds(new Set(notifs.map((n) => n.id)));
+  const markOne = (id) => setReadIds((prev) => new Set(prev).add(id));
   const first = (user?.name || 'SUSI').split(' ')[0];
   return (
     <div className="min-h-screen bg-[#0e2233] text-[#f2efe6]">
@@ -90,7 +92,12 @@ export default function DashShell({ user, roleLabel, nav, tab, onTab, notifs = [
           ))}
         </div>
         <div className="mt-auto card-dark p-4">
-          <p className="font-mono text-[10px] text-[#f2efe6]/50 leading-relaxed">Butuh bantuan?<br />WA: +62 22 123 4567</p>
+          <p className="font-mono text-[10px] text-[#f2efe6]/50 leading-relaxed">
+            Butuh bantuan?<br />
+            <a href={CONTACT.whatsappUrl('Halo tim SUSI, saya butuh bantuan.')} target="_blank" rel="noreferrer" className="hover:text-[#e62b2b]">
+              WA: {CONTACT.whatsappDisplay}
+            </a>
+          </p>
         </div>
       </aside>
 

@@ -46,7 +46,7 @@ export default function DashboardAdmin({ user, onLogout, navigateTo }) {
     { id: 4, n: 'Ezra P.', role: 'TALENTA', join: 'JUL 2026', rep: 9, status: 'AKTIF' },
     { id: 5, n: 'Akun Uji Coba', role: 'TALENTA', join: 'AGU 2026', rep: 0, status: 'DITANGGUHKAN' },
   ]);
-  const [notifs, setNotifs] = useState([
+  const [notifs] = useState([
     { id: 1, type: 'moderasi', title: '4 item menunggu moderasi', sub: '2 kebutuhan · 1 talenta · 1 testimoni', read: false },
     { id: 2, type: 'sengketa', title: 'Sengketa dieskalasi', sub: 'Website Galeri · KT Mekar × Ezra P.', read: false },
     { id: 3, type: 'sistem', title: 'Backup harian berhasil', sub: 'Database · 03.00 WIB', read: true },

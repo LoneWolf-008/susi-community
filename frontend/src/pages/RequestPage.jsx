@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import GoogleMapsEmbed from '../components/common/GoogleMapsEmbed';
+import { geocode, sectorOf } from '../lib/geocode';
 
 export default function RequestPage({ user, navigateTo }) {
   const rootRef = useRef(null);
@@ -10,7 +11,6 @@ export default function RequestPage({ user, navigateTo }) {
   const [searching, setSearching] = useState(false);
   const [locationMessage, setLocationMessage] = useState('');
   const [sent, setSent] = useState(false);
-  const BDG = { lat: -6.9175, lng: 107.6191 };
   useEffect(() => {
     const ctx = gsap.context(() => {
       gsap.fromTo('.req-item', { y: 25, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, stagger: 0.07, ease: 'power2.out' });
@@ -22,12 +22,9 @@ export default function RequestPage({ user, navigateTo }) {
     setSearching(true);
     setLocationMessage('');
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addr + ', Kota Bandung')}`);
-      if (!res.ok) throw new Error('Layanan pencarian alamat sedang tidak tersedia.');
-      const data = await res.json();
-      if (data && data[0]) {
-        const lat = parseFloat(data[0].lat), lng = parseFloat(data[0].lon);
-        setCoords({ lat, lng });
+      const found = await geocode(addr);
+      if (found) {
+        setCoords({ lat: found.lat, lng: found.lng });
         setLocationMessage('Lokasi ditemukan. Periksa titik pada peta sebelum mengirim.');
       } else {
         setLocationMessage('Alamat tidak ditemukan. Coba tambahkan nama jalan atau kelurahan.');
@@ -38,7 +35,7 @@ export default function RequestPage({ user, navigateTo }) {
       setSearching(false);
     }
   };
-  const quadrant = coords ? `${coords.lng < BDG.lng ? 'BARAT' : 'TIMUR'}–${coords.lat > BDG.lat ? 'UTARA' : 'SELATAN'}` : '—';
+  const quadrant = coords ? sectorOf(coords) : '—';
   if (sent) {
     return (
       <div ref={rootRef} className="min-h-screen bg-[#f2efe6] text-[#12283c] flex items-center justify-center px-6">

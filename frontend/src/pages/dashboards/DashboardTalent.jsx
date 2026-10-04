@@ -21,7 +21,7 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
   const [agreeTarget, setAgreeTarget] = useState(null);
   const [completionTarget, setCompletionTarget] = useState(null);
   const [completionForm, setCompletionForm] = useState({ summary: '', link: '', notes: '' });
-  const [notifs, setNotifs] = useState([
+  const [notifs] = useState([
     { id: 1, type: 'verifikasi', title: 'PKK RW 05 belum mengonfirmasi', sub: 'Formulir Pendaftaran · menunggu langkah 07', read: false },
     { id: 2, type: 'talenta', title: 'Lamaran Anda dilihat', sub: 'Katalog Inventaris PKK · 3 jam lalu', read: false },
     { id: 3, type: 'diskusi', title: 'PKK RW 05 membalas diskusi Anda', sub: 'Forum Diskusi · 1 hari lalu', read: false },
