@@ -14,12 +14,14 @@ export const pool = mysql.createPool({
   keepAliveInitialDelay: 0,
 });
 
-// Test koneksi
-pool.getConnection()
-  .then(conn => {
-    console.log('Terhubung ke MySQL:', env.db.name);
-    conn.release();
-  })
-  .catch(err => {
-    console.error('Gagal konek MySQL:', err.message);
-  });
+// Test koneksi (dilewati saat test agar keluaran test tetap bersih)
+if (env.nodeEnv !== 'test') {
+  pool.getConnection()
+    .then(conn => {
+      console.log('Terhubung ke MySQL:', env.db.name);
+      conn.release();
+    })
+    .catch(err => {
+      console.error('Gagal konek MySQL:', err.message);
+    });
+}

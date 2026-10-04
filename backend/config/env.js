@@ -79,6 +79,11 @@ if (errors.length > 0) {
 
 const uploadDir = path.resolve(BACKEND_DIR, process.env.UPLOAD_DIR || 'uploads');
 
+const intOr = (raw, fallback) => {
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+};
+
 export const env = Object.freeze({
   nodeEnv: process.env.NODE_ENV || 'development',
   isProduction: process.env.NODE_ENV === 'production',
@@ -100,4 +105,11 @@ export const env = Object.freeze({
   }),
   uploadDir,
   deliveriesDir: path.join(uploadDir, 'deliveries'),
+  rateLimit: Object.freeze({
+    // Semua /api per IP per 15 menit.
+    apiMax: intOr(process.env.RATE_LIMIT_MAX, 500),
+    // Login (hanya percobaan gagal) dan registrasi per IP.
+    authMax: intOr(process.env.AUTH_RATE_LIMIT_MAX, 10),
+    authWindowMs: intOr(process.env.AUTH_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
+  }),
 });

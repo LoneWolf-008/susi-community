@@ -13,6 +13,7 @@ router.get('/stats', ctrl.getStats);
 // Moderasi
 router.get('/moderation', ctrl.getModerationQueue);
 router.patch('/moderation/:id', ctrl.decideModeration);
+router.patch('/testimonials/:id/takedown', ctrl.takedownTestimonial);
 
 // Sengketa
 router.get('/disputes', ctrl.getDisputes);
@@ -26,6 +27,7 @@ router.patch('/users/:id/status', ctrl.updateUserStatus);
 
 // Liaison
 router.get('/liaisons', ctrl.getLiaisons);
+router.post('/liaisons', ctrl.createLiaison);
 router.patch('/liaisons/:id/status', ctrl.updateLiaisonStatus);
 
 export default router;

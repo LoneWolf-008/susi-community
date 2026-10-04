@@ -1,5 +1,14 @@
+import bcrypt from 'bcrypt';
 import { pool } from '../config/db.js';
-import { success, fail } from '../utils/response.js';
+import { success, created, fail } from '../utils/response.js';
+import { parsePagination, paged } from '../utils/pagination.js';
+import { HttpError } from '../utils/httpError.js';
+import { getNeedOwnerId } from '../utils/ownership.js';
+import { notify, addProjectEvent, audit } from '../utils/activity.js';
+import { completeProject } from '../services/projectService.js';
+
+const REJECT_REASONS = ['SPAM', 'DUPLIKAT', 'SALAH KATEGORI', 'TIDAK LAYAK'];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const getStats = async (req, res, next) => {
   try {
@@ -13,6 +22,7 @@ export const getStats = async (req, res, next) => {
 export const getModerationQueue = async (req, res, next) => {
   try {
     const { item_type, decision } = req.query;
+    const pg = parsePagination(req.query);
     let where = `WHERE 1=1`;
     const params = [];
 
@@ -25,10 +35,12 @@ export const getModerationQueue = async (req, res, next) => {
        LEFT JOIN users u ON u.id = mi.submitted_by
        LEFT JOIN users r ON r.id = mi.reviewed_by
        ${where}
-       ORDER BY mi.created_at DESC`,
-      params
+       ORDER BY mi.created_at DESC, mi.id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, pg.limit, pg.offset]
     );
-    return success(res, rows);
+    const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM moderation_items mi ${where}`, params);
+    return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);
   }
@@ -40,7 +52,7 @@ export const decideModeration = async (req, res, next) => {
     await conn.beginTransaction();
 
     const [items] = await conn.query(
-      `SELECT * FROM moderation_items WHERE id = ?`,
+      `SELECT * FROM moderation_items WHERE id = ? FOR UPDATE`,
       [req.params.id]
     );
     if (!items[0]) {
@@ -56,10 +68,17 @@ export const decideModeration = async (req, res, next) => {
       return fail(res, 'Keputusan tidak valid', 400);
     }
 
-    if (decision === 'REJECTED' && !reject_reason) {
+    // Item yang sudah diputus tidak boleh diputus ulang (mis. dua admin menekan bersamaan).
+    if (item.decision !== 'PENDING') {
       await conn.rollback();
-      return fail(res, 'Alasan penolakan wajib diisi', 400);
+      return fail(res, `Item sudah diputus (${item.decision})`, 409);
     }
+
+    if (decision === 'REJECTED' && !REJECT_REASONS.includes(reject_reason)) {
+      await conn.rollback();
+      return fail(res, `Alasan penolakan wajib salah satu dari: ${REJECT_REASONS.join(', ')}`, 400);
+    }
+    const reason = decision === 'REJECTED' ? reject_reason : null;
 
     await conn.query(
       `UPDATE moderation_items SET
@@ -68,34 +87,29 @@ export const decideModeration = async (req, res, next) => {
         reviewed_by = ?, reviewed_at = NOW()
        WHERE id = ?`,
       [
-        decision, reject_reason || null,
+        decision, reason,
         checklist_layak ? 1 : 0, checklist_kategori ? 1 : 0,
         req.user.id, item.id,
       ]
     );
 
     // Update status entitas terkait
-    const newStatus = decision === 'APPROVED' ? 'APPROVED' : 'REJECTED';
     if (item.item_type === 'KEBUTUHAN') {
       await conn.query(
         `UPDATE needs SET moderation_status = ?, reject_reason = ? WHERE id = ?`,
-        [newStatus, reject_reason || null, item.ref_id]
+        [decision, reason, item.ref_id]
       );
     } else if (item.item_type === 'TESTIMONI') {
       await conn.query(
         `UPDATE testimonials SET moderation_status = ? WHERE id = ?`,
-        [newStatus, item.ref_id]
+        [decision, item.ref_id]
       );
     }
 
-    await conn.query(
-      `INSERT INTO audit_logs (actor_id, action, entity, entity_id, title, meta)
-       VALUES (?, 'MODERATE', 'moderation_items', ?, ?, ?)`,
-      [
-        req.user.id, item.id, item.title,
-        JSON.stringify({ decision, reject_reason }),
-      ]
-    );
+    await audit(conn, {
+      actorId: req.user.id, action: 'MODERATE', entity: 'moderation_items', entityId: item.id,
+      title: item.title, meta: { decision, reject_reason: reason },
+    });
 
     await conn.commit();
     return success(res, null, `Item ${decision.toLowerCase()}`);
@@ -110,6 +124,7 @@ export const decideModeration = async (req, res, next) => {
 export const getDisputes = async (req, res, next) => {
   try {
     const { status } = req.query;
+    const pg = parsePagination(req.query);
     let where = `WHERE 1=1`;
     const params = [];
     if (status) { where += ` AND d.status = ?`; params.push(status); }
@@ -124,10 +139,12 @@ export const getDisputes = async (req, res, next) => {
        LEFT JOIN users t ON t.id = p.talent_id
        LEFT JOIN users a ON a.id = d.decided_by
        ${where}
-       ORDER BY d.opened_at DESC`,
-      params
+       ORDER BY d.opened_at DESC, d.id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, pg.limit, pg.offset]
     );
-    return success(res, rows);
+    const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM disputes d ${where}`, params);
+    return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);
   }
@@ -136,7 +153,7 @@ export const getDisputes = async (req, res, next) => {
 export const getDisputeById = async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT d.*, p.id AS project_id, n.title AS project_title,
+      `SELECT d.*, p.id AS project_id, p.status AS project_status, n.title AS project_title,
               c.name AS community_name, t.name AS talent_name,
               p.requester_id, p.talent_id
        FROM disputes d
@@ -150,7 +167,7 @@ export const getDisputeById = async (req, res, next) => {
     if (!rows[0]) return fail(res, 'Sengketa tidak ditemukan', 404);
 
     const [events] = await pool.query(
-      `SELECT * FROM dispute_events WHERE dispute_id = ? ORDER BY created_at ASC`,
+      `SELECT * FROM dispute_events WHERE dispute_id = ? ORDER BY created_at ASC, id ASC`,
       [req.params.id]
     );
     const [messages] = await pool.query(
@@ -158,7 +175,7 @@ export const getDisputeById = async (req, res, next) => {
        FROM admin_messages am
        JOIN users u ON u.id = am.sender_id
        WHERE am.target_type = 'DISPUTE' AND am.target_id = ?
-       ORDER BY am.sent_at ASC`,
+       ORDER BY am.sent_at ASC, am.id ASC`,
       [req.params.id]
     );
 
@@ -173,18 +190,43 @@ export const resolveDispute = async (req, res, next) => {
   try {
     await conn.beginTransaction();
 
-    const [rows] = await conn.query(`SELECT * FROM disputes WHERE id = ?`, [req.params.id]);
-    if (!rows[0]) {
-      await conn.rollback();
-      return fail(res, 'Sengketa tidak ditemukan', 404);
-    }
+    const [rows] = await conn.query(`SELECT * FROM disputes WHERE id = ? FOR UPDATE`, [req.params.id]);
+    if (!rows[0]) throw new HttpError(404, 'Sengketa tidak ditemukan');
 
     const dispute = rows[0];
-    const { decision, statement_admin } = req.body;
+    if (dispute.status === 'SELESAI') throw new HttpError(409, 'Sengketa sudah diselesaikan');
 
+    const { decision, statement_admin } = req.body;
     if (!['MARK_COMPLETE', 'EXTEND_7_DAYS'].includes(decision)) {
-      await conn.rollback();
-      return fail(res, 'Keputusan tidak valid', 400);
+      throw new HttpError(400, 'Keputusan tidak valid');
+    }
+
+    const [projects] = await conn.query(
+      `SELECT p.*, n.title AS need_title, n.requester_id AS need_requester_id, n.created_by AS need_created_by
+       FROM projects p JOIN needs n ON n.id = p.need_id
+       WHERE p.id = ? FOR UPDATE`,
+      [dispute.project_id]
+    );
+    const project = projects[0];
+    if (project.status !== 'DISPUTED') {
+      throw new HttpError(409, `Proyek tidak dalam status sengketa (status: ${project.status})`);
+    }
+
+    if (decision === 'MARK_COMPLETE') {
+      // Satu transaksi dengan penutupan sengketa; pernyataan admin BUKAN testimoni.
+      await completeProject(conn, { projectId: project.id, actor: req.user, allowedFrom: ['DISPUTED'] });
+    } else {
+      // Kembali dikerjakan; talenta perlu menandai selesai lagi setelah perpanjangan.
+      await conn.query(
+        `UPDATE projects SET status = 'IN_PROGRESS', talent_marked_done_at = NULL,
+           deadline = DATE_ADD(GREATEST(COALESCE(deadline, CURDATE()), CURDATE()), INTERVAL 7 DAY)
+         WHERE id = ?`,
+        [project.id]
+      );
+      await addProjectEvent(conn, {
+        projectId: project.id, actorId: req.user.id, eventType: 'EXTENDED',
+        label: 'Admin memperpanjang tenggat 7 hari setelah mediasi',
+      });
     }
 
     await conn.query(
@@ -193,39 +235,28 @@ export const resolveDispute = async (req, res, next) => {
       [decision, req.user.id, dispute.id]
     );
 
-    const [project] = await conn.query(`SELECT * FROM projects WHERE id = ?`, [dispute.project_id]);
-
-    if (decision === 'MARK_COMPLETE') {
-      // Paksa selesai — panggil stored procedure
-      await conn.query(
-        `CALL sp_verify_project(?, ?, ?)`,
-        [dispute.project_id, req.user.id, statement_admin || 'Diselesaikan oleh admin setelah mediasi']
-      );
-    } else {
-      // Perpanjang 7 hari
-      await conn.query(
-        `UPDATE projects SET status = 'IN_PROGRESS', deadline = DATE_ADD(COALESCE(deadline, NOW()), INTERVAL 7 DAY)
-         WHERE id = ?`,
-        [dispute.project_id]
-      );
-    }
-
+    const note = typeof statement_admin === 'string' && statement_admin.trim()
+      ? ` — ${statement_admin.trim()}`
+      : '';
     await conn.query(
       `INSERT INTO dispute_events (dispute_id, label) VALUES (?, ?)`,
-      [dispute.id, `Admin memutuskan: ${decision}`]
+      [dispute.id, `Admin memutuskan: ${decision}${note}`.slice(0, 255)]
     );
 
     // Notif ke kedua pihak
-    await conn.query(
-      `INSERT INTO notifications (user_id, type, title, body, ref_type, ref_id)
-       VALUES (?, 'sengketa', 'Sengketa diselesaikan', 'Admin telah memberikan keputusan', 'dispute', ?)`,
-      [project[0].requester_id, dispute.id]
-    );
-    await conn.query(
-      `INSERT INTO notifications (user_id, type, title, body, ref_type, ref_id)
-       VALUES (?, 'sengketa', 'Sengketa diselesaikan', 'Admin telah memberikan keputusan', 'dispute', ?)`,
-      [project[0].talent_id, dispute.id]
-    );
+    const ownerId = getNeedOwnerId({ requester_id: project.need_requester_id, created_by: project.need_created_by });
+    const body = decision === 'MARK_COMPLETE'
+      ? 'Admin menyatakan proyek selesai'
+      : 'Admin memperpanjang tenggat proyek 7 hari';
+    for (const userId of new Set([ownerId, project.talent_id])) {
+      await notify(conn, {
+        userId, type: 'sengketa', title: 'Sengketa diselesaikan', body, refType: 'dispute', refId: dispute.id,
+      });
+    }
+    await audit(conn, {
+      actorId: req.user.id, action: 'RESOLVE_DISPUTE', entity: 'disputes', entityId: dispute.id,
+      title: project.need_title, meta: { decision },
+    });
 
     await conn.commit();
     return success(res, null, 'Sengketa diselesaikan');
@@ -239,17 +270,39 @@ export const resolveDispute = async (req, res, next) => {
 
 export const sendMessage = async (req, res, next) => {
   try {
-    const { body, target_type, target_id } = req.body;
-    if (!body || !body.trim()) return fail(res, 'Pesan wajib diisi', 400);
+    const { body } = req.body;
+    if (typeof body !== 'string' || !body.trim()) return fail(res, 'Pesan wajib diisi', 400);
+
+    // Endpoint ini khusus pesan sengketa: target selalu sengketa pada URL.
+    const [disputes] = await pool.query(`SELECT id FROM disputes WHERE id = ?`, [req.params.id]);
+    if (!disputes[0]) return fail(res, 'Sengketa tidak ditemukan', 404);
 
     const [result] = await pool.query(
       `INSERT INTO admin_messages (sender_id, target_type, target_id, body)
-       VALUES (?, ?, ?, ?)`,
-      [req.user.id, target_type || 'DISPUTE', target_id || req.params.id, body.trim()]
+       VALUES (?, 'DISPUTE', ?, ?)`,
+      [req.user.id, disputes[0].id, body.trim()]
     );
 
     const [rows] = await pool.query(`SELECT * FROM admin_messages WHERE id = ?`, [result.insertId]);
-    return success(rows, rows[0], 'Pesan terkirim');
+    return created(res, rows[0], 'Pesan terkirim');
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const takedownTestimonial = async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(`SELECT id, moderation_status FROM testimonials WHERE id = ?`, [req.params.id]);
+    if (!rows[0]) return fail(res, 'Testimoni tidak ditemukan', 404);
+    if (rows[0].moderation_status === 'REJECTED') return fail(res, 'Testimoni sudah diturunkan', 409);
+
+    await pool.query(`UPDATE testimonials SET moderation_status = 'REJECTED' WHERE id = ?`, [rows[0].id]);
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 200) : null;
+    await audit(pool, {
+      actorId: req.user.id, action: 'TAKEDOWN', entity: 'testimonials', entityId: rows[0].id,
+      title: 'Testimoni diturunkan', meta: { reason },
+    });
+    return success(res, null, 'Testimoni diturunkan dari profil publik');
   } catch (err) {
     next(err);
   }
@@ -258,6 +311,7 @@ export const sendMessage = async (req, res, next) => {
 export const getUsers = async (req, res, next) => {
   try {
     const { role, status, search } = req.query;
+    const pg = parsePagination(req.query);
     let where = `WHERE u.deleted_at IS NULL`;
     const params = [];
 
@@ -274,10 +328,12 @@ export const getUsers = async (req, res, next) => {
        FROM users u
        LEFT JOIN talent_profiles tp ON tp.user_id = u.id
        ${where}
-       ORDER BY u.created_at DESC`,
-      params
+       ORDER BY u.created_at DESC, u.id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, pg.limit, pg.offset]
     );
-    return success(res, rows);
+    const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM users u ${where}`, params);
+    return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);
   }
@@ -289,6 +345,9 @@ export const updateUserStatus = async (req, res, next) => {
     if (!['AKTIF', 'DITANGGUHKAN'].includes(status)) {
       return fail(res, 'Status tidak valid', 400);
     }
+    if (Number(req.params.id) === Number(req.user.id)) {
+      return fail(res, 'Admin tidak dapat mengubah status akunnya sendiri', 400);
+    }
 
     const [result] = await pool.query(
       `UPDATE users SET status = ? WHERE id = ? AND deleted_at IS NULL`,
@@ -296,11 +355,10 @@ export const updateUserStatus = async (req, res, next) => {
     );
     if (result.affectedRows === 0) return fail(res, 'User tidak ditemukan', 404);
 
-    await pool.query(
-      `INSERT INTO audit_logs (actor_id, action, entity, entity_id, title)
-       VALUES (?, 'UPDATE_STATUS', 'users', ?, ?)`,
-      [req.user.id, req.params.id, `Status diubah ke ${status}`]
-    );
+    await audit(pool, {
+      actorId: req.user.id, action: 'UPDATE_STATUS', entity: 'users', entityId: Number(req.params.id),
+      title: `Status diubah ke ${status}`,
+    });
 
     return success(res, null, `Status user diubah ke ${status}`);
   } catch (err) {
@@ -310,19 +368,86 @@ export const updateUserStatus = async (req, res, next) => {
 
 export const getLiaisons = async (req, res, next) => {
   try {
+    const pg = parsePagination(req.query);
     const [rows] = await pool.query(
-      `SELECT u.id, u.name, u.email, u.status, u.created_at,
+      `SELECT u.id, u.name, u.email, u.phone, u.status, u.created_at,
               lp.target_visits_month, lp.target_intake_month,
               (SELECT COUNT(*) FROM liaison_visits lv WHERE lv.liaison_id = u.id) AS total_visits,
               (SELECT COUNT(*) FROM liaison_visits lv WHERE lv.liaison_id = u.id AND lv.status = 'TERDATA') AS total_assisted
        FROM users u
        JOIN liaison_profiles lp ON lp.user_id = u.id
        WHERE u.deleted_at IS NULL
-       ORDER BY u.created_at DESC`
+       ORDER BY u.created_at DESC, u.id DESC
+       LIMIT ? OFFSET ?`,
+      [pg.limit, pg.offset]
     );
-    return success(res, rows);
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM users u JOIN liaison_profiles lp ON lp.user_id = u.id WHERE u.deleted_at IS NULL`
+    );
+    return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);
+  }
+};
+
+// Liaison tidak bisa mendaftar sendiri (keputusan desain #2): akunnya dibuat admin.
+export const createLiaison = async (req, res, next) => {
+  const conn = await pool.getConnection();
+  try {
+    const { name, email, password, phone, target_visits_month, target_intake_month } = req.body;
+
+    if (typeof name !== 'string' || !name.trim()) return fail(res, 'Nama wajib diisi', 400);
+    if (typeof email !== 'string' || !EMAIL_RE.test(email.trim())) return fail(res, 'Email tidak valid', 400);
+    if (typeof password !== 'string' || password.length < 10) return fail(res, 'Password minimal 10 karakter', 400);
+
+    const targets = {};
+    for (const [key, value] of Object.entries({ target_visits_month, target_intake_month })) {
+      if (value === undefined || value === null || value === '') continue;
+      const n = Number(value);
+      if (!Number.isInteger(n) || n < 0 || n > 1000) return fail(res, `${key} harus bilangan bulat 0–1000`, 400);
+      targets[key] = n;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    await conn.beginTransaction();
+    const [existing] = await conn.query(`SELECT id FROM users WHERE email = ?`, [normalizedEmail]);
+    if (existing.length > 0) {
+      await conn.rollback();
+      return fail(res, 'Email sudah terdaftar', 409);
+    }
+
+    const [result] = await conn.query(
+      `INSERT INTO users (name, email, password_hash, role, phone) VALUES (?, ?, ?, 'liaison', ?)`,
+      [name.trim(), normalizedEmail, passwordHash, typeof phone === 'string' && phone.trim() ? phone.trim() : null]
+    );
+    const userId = result.insertId;
+    await conn.query(
+      `INSERT INTO liaison_profiles (user_id, target_visits_month, target_intake_month)
+       VALUES (?, COALESCE(?, 30), COALESCE(?, 25))`,
+      [userId, targets.target_visits_month ?? null, targets.target_intake_month ?? null]
+    );
+    await conn.query(`INSERT INTO user_settings (user_id) VALUES (?)`, [userId]);
+    await audit(conn, {
+      actorId: req.user.id, action: 'CREATE_LIAISON', entity: 'users', entityId: userId, title: name.trim(),
+    });
+    await conn.commit();
+
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.email, u.phone, u.role, u.status, u.created_at,
+              lp.target_visits_month, lp.target_intake_month
+       FROM users u JOIN liaison_profiles lp ON lp.user_id = u.id
+       WHERE u.id = ?`,
+      [userId]
+    );
+    return created(res, rows[0], 'Akun liaison dibuat');
+  } catch (err) {
+    await conn.rollback();
+    if (err.code === 'ER_DUP_ENTRY') return fail(res, 'Email sudah terdaftar', 409);
+    next(err);
+  } finally {
+    conn.release();
   }
 };
 
@@ -339,6 +464,10 @@ export const updateLiaisonStatus = async (req, res, next) => {
     );
     if (result.affectedRows === 0) return fail(res, 'Liaison tidak ditemukan', 404);
 
+    await audit(pool, {
+      actorId: req.user.id, action: 'UPDATE_STATUS', entity: 'users', entityId: Number(req.params.id),
+      title: `Status liaison diubah ke ${status}`,
+    });
     return success(res, null, 'Status liaison diperbarui');
   } catch (err) {
     next(err);

@@ -1,12 +1,24 @@
+import fs from 'node:fs/promises';
 import { pool } from '../config/db.js';
 import { success, created, fail } from '../utils/response.js';
+import { parsePagination, paged } from '../utils/pagination.js';
+import { HttpError } from '../utils/httpError.js';
+import { notify, addProjectEvent } from '../utils/activity.js';
+import {
+  parseDeliveryFilePath, deliveryAbsolutePath, removeDeliveryFile,
+} from '../utils/uploads.js';
+import { completeProject } from '../services/projectService.js';
+
+const DISPUTABLE_STATUSES = ['IN_PROGRESS', 'AWAITING_VERIFICATION', 'REVISION'];
 
 export const getMyProjects = async (req, res, next) => {
   try {
     const isTalent = req.user.role === 'talent';
+    // Untuk pemilik: requester_id proyek = pemilik efektif kebutuhan (requester atau liaison).
     const where = isTalent
       ? `WHERE p.talent_id = ?`
       : `WHERE p.requester_id = ?`;
+    const pg = parsePagination(req.query);
 
     const [rows] = await pool.query(
       `SELECT p.*, n.title AS project_title, n.category,
@@ -17,10 +29,12 @@ export const getMyProjects = async (req, res, next) => {
        LEFT JOIN communities c ON c.id = p.community_id
        LEFT JOIN users t ON t.id = p.talent_id
        ${where}
-       ORDER BY p.created_at DESC`,
-      [req.user.id]
+       ORDER BY p.created_at DESC, p.id DESC
+       LIMIT ? OFFSET ?`,
+      [req.user.id, pg.limit, pg.offset]
     );
-    return success(res, rows);
+    const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM projects p ${where}`, [req.user.id]);
+    return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);
   }
@@ -58,14 +72,14 @@ export const getProjectById = async (req, res, next) => {
       [project.id]
     );
     const [events] = await pool.query(
-      `SELECT * FROM project_events WHERE project_id = ? ORDER BY created_at DESC`,
+      `SELECT * FROM project_events WHERE project_id = ? ORDER BY created_at DESC, id DESC`,
       [project.id]
     );
     const [revisions] = await pool.query(
       `SELECT pr.*, u.name AS requested_by_name
        FROM project_revisions pr
        LEFT JOIN users u ON u.id = pr.requested_by
-       WHERE pr.project_id = ? ORDER BY pr.requested_at DESC`,
+       WHERE pr.project_id = ? ORDER BY pr.requested_at DESC, pr.id DESC`,
       [project.id]
     );
 
@@ -76,62 +90,108 @@ export const getProjectById = async (req, res, next) => {
 };
 
 export const agreeProject = async (req, res, next) => {
+  const conn = await pool.getConnection();
   try {
-    const [rows] = await pool.query(
-      `SELECT * FROM projects WHERE id = ? AND talent_id = ?`,
+    await conn.beginTransaction();
+    const [rows] = await conn.query(
+      `SELECT * FROM projects WHERE id = ? AND talent_id = ? FOR UPDATE`,
       [req.params.id, req.user.id]
     );
-    if (!rows[0]) return fail(res, 'Proyek tidak ditemukan', 404);
+    if (!rows[0]) throw new HttpError(404, 'Proyek tidak ditemukan');
 
     const project = rows[0];
     if (project.status !== 'AGREEMENT') {
-      return fail(res, `Proyek tidak bisa disetujui (status: ${project.status})`, 400);
+      throw new HttpError(409, `Proyek tidak bisa disetujui (status: ${project.status})`);
     }
 
-    await pool.query(
+    await conn.query(
       `UPDATE projects SET status = 'IN_PROGRESS', progress_pct = 10,
         agreed_by_talent_at = NOW(), started_at = NOW()
        WHERE id = ?`,
       [project.id]
     );
 
-    await pool.query(
-      `INSERT INTO project_events (project_id, actor_id, event_type, label)
-       VALUES (?, ?, 'STARTED', 'Talenta menyetujui dan mulai mengerjakan')`,
-      [project.id, req.user.id]
-    );
+    await addProjectEvent(conn, {
+      projectId: project.id, actorId: req.user.id, eventType: 'STARTED',
+      label: 'Talenta menyetujui dan mulai mengerjakan',
+    });
 
+    await conn.commit();
     const [updated] = await pool.query(`SELECT * FROM projects WHERE id = ?`, [project.id]);
     return success(res, updated[0], 'Proyek dimulai');
   } catch (err) {
+    await conn.rollback();
     next(err);
+  } finally {
+    conn.release();
   }
 };
 
+const isHttpUrl = (value) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+// Berkas yang diunggah tetapi gagal dicatat sebagai pengiriman dihapus agar tidak yatim,
+// kecuali sudah dipakai pengiriman lain.
+async function cleanupOrphan(filename, filePath) {
+  if (!filename) return;
+  const [used] = await pool.query(`SELECT id FROM project_deliveries WHERE file_path = ? LIMIT 1`, [filePath]);
+  if (used.length === 0) await removeDeliveryFile(filename);
+}
+
 export const submitDelivery = async (req, res, next) => {
+  const { file_name, file_path, link_url } = req.body;
+  let filename = null;
   const conn = await pool.getConnection();
   try {
+    let fileSize = null;
+    let displayName = null;
+    let link = null;
+
+    if (file_path !== undefined && file_path !== null && file_path !== '') {
+      filename = parseDeliveryFilePath(file_path);
+      if (!filename) {
+        throw new HttpError(400, 'file_path tidak valid. Unggah berkas lewat /api/upload/delivery terlebih dahulu.');
+      }
+      try {
+        fileSize = (await fs.stat(deliveryAbsolutePath(filename))).size;
+      } catch {
+        filename = null; // tidak ada yang perlu dibersihkan
+        throw new HttpError(400, 'Berkas tidak ditemukan di server, silakan unggah ulang');
+      }
+      const [used] = await pool.query(`SELECT id FROM project_deliveries WHERE file_path = ? LIMIT 1`, [file_path]);
+      if (used.length > 0) {
+        filename = null; // milik pengiriman lain, jangan dihapus
+        throw new HttpError(409, 'Berkas ini sudah dipakai pada pengiriman lain');
+      }
+      displayName = typeof file_name === 'string' && file_name.trim() ? file_name.trim().slice(0, 255) : filename;
+    }
+
+    if (link_url !== undefined && link_url !== null && link_url !== '') {
+      if (typeof link_url !== 'string' || link_url.length > 500 || !isHttpUrl(link_url.trim())) {
+        throw new HttpError(400, 'Tautan harus berupa URL http/https yang valid');
+      }
+      link = link_url.trim();
+    }
+
+    if (!filename && !link) throw new HttpError(400, 'File atau tautan wajib diisi');
+
     await conn.beginTransaction();
 
     const [rows] = await conn.query(
-      `SELECT * FROM projects WHERE id = ? AND talent_id = ?`,
+      `SELECT * FROM projects WHERE id = ? AND talent_id = ? FOR UPDATE`,
       [req.params.id, req.user.id]
     );
-    if (!rows[0]) {
-      await conn.rollback();
-      return fail(res, 'Proyek tidak ditemukan', 404);
-    }
+    if (!rows[0]) throw new HttpError(404, 'Proyek tidak ditemukan');
 
     const project = rows[0];
     if (!['IN_PROGRESS', 'REVISION'].includes(project.status)) {
-      await conn.rollback();
-      return fail(res, 'Proyek tidak bisa dikirim saat ini', 400);
-    }
-
-    const { file_name, file_path, file_size, link_url } = req.body;
-    if (!file_name && !link_url) {
-      await conn.rollback();
-      return fail(res, 'File atau tautan wajib diisi', 400);
+      throw new HttpError(409, 'Proyek tidak bisa dikirim saat ini');
     }
 
     // Hitung round
@@ -143,7 +203,7 @@ export const submitDelivery = async (req, res, next) => {
     await conn.query(
       `INSERT INTO project_deliveries (project_id, round_no, file_name, file_path, file_size, link_url)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [project.id, maxRound + 1, file_name || null, file_path || null, file_size || null, link_url || null]
+      [project.id, maxRound + 1, displayName, filename ? file_path : null, fileSize, link]
     );
 
     // Tandai selesai → AWAITING_VERIFICATION
@@ -154,25 +214,29 @@ export const submitDelivery = async (req, res, next) => {
       [project.id]
     );
 
-    await conn.query(
-      `INSERT INTO project_events (project_id, actor_id, event_type, label)
-       VALUES (?, ?, 'DELIVERED', 'Talenta menandai proyek selesai')`,
-      [project.id, req.user.id]
-    );
+    await addProjectEvent(conn, {
+      projectId: project.id, actorId: req.user.id, eventType: 'DELIVERED',
+      label: 'Talenta menandai proyek selesai',
+    });
 
-    // Notif ke requester
-    await conn.query(
-      `INSERT INTO notifications (user_id, type, title, body, ref_type, ref_id)
-       VALUES (?, 'verifikasi', 'Proyek menunggu verifikasi', 'Talenta telah menandai proyek selesai', 'project', ?)`,
-      [project.requester_id, project.id]
-    );
+    // Notif ke pemilik (requester atau liaison)
+    await notify(conn, {
+      userId: project.requester_id, type: 'verifikasi', title: 'Proyek menunggu verifikasi',
+      body: 'Talenta telah menandai proyek selesai', refType: 'project', refId: project.id,
+    });
 
     await conn.commit();
+    filename = null; // sudah tercatat
 
-    const [updated] = await conn.query(`SELECT * FROM projects WHERE id = ?`, [project.id]);
+    const [updated] = await pool.query(`SELECT * FROM projects WHERE id = ?`, [project.id]);
     return success(res, updated[0], 'Hasil proyek dikirim, menunggu verifikasi komunitas');
   } catch (err) {
     await conn.rollback();
+    try {
+      await cleanupOrphan(filename, file_path);
+    } catch (cleanupErr) {
+      console.error('[delivery] gagal menghapus berkas yatim:', cleanupErr.code || cleanupErr.message);
+    }
     next(err);
   } finally {
     conn.release();
@@ -180,22 +244,22 @@ export const submitDelivery = async (req, res, next) => {
 };
 
 export const verifyProject = async (req, res, next) => {
+  const conn = await pool.getConnection();
   try {
-    const { testimonial } = req.body;
-
-    // Pakai stored procedure yang sudah ada
-    await pool.query(
-      `CALL sp_verify_project(?, ?, ?)`,
-      [req.params.id, req.user.id, testimonial || null]
-    );
-
-    const [rows] = await pool.query(`SELECT * FROM projects WHERE id = ?`, [req.params.id]);
-    return success(res, rows[0], 'Proyek terverifikasi, reputasi talenta +1');
+    await conn.beginTransaction();
+    const project = await completeProject(conn, {
+      projectId: req.params.id,
+      actor: req.user,
+      testimonial: req.body?.testimonial ?? null,
+      allowedFrom: ['AWAITING_VERIFICATION'],
+    });
+    await conn.commit();
+    return success(res, project, 'Proyek terverifikasi, reputasi talenta +1');
   } catch (err) {
-    if (err.sqlState === '45000') {
-      return fail(res, err.message, 400);
-    }
+    await conn.rollback();
     next(err);
+  } finally {
+    conn.release();
   }
 };
 
@@ -205,7 +269,7 @@ export const requestRevision = async (req, res, next) => {
     await conn.beginTransaction();
 
     const [rows] = await conn.query(
-      `SELECT * FROM projects WHERE id = ? AND requester_id = ?`,
+      `SELECT * FROM projects WHERE id = ? AND requester_id = ? FOR UPDATE`,
       [req.params.id, req.user.id]
     );
     if (!rows[0]) {
@@ -216,11 +280,11 @@ export const requestRevision = async (req, res, next) => {
     const project = rows[0];
     if (project.status !== 'AWAITING_VERIFICATION') {
       await conn.rollback();
-      return fail(res, 'Revisi hanya bisa diminta setelah talenta menandai selesai', 400);
+      return fail(res, 'Revisi hanya bisa diminta setelah talenta menandai selesai', 409);
     }
 
     const { note } = req.body;
-    if (!note || !note.trim()) {
+    if (typeof note !== 'string' || !note.trim()) {
       await conn.rollback();
       return fail(res, 'Catatan revisi wajib diisi', 400);
     }
@@ -237,27 +301,27 @@ export const requestRevision = async (req, res, next) => {
       [project.id, deliveries[0]?.id || null, note.trim(), req.user.id]
     );
 
+    // Talenta perlu menandai selesai lagi setelah revisi (sign-off dua arah).
     await conn.query(
-      `UPDATE projects SET status = 'REVISION', progress_pct = GREATEST(progress_pct - 20, 30)
+      `UPDATE projects SET status = 'REVISION', talent_marked_done_at = NULL,
+         progress_pct = GREATEST(progress_pct - 20, 30)
        WHERE id = ?`,
       [project.id]
     );
 
-    await conn.query(
-      `INSERT INTO project_events (project_id, actor_id, event_type, label)
-       VALUES (?, ?, 'REVISION_REQUESTED', 'Komunitas meminta revisi')`,
-      [project.id, req.user.id]
-    );
+    await addProjectEvent(conn, {
+      projectId: project.id, actorId: req.user.id, eventType: 'REVISION_REQUESTED',
+      label: 'Komunitas meminta revisi',
+    });
 
-    await conn.query(
-      `INSERT INTO notifications (user_id, type, title, body, ref_type, ref_id)
-       VALUES (?, 'sistem', 'Revisi diminta', 'Komunitas meminta revisi pada proyek Anda', 'project', ?)`,
-      [project.talent_id, project.id]
-    );
+    await notify(conn, {
+      userId: project.talent_id, type: 'sistem', title: 'Revisi diminta',
+      body: 'Komunitas meminta revisi pada proyek Anda', refType: 'project', refId: project.id,
+    });
 
     await conn.commit();
 
-    const [updated] = await conn.query(`SELECT * FROM projects WHERE id = ?`, [project.id]);
+    const [updated] = await pool.query(`SELECT * FROM projects WHERE id = ?`, [project.id]);
     return success(res, updated[0], 'Revisi diminta');
   } catch (err) {
     await conn.rollback();
@@ -272,7 +336,7 @@ export const openDispute = async (req, res, next) => {
   try {
     await conn.beginTransaction();
 
-    const [rows] = await conn.query(`SELECT * FROM projects WHERE id = ?`, [req.params.id]);
+    const [rows] = await conn.query(`SELECT * FROM projects WHERE id = ? FOR UPDATE`, [req.params.id]);
     if (!rows[0]) {
       await conn.rollback();
       return fail(res, 'Proyek tidak ditemukan', 404);
@@ -284,8 +348,13 @@ export const openDispute = async (req, res, next) => {
       return fail(res, 'Akses ditolak', 403);
     }
 
+    if (!DISPUTABLE_STATUSES.includes(project.status)) {
+      await conn.rollback();
+      return fail(res, `Sengketa tidak bisa dibuka pada status ${project.status}`, 409);
+    }
+
     const { summary, statement } = req.body;
-    if (!summary) {
+    if (typeof summary !== 'string' || !summary.trim()) {
       await conn.rollback();
       return fail(res, 'Ringkasan sengketa wajib diisi', 400);
     }
@@ -300,16 +369,21 @@ export const openDispute = async (req, res, next) => {
     }
 
     const isTalent = project.talent_id === req.user.id;
+    const statementText = typeof statement === 'string' && statement.trim() ? statement.trim() : null;
 
-    await conn.query(
+    const [disputeRes] = await conn.query(
       `INSERT INTO disputes (project_id, status, summary, statement_community, statement_talent)
        VALUES (?, 'MEDIASI', ?, ?, ?)`,
       [
         project.id,
         summary.trim(),
-        isTalent ? null : statement || null,
-        isTalent ? statement || null : null,
+        isTalent ? null : statementText,
+        isTalent ? statementText : null,
       ]
+    );
+    await conn.query(
+      `INSERT INTO dispute_events (dispute_id, label) VALUES (?, ?)`,
+      [disputeRes.insertId, isTalent ? 'Sengketa dibuka oleh talenta' : 'Sengketa dibuka oleh komunitas']
     );
 
     await conn.query(
@@ -317,14 +391,12 @@ export const openDispute = async (req, res, next) => {
       [project.id]
     );
 
-    await conn.query(
-      `INSERT INTO project_events (project_id, actor_id, event_type, label)
-       VALUES (?, ?, 'DISPUTED', 'Sengketa dibuka')`,
-      [project.id, req.user.id]
-    );
+    await addProjectEvent(conn, {
+      projectId: project.id, actorId: req.user.id, eventType: 'DISPUTED', label: 'Sengketa dibuka',
+    });
 
     await conn.commit();
-    return created(res, null, 'Sengketa dibuka, menunggu mediasi admin');
+    return created(res, { id: disputeRes.insertId }, 'Sengketa dibuka, menunggu mediasi admin');
   } catch (err) {
     await conn.rollback();
     next(err);

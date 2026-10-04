@@ -1,30 +1,26 @@
 import { Router } from 'express';
 import * as ctrl from '../controllers/uploadController.js';
 import { authenticate } from '../middleware/auth.js';
+import { requireRole } from '../middleware/role.js';
 import multer from 'multer';
-import path from 'path';
 import { env } from '../config/env.js';
-
-const UPLOAD_DIR = env.deliveriesDir;
+import { HttpError } from '../utils/httpError.js';
+import { MAX_UPLOAD_BYTES, isAllowedUpload, generateDeliveryFilename } from '../utils/uploads.js';
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, `delivery-${unique}${ext}`);
-  },
+  destination: (req, file, cb) => cb(null, env.deliveriesDir),
+  filename: (req, file, cb) => cb(null, generateDeliveryFilename(file.originalname)),
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
+  limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 },
   fileFilter: (req, file, cb) => {
-    const allowed = /\.(zip|rar|pdf|png|jpg|jpeg|doc|docx|txt|mp4|mov)$/i;
-    if (allowed.test(path.extname(file.originalname))) {
+    // Ekstensi DAN mimetype harus cocok dengan daftar yang diizinkan.
+    if (isAllowedUpload(file.originalname, file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Format file tidak didukung'));
+      cb(new HttpError(400, 'Format file tidak didukung (zip, rar, pdf, png, jpg, doc, docx, txt, mp4, mov)'));
     }
   },
 });
@@ -32,7 +28,7 @@ const upload = multer({
 const router = Router();
 router.use(authenticate);
 
-router.post('/delivery', upload.single('file'), ctrl.uploadDelivery);
+router.post('/delivery', requireRole('talent'), upload.single('file'), ctrl.uploadDelivery);
 router.get('/delivery/:filename', ctrl.downloadDelivery);
 
 export default router;

@@ -1,24 +1,35 @@
 import { pool } from '../config/db.js';
 import { success, created, fail } from '../utils/response.js';
+import { parsePagination, paged } from '../utils/pagination.js';
 
 export const list = async (req, res, next) => {
   try {
-    const { sector, type, search } = req.query;
+    const { sector, type, search, mine } = req.query;
+    const pg = parsePagination(req.query);
     let where = `WHERE 1=1`;
     const params = [];
 
-    if (sector) { where += ` AND sector = ?`; params.push(sector); }
-    if (type) { where += ` AND type = ?`; params.push(type); }
+    if (sector) { where += ` AND c.sector = ?`; params.push(sector); }
+    if (type) { where += ` AND c.type = ?`; params.push(type); }
     if (search) {
-      where += ` AND (name LIKE ? OR description LIKE ?)`;
+      where += ` AND (c.name LIKE ? OR c.description LIKE ?)`;
       params.push(`%${search}%`, `%${search}%`);
+    }
+    if (mine === 'true') {
+      where += ` AND EXISTS (SELECT 1 FROM community_members cm WHERE cm.community_id = c.id AND cm.user_id = ?)`;
+      params.push(req.user.id);
     }
 
     const [rows] = await pool.query(
-      `SELECT * FROM communities ${where} ORDER BY created_at DESC`,
-      params
+      `SELECT c.*,
+         EXISTS (SELECT 1 FROM community_members cm WHERE cm.community_id = c.id AND cm.user_id = ?) AS is_member
+       FROM communities c ${where}
+       ORDER BY c.created_at DESC, c.id DESC
+       LIMIT ? OFFSET ?`,
+      [req.user.id, ...params, pg.limit, pg.offset]
     );
-    return success(res, rows);
+    const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM communities c ${where}`, params);
+    return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);
   }
@@ -55,19 +66,20 @@ export const create = async (req, res, next) => {
     await conn.beginTransaction();
 
     const { name, type, description, leader_name, leader_role, whatsapp, address, lat, lng } = req.body;
-    if (!name) {
+    if (typeof name !== 'string' || !name.trim()) {
       await conn.rollback();
       return fail(res, 'Nama komunitas wajib diisi', 400);
     }
 
     const [result] = await conn.query(
       `INSERT INTO communities
-        (name, type, description, leader_name, leader_role, whatsapp, address, lat, lng, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (name, type, description, leader_name, leader_role, whatsapp, address, lat, lng, source, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name.trim(), type || 'LAINNYA', description || null,
         leader_name || null, leader_role || null, whatsapp || null,
-        address || null, lat || null, lng || null, req.user.id,
+        address || null, lat || null, lng || null,
+        req.user.role === 'liaison' ? 'AGENSUSI' : 'MANDIRI', req.user.id,
       ]
     );
 
@@ -86,7 +98,7 @@ export const create = async (req, res, next) => {
 
     await conn.commit();
 
-    const [rows] = await conn.query(`SELECT * FROM communities WHERE id = ?`, [communityId]);
+    const [rows] = await pool.query(`SELECT * FROM communities WHERE id = ?`, [communityId]);
     return created(res, rows[0], 'Komunitas dibuat');
   } catch (err) {
     await conn.rollback();
@@ -97,43 +109,68 @@ export const create = async (req, res, next) => {
 };
 
 export const join = async (req, res, next) => {
+  const conn = await pool.getConnection();
   try {
-    const [existing] = await pool.query(
-      `SELECT * FROM community_members WHERE community_id = ? AND user_id = ?`,
-      [req.params.id, req.user.id]
-    );
-    if (existing.length > 0) return fail(res, 'Anda sudah menjadi anggota', 409);
+    await conn.beginTransaction();
+    const [communities] = await conn.query(`SELECT id FROM communities WHERE id = ? FOR UPDATE`, [req.params.id]);
+    if (!communities[0]) {
+      await conn.rollback();
+      return fail(res, 'Komunitas tidak ditemukan', 404);
+    }
 
-    await pool.query(
+    const [existing] = await conn.query(
+      `SELECT 1 FROM community_members WHERE community_id = ? AND user_id = ?`,
+      [communities[0].id, req.user.id]
+    );
+    if (existing.length > 0) {
+      await conn.rollback();
+      return fail(res, 'Anda sudah menjadi anggota', 409);
+    }
+
+    await conn.query(
       `INSERT INTO community_members (community_id, user_id, role_in) VALUES (?, ?, 'ANGGOTA')`,
-      [req.params.id, req.user.id]
+      [communities[0].id, req.user.id]
     );
-    await pool.query(
+    await conn.query(
       `UPDATE communities SET members_count = members_count + 1 WHERE id = ?`,
-      [req.params.id]
+      [communities[0].id]
     );
 
+    await conn.commit();
     return success(res, null, 'Berhasil bergabung');
   } catch (err) {
+    await conn.rollback();
+    if (err.code === 'ER_DUP_ENTRY') return fail(res, 'Anda sudah menjadi anggota', 409);
     next(err);
+  } finally {
+    conn.release();
   }
 };
 
 export const leave = async (req, res, next) => {
+  const conn = await pool.getConnection();
   try {
-    const [result] = await pool.query(
+    await conn.beginTransaction();
+    const [result] = await conn.query(
       `DELETE FROM community_members WHERE community_id = ? AND user_id = ?`,
       [req.params.id, req.user.id]
     );
-    if (result.affectedRows === 0) return fail(res, 'Anda bukan anggota', 404);
+    if (result.affectedRows === 0) {
+      await conn.rollback();
+      return fail(res, 'Anda bukan anggota', 404);
+    }
 
-    await pool.query(
-      `UPDATE communities SET members_count = GREATEST(members_count - 1, 0) WHERE id = ?`,
+    await conn.query(
+      `UPDATE communities SET members_count = GREATEST(CAST(members_count AS SIGNED) - 1, 0) WHERE id = ?`,
       [req.params.id]
     );
 
+    await conn.commit();
     return success(res, null, 'Berhasil keluar');
   } catch (err) {
+    await conn.rollback();
     next(err);
+  } finally {
+    conn.release();
   }
 };
