@@ -34,9 +34,10 @@ export default function Footer({ navigateTo, goToSection }) {
     { l: 'Tentang Kami', fn: () => navigateTo('tentang') },
   ];
   const ICONS = { instagram: FaInstagram, discord: FaDiscord, github: FaGithub };
+  // Hanya kontak yang sudah diatur (VITE_CONTACT_*) yang ditampilkan.
   const SOCIALS = [
     ...CONTACT.socials.map((s) => ({ l: s.label, href: s.href, Icon: ICONS[s.key] })),
-    { l: 'WhatsApp', href: CONTACT.whatsappUrl(), Icon: FaWhatsapp },
+    ...(CONTACT.whatsappNumber ? [{ l: 'WhatsApp', href: CONTACT.whatsappUrl(), Icon: FaWhatsapp }] : []),
   ];
 
   return (
@@ -58,10 +59,12 @@ export default function Footer({ navigateTo, goToSection }) {
             <p className="text-sm text-[#f2efe6]/80 leading-relaxed">
               {CONTACT.address}
             </p>
-            <div className="pt-2 font-mono text-xs text-[#f2efe6]/60 space-y-1">
-              <p>{CONTACT.email}</p>
-              <p>{CONTACT.whatsappDisplay}</p>
-            </div>
+            {(CONTACT.email || CONTACT.whatsappDisplay) && (
+              <div className="pt-2 font-mono text-xs text-[#f2efe6]/60 space-y-1">
+                {CONTACT.email && <p>{CONTACT.email}</p>}
+                {CONTACT.whatsappDisplay && <p>{CONTACT.whatsappDisplay}</p>}
+              </div>
+            )}
           </div>
 
           {/* KOLOM TENGAH: Navigasi Tautan */}

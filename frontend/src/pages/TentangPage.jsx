@@ -70,12 +70,13 @@ export default function TentangPage() {
   const [contactOpen, setContactOpen] = useState(false);
   const [copiedKey, setCopiedKey] = useState('');
 
+  // WhatsApp & email hanya tampil bila sudah diatur (VITE_CONTACT_*), bukan nomor contoh.
   const CONTACTS = [
-    { k: 'wa', icon: <MessagesSquare className="w-5 h-5" />, label: 'WhatsApp Tim', value: CONTACT.whatsappDisplay, href: CONTACT.whatsappUrl() },
-    { k: 'mail', icon: <Mails className="w-5 h-5" />, label: 'Email Resmi', value: CONTACT.email, href: `mailto:${CONTACT.email}` },
+    CONTACT.whatsappNumber && { k: 'wa', icon: <MessagesSquare className="w-5 h-5" />, label: 'WhatsApp Tim', value: CONTACT.whatsappDisplay, href: CONTACT.whatsappUrl() },
+    CONTACT.email && { k: 'mail', icon: <Mails className="w-5 h-5" />, label: 'Email Resmi', value: CONTACT.email, href: `mailto:${CONTACT.email}` },
     { k: 'maps', icon: <Map className="w-5 h-5" />, label: 'Rute Google Maps', value: CONTACT.mapsQuery, href: CONTACT.mapsDirectionsUrl },
     { k: 'copy', icon: <Copy className="w-5 h-5" />, label: 'Salin Alamat', value: HQ.addr },
-  ];
+  ].filter(Boolean);
 
   const handleContact = (c) => {
     if (c.k === 'copy') {
