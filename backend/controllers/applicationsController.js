@@ -4,23 +4,31 @@ import { parsePagination, paged } from '../utils/pagination.js';
 import { getNeedOwnerId, isNeedOwner } from '../utils/ownership.js';
 import { notify, addProjectEvent } from '../utils/activity.js';
 
+const APPLICATION_STATUSES = ['MENUNGGU', 'DITERIMA', 'DITOLAK'];
+
 export const getMyApplications = async (req, res, next) => {
   try {
     const pg = parsePagination(req.query);
+    const { status } = req.query;
+    if (status !== undefined && !APPLICATION_STATUSES.includes(status)) {
+      return fail(res, `status harus salah satu dari: ${APPLICATION_STATUSES.join(', ')}`, 400);
+    }
+    const where = status ? `WHERE a.talent_id = ? AND a.status = ?` : `WHERE a.talent_id = ?`;
+    const params = status ? [req.user.id, status] : [req.user.id];
+
+    // project_id: proyek yang lahir dari lamaran ini (bila diterima), untuk tautan langsung.
     const [rows] = await pool.query(
-      `SELECT a.*, n.title, n.category, n.status AS need_status, c.name AS community_name
+      `SELECT a.*, n.title, n.category, n.status AS need_status, c.name AS community_name,
+              (SELECT p.id FROM projects p WHERE p.application_id = a.id ORDER BY p.id DESC LIMIT 1) AS project_id
        FROM applications a
        JOIN needs n ON n.id = a.need_id
        LEFT JOIN communities c ON c.id = n.community_id
-       WHERE a.talent_id = ?
+       ${where}
        ORDER BY a.created_at DESC, a.id DESC
        LIMIT ? OFFSET ?`,
-      [req.user.id, pg.limit, pg.offset]
+      [...params, pg.limit, pg.offset]
     );
-    const [[{ total }]] = await pool.query(
-      `SELECT COUNT(*) AS total FROM applications WHERE talent_id = ?`,
-      [req.user.id]
-    );
+    const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM applications a ${where}`, params);
     return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);

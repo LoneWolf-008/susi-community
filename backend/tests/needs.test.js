@@ -132,6 +132,24 @@ describe('Kebutuhan: validasi komunitas & visibilitas (T2.8)', () => {
   });
 });
 
+describe('Kebutuhan: status lamaran saya di katalog & detail (T7)', () => {
+  it('talenta melihat status lamarannya sendiri; talenta lain melihat null', async () => {
+    const owner = await createUser('requester');
+    const applicant = await createUser('talent');
+    const other = await createUser('talent');
+    const need = await createNeed(owner);
+    await createApplication(need, applicant);
+
+    const mine = await api().get('/api/needs/catalog?limit=50').set(applicant.auth);
+    expect(mine.body.data.items.find((n) => n.id === need.id).my_application_status).toBe('MENUNGGU');
+    const theirs = await api().get('/api/needs/catalog?limit=50').set(other.auth);
+    expect(theirs.body.data.items.find((n) => n.id === need.id).my_application_status).toBeNull();
+
+    expect((await api().get(`/api/needs/${need.id}`).set(applicant.auth)).body.data.my_application_status).toBe('MENUNGGU');
+    expect((await api().get(`/api/needs/${need.id}`).set(other.auth)).body.data.my_application_status).toBeNull();
+  });
+});
+
 describe('Kebutuhan: proyek terbaru di GET /needs/:id (regresi T6)', () => {
   it('pemilik & admin mendapat project_id/project_status terbaru; pengguna lain tidak', async () => {
     const owner = await createUser('requester');

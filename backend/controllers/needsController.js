@@ -74,17 +74,19 @@ export const getCatalog = async (req, res, next) => {
       params.push(`%${search}%`, `%${search}%`);
     }
 
+    // my_application_status: status lamaran pengguna ini (null bila belum melamar / bukan talenta).
     const [rows] = await pool.query(
       `SELECT n.id, n.title, n.category, n.summary, n.description, n.address,
               n.lat, n.lng, n.sector, n.source, n.created_at,
               c.name AS community_name, c.type AS community_type, c.leader_name, c.members_count,
-              (SELECT COUNT(*) FROM applications a WHERE a.need_id = n.id) AS applicants
+              (SELECT COUNT(*) FROM applications a WHERE a.need_id = n.id) AS applicants,
+              (SELECT a.status FROM applications a WHERE a.need_id = n.id AND a.talent_id = ?) AS my_application_status
        FROM needs n
        LEFT JOIN communities c ON c.id = n.community_id
        ${where}
        ORDER BY n.created_at DESC, n.id DESC
        LIMIT ? OFFSET ?`,
-      [...params, pg.limit, pg.offset]
+      [req.user.id, ...params, pg.limit, pg.offset]
     );
 
     const [[{ total }]] = await pool.query(
@@ -131,12 +133,13 @@ export const getNeedById = async (req, res, next) => {
       `SELECT n.*, c.name AS community_name, c.leader_name, c.members_count,
               u.name AS requester_name,
               (SELECT p.id FROM projects p WHERE p.need_id = n.id ORDER BY p.id DESC LIMIT 1) AS project_id,
-              (SELECT p.status FROM projects p WHERE p.need_id = n.id ORDER BY p.id DESC LIMIT 1) AS project_status
+              (SELECT p.status FROM projects p WHERE p.need_id = n.id ORDER BY p.id DESC LIMIT 1) AS project_status,
+              (SELECT a.status FROM applications a WHERE a.need_id = n.id AND a.talent_id = ?) AS my_application_status
        FROM needs n
        LEFT JOIN communities c ON c.id = n.community_id
        LEFT JOIN users u ON u.id = n.requester_id
        WHERE n.id = ?`,
-      [req.params.id]
+      [req.user.id, req.params.id]
     );
     const need = rows[0];
     if (!need) return fail(res, 'Kebutuhan tidak ditemukan', 404);
