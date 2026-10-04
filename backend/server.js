@@ -1,8 +1,11 @@
+// Harus paling awal: memuat .env dan menghentikan proses bila konfigurasi wajib kosong.
+import { env } from './config/env.js';
+import fs from 'node:fs';
 import express from 'express';
+import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
 import { pool } from './config/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -21,14 +24,19 @@ import uploadRoutes from './routes/upload.js';
 import settingsRoutes from './routes/settings.js';
 import testimonialsRoutes from './routes/testimonials.js';
 
-dotenv.config();
+// Folder unggahan dibuat saat boot agar multer tidak gagal di instalasi baru.
+fs.mkdirSync(env.deliveriesDir, { recursive: true });
 
 const app = express();
-const PORT = process.env.PORT || 3009;
+const PORT = env.port;
+
+// Dibutuhkan agar req.ip (rate limit, log token) benar di balik proxy Railway/Render.
+app.set('trust proxy', env.trustProxy);
 
 // ===== MIDDLEWARE =====
+app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5174',
+  origin: env.frontendUrls,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -78,7 +86,7 @@ app.use(errorHandler);
 // ===== START SERVER =====
 app.listen(PORT, () => {
   console.log(`SUSI Community API berjalan di http://localhost:${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Environment: ${env.nodeEnv}`);
 });
 
 // Graceful shutdown

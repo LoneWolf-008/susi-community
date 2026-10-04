@@ -3,10 +3,9 @@ import * as ctrl from '../controllers/uploadController.js';
 import { authenticate } from '../middleware/auth.js';
 import multer from 'multer';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { env } from '../config/env.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'deliveries');
+const UPLOAD_DIR = env.deliveriesDir;
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),

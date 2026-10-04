@@ -1,11 +1,13 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { pool } from '../config/db.js';
+import { env } from '../config/env.js';
 
-const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'dev_access_secret';
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret';
-const ACCESS_EXPIRES = process.env.JWT_ACCESS_EXPIRES || '15m';
-const REFRESH_EXPIRES = process.env.JWT_REFRESH_EXPIRES || '7d';
+// Tanpa fallback: env.js sudah menghentikan proses bila secret kosong.
+const ACCESS_SECRET = env.jwt.accessSecret;
+const REFRESH_SECRET = env.jwt.refreshSecret;
+const ACCESS_EXPIRES = env.jwt.accessExpires;
+const REFRESH_EXPIRES = env.jwt.refreshExpires;
 
 export const signAccessToken = (payload) => {
   return jwt.sign(payload, ACCESS_SECRET, { expiresIn: ACCESS_EXPIRES });

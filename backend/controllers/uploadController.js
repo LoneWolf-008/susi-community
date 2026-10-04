@@ -1,8 +1,9 @@
 import { success, fail } from '../utils/response.js';
 import fs from 'fs';
 import path from 'path';
+import { env } from '../config/env.js';
 
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'deliveries');
+const UPLOAD_DIR = env.deliveriesDir;
 
 export const uploadDelivery = async (req, res, next) => {
   try {
