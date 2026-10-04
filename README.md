@@ -41,6 +41,26 @@ Membuat secret JWT acak:
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
+### Test backend
+
+```bash
+cd backend
+npm test                  # vitest + supertest
+```
+
+Test memakai database terpisah `susi_community_test` (bisa diganti lewat
+`TEST_DB_NAME`, nama wajib berakhiran `_test`). Kredensial MySQL diambil dari
+`backend/.env`. Sebelum suite berjalan, DB test dikosongkan lalu dipasang ulang
+dari `schema.sql` + semua migrasi, jadi migrasi ikut teruji. DB dev tidak disentuh.
+
+### Konvensi API
+
+- Error selalu `{ "error": { "message": "..." } }`; pesan error server (5xx)
+  disamarkan di production.
+- Endpoint daftar menerima `?page=&limit=` (limit maksimal 50) dan mengembalikan
+  `{ "items": [...], "total": n, "page": p, "limit": l }` di dalam `data`.
+- Login (percobaan gagal) dan registrasi dibatasi 10 per 15 menit per IP.
+
 ## Database
 
 Skema baseline ada di `backend/db/schema.sql` (MySQL 8 dan MariaDB 10.4+). Setiap
@@ -112,7 +132,11 @@ backend. Bila port terpakai, Vite berhenti alih-alih pindah ke port lain.
 | `ADMIN_EMAIL` | untuk seed | `admin@susi.test` (di contoh) | Akun admin yang dibuat `npm run seed` |
 | `ADMIN_PASSWORD` | untuk seed | | Minimal 10 karakter |
 | `SEED_USER_PASSWORD` | untuk seed | | Password semua akun demo lain; minimal 10 karakter |
+| `RATE_LIMIT_MAX` | | `500` | Batas request `/api` per IP per 15 menit |
+| `AUTH_RATE_LIMIT_MAX` | | `10` | Batas login gagal & registrasi per IP per jendela |
+| `AUTH_RATE_LIMIT_WINDOW_MS` | | `900000` | Jendela rate limit auth (15 menit) |
 | `MIGRATIONS_DIR` | | `db/migrations` | Hanya untuk pengujian runner migrasi |
+| `TEST_DB_NAME` | | `susi_community_test` | Database untuk `npm test` (harus berakhiran `_test`) |
 
 ### `frontend/.env.local`
 
