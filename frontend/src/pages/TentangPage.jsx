@@ -7,6 +7,7 @@ import fotoHasby from '../assets/hasby.jpg';
 import fotoEzra from '../assets/ezra.jpg';
 import fotoRien from '../assets/rien.jpg';
 import fotoAlif from '../assets/alif.jpg';
+import { CONTACT } from '../data/contact';
 
 const TEAM_MEMBERS = [
   { i: 'HW', n: 'Hasby Wira Al Muflih', r: 'Ketua Tim', foto: fotoHasby, bio: 'Menjaga visi, ritme, dan timeline tim tetap waras. Percaya produk yang baik dimulai dari mendengar komunitas.', skill: ['Leadership', 'Product Strategy', 'UI Design'], quote: '"Dengar dulu, rancang kemudian."' },
@@ -15,15 +16,9 @@ const TEAM_MEMBERS = [
   { i: 'KA', n: 'Khalifa Aisy Hafiy', r: 'Developer', foto: fotoAlif, bio: 'Memastikan semua fitur pada website berjalan sesuai dengan rencana.', skill: ['Frontend', 'Testing'], quote: '"Bug adalah utang, dan saya tidak suka berutang."' },
 ];
 
-const VALUES = [
-  { n: '01', t: 'Dengar Dulu', d: 'Kami tidak datang dengan jawaban. Kami datang dengan pertanyaan — lalu duduk bersama komunitas sampai akar masalahnya terlihat.' },
-  { n: '02', t: 'Bangun yang Dipakai', d: 'Teknologi bagus yang tidak dipakai adalah sia-sia. Kami memilih solusi sederhana yang benar-benar digunakan sehari-hari.' },
-  { n: '03', t: 'Tumbuh Bersama', d: 'Talenta dapat portofolio nyata, komunitas dapat solusi yang bertahan. Tidak ada pihak yang kalah dalam siklus ini.' },
-];
+const HQ = { ...CONTACT.hq, addr: CONTACT.address };
 
-const HQ = { lat: -6.9075, lng: 107.619, addr: 'Jl. Kliningan No. 4 Kota Bandung, Jawa Barat, 40132, Indonesia' };
-
-function TeamMember({ m, idx }) {
+function TeamMember({ m }) {
   const [imgOk, setImgOk] = useState(true);
   return (
     <div className="team-member group relative">
@@ -76,9 +71,9 @@ export default function TentangPage() {
   const [copiedKey, setCopiedKey] = useState('');
 
   const CONTACTS = [
-    { k: 'wa', icon: <MessagesSquare className="w-5 h-5" />, label: 'WhatsApp Tim', value: '+62 812-3456-7890', href: 'https://wa.me/6281234567890' },
-    { k: 'mail', icon: <Mails className="w-5 h-5" />, label: 'Email Resmi', value: 'timsusi@smkn4bdg.sch.id', href: 'mailto:timsusi@smkn4bdg.sch.id' },
-    { k: 'maps', icon: <Map className="w-5 h-5" />, label: 'Rute Google Maps', value: 'SMKN 4 Bandung', href: 'https://www.google.com/maps/dir/?api=1&destination=SMKN+4+Bandung' },
+    { k: 'wa', icon: <MessagesSquare className="w-5 h-5" />, label: 'WhatsApp Tim', value: CONTACT.whatsappDisplay, href: CONTACT.whatsappUrl() },
+    { k: 'mail', icon: <Mails className="w-5 h-5" />, label: 'Email Resmi', value: CONTACT.email, href: `mailto:${CONTACT.email}` },
+    { k: 'maps', icon: <Map className="w-5 h-5" />, label: 'Rute Google Maps', value: CONTACT.mapsQuery, href: CONTACT.mapsDirectionsUrl },
     { k: 'copy', icon: <Copy className="w-5 h-5" />, label: 'Salin Alamat', value: HQ.addr },
   ];
 
@@ -119,7 +114,7 @@ export default function TentangPage() {
         y: 0, autoAlpha: 1, duration: 0.8, stagger: 0.1, ease: 'power3.out',
         scrollTrigger: { trigger: '.team-head', start: 'top 80%' },
       });
-      gsap.utils.toArray('.team-member').forEach((el, i) => {
+      gsap.utils.toArray('.team-member').forEach((el) => {
         const tl = gsap.timeline({ scrollTrigger: { trigger: el, start: 'top 82%' } });
         tl.fromTo(el, { autoAlpha: 0, y: 60 }, { autoAlpha: 1, y: 0, duration: 0.9, ease: 'power3.out' })
           .fromTo(el.querySelector('.member-name'),
@@ -206,7 +201,7 @@ export default function TentangPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {TEAM_MEMBERS.map((m, idx) => (
-              <TeamMember key={idx} m={m} idx={idx} />
+              <TeamMember key={idx} m={m} />
             ))}
           </div>
         </div>

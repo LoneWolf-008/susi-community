@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import DashShell from '../../components/common/DashShell';
 import MiniBars from '../../components/common/MiniBars';
 import GoogleMapsEmbed from '../../components/common/GoogleMapsEmbed';
+import { geocode, sectorOf } from '../../lib/geocode';
 
 const CHIP = { green: 'bg-[#c9ecd9] text-[#12283c]', navy: 'bg-[#12283c] text-[#f2efe6]', red: 'bg-[#e62b2b] text-white', ghost: 'bg-[#12283c]/10 text-[#12283c]/70' };
 const chip = (k, t) => <span className={`chip-mono border-0 ${CHIP[k]}`}>{t}</span>;
@@ -23,7 +24,7 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
     { id: 3, comm: 'Paguyuban Pedagang Pasar', sec: 'TIMUR–UTARA', date: 'KEMARIN', time: '10.00', addr: 'Blok C Pasar Antapani', lat: -6.9020, lng: 107.6600, status: 'TERDATA', note: 'Katalog produk online. Sudah masuk dalam antrian.', pic: 'Haji Rahmat' },
     { id: 4, comm: 'Posyandu Melati', sec: 'TIMUR–UTARA', date: 'BESOK', time: '08.00', addr: 'Posyandu Melati, Jl. Antapani Tengah', lat: -6.9080, lng: 107.6680, status: 'DIRENCANAKAN', note: 'Kader ingin data penimbangan tidak manual.', pic: 'Bidan Rina' },
   ]);
-  const [notifs, setNotifs] = useState([
+  const [notifs] = useState([
     { id: 1, type: 'kunjungan', title: 'Agenda hari ini: 2 kunjungan', sub: 'PKK RW 03 Cijerah · 09.00', read: false },
     { id: 2, type: 'intake', title: 'Pengaduan baru masuk antrian', sub: 'Paguyuban Pedagang · Baratlaut', read: false },
     { id: 3, type: 'sistem', title: 'Laporan mingguan siap', sub: 'Unduh di tab Laporan', read: true },
@@ -42,7 +43,7 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
   const first = (user?.name || 'Agen').split(' ')[0];
   const agenda = visits.filter((v) => v.date === 'HARI INI' && v.status !== 'TERDATA');
   const filteredVisits = visitFilter === 'SEMUA' ? visits : visits.filter((v) => v.status === visitFilter);
-  const quadrantOf = (loc) => `${loc.lng < 107.6191 ? 'BARAT' : 'TIMUR'}–${loc.lat > -6.9175 ? 'UTARA' : 'SELATAN'}`;
+  const quadrantOf = sectorOf;
   const openRoute = (v) => window.open(`https://www.google.com/maps/dir/?api=1&destination=${v.lat},${v.lng}`, '_blank');
   const setVisitStatus = (id, status) => setVisits((v) => v.map((x) => (x.id === id ? { ...x, status } : x)));
   const recordResult = (v) => { setForm((f) => ({ ...f, nama: v.comm, addr: v.addr })); setCoords({ lat: v.lat, lng: v.lng }); setSent(false); setTab('catat'); };
@@ -56,14 +57,12 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
     setAddressSearching(true);
     setGpsMsg('');
     try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(`${form.addr}, Kota Bandung`)}`);
-      if (!response.ok) throw new Error('Layanan pencarian alamat sedang tidak tersedia.');
-      const results = await response.json();
-      if (!results[0]) {
+      const found = await geocode(form.addr);
+      if (!found) {
         setGpsMsg('ALAMAT TIDAK DITEMUKAN — COBA TAMBAHKAN KELURAHAN.');
         return;
       }
-      setCoords({ lat: Number(results[0].lat), lng: Number(results[0].lon) });
+      setCoords({ lat: found.lat, lng: found.lng });
       setGpsMsg('ALAMAT DITEMUKAN ✓');
     } catch (error) {
       setGpsMsg(error instanceof Error ? error.message : 'PENCARIAN ALAMAT GAGAL. COBA LAGI.');

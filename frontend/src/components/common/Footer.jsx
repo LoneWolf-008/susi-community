@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { FaInstagram, FaDiscord, FaGithub, FaWhatsapp } from 'react-icons/fa';
+import { CONTACT } from '../../data/contact';
 
 export default function Footer({ navigateTo, goToSection }) {
   const ref = useRef(null);
@@ -32,16 +33,10 @@ export default function Footer({ navigateTo, goToSection }) {
     { l: 'Fitur', fn: () => goToSection('fitur') },
     { l: 'Tentang Kami', fn: () => navigateTo('tentang') },
   ];
-  const COL2 = [
-    { l: 'Masuk / Dasbor', fn: () => navigateTo('dashboard') },
-    { l: 'Ajukan Pengaduan', fn: () => navigateTo('dashboard') },
-    { l: 'Kontak Tim', fn: () => navigateTo('tentang') },
-  ];
+  const ICONS = { instagram: FaInstagram, discord: FaDiscord, github: FaGithub };
   const SOCIALS = [
-    { l: 'Instagram', href: 'https://instagram.com', Icon: FaInstagram },
-    { l: 'Discord', href: 'https://discord.com', Icon: FaDiscord },
-    { l: 'GitHub', href: 'https://github.com', Icon: FaGithub },
-    { l: 'WhatsApp', href: 'https://wa.me/62221234567', Icon: FaWhatsapp },
+    ...CONTACT.socials.map((s) => ({ l: s.label, href: s.href, Icon: ICONS[s.key] })),
+    { l: 'WhatsApp', href: CONTACT.whatsappUrl(), Icon: FaWhatsapp },
   ];
 
   return (
@@ -61,12 +56,11 @@ export default function Footer({ navigateTo, goToSection }) {
           <div className="foot-reveal md:col-span-5 lg:col-span-4 space-y-4">
             <p className="font-mono text-[10px] font-bold tracking-[0.35em] text-[#f2efe6]/50">KANTOR</p>
             <p className="text-sm text-[#f2efe6]/80 leading-relaxed">
-              Jl. Kliningan No. 4, Kota Bandung<br />
-              Jawa Barat, 40132, Indonesia
+              {CONTACT.address}
             </p>
             <div className="pt-2 font-mono text-xs text-[#f2efe6]/60 space-y-1">
-              <p>halosusi@gmail.com</p>
-              <p>+62 22 123 4567</p>
+              <p>{CONTACT.email}</p>
+              <p>{CONTACT.whatsappDisplay}</p>
             </div>
           </div>
 

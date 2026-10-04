@@ -1,10 +1,24 @@
 import { useState, useEffect } from 'react';
+import { PROJECT_STATUS } from '../../lib/statusMap';
+
+const STEP_PERCENT = [10, 50, 66, 83, 100];
+
+// Status lama dari data mock (dipakai sampai dasbor tersambung API di T6/T7).
+const legacyStep = (status) => {
+  if (status === 'PROSES' || status === 'REVISI') return 1;
+  if (status === 'VERIFIKASI' || status === 'MENUNGGU') return 3;
+  if (status === 'SELESAI') return 4;
+  return 0;
+};
+
+/** `status` = status proyek backend (AGREEMENT, IN_PROGRESS, …) atau status mock lama. */
 export default function ProjSteps({ status }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMounted(true), 150); return () => clearTimeout(t); }, []);
   const labels = ['DITERIMA', 'DIKERJAKAN', 'SELESAI', 'VERIFIKASI'];
-  const curIdx = (status === 'PROSES' || status === 'REVISI') ? 1 : (status === 'VERIFIKASI' || status === 'MENUNGGU') ? 3 : status === 'SELESAI' ? 4 : 0;
-  const pct = (status === 'PROSES' || status === 'REVISI') ? 50 : (status === 'VERIFIKASI' || status === 'MENUNGGU') ? 83 : status === 'SELESAI' ? 100 : 10;
+  const mapped = PROJECT_STATUS[status];
+  const curIdx = mapped ? (mapped.step ?? 0) : legacyStep(status);
+  const pct = STEP_PERCENT[curIdx];
   return (
     <div>
       <div className="flex justify-between items-center mb-3">

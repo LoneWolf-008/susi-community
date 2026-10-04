@@ -7,23 +7,29 @@ export default function AskSusiPanel({ open, seedQ, seedN, onClose }) {
   const [input, setInput]   = useState('');
   const [typing, setTyping] = useState(false);
   const [visible, setVisible] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted] = useState(open);
+  const [prevOpen, setPrevOpen] = useState(open);
   const bodyRef  = useRef(null);
   const inputRef = useRef(null);
   const lastSeed = useRef(0);
   const greeted  = useRef(false);
 
-  /* ===== MOUNT / UNMOUNT ===== */
+  /* ===== MOUNT / UNMOUNT =====
+     Perubahan `open` disesuaikan saat render (pola "state dari props" React), bukan
+     lewat setState sinkron di efek; efek hanya menjadwalkan animasi & unmount. */
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setMounted(true);
+    else setVisible(false);
+  }
   useEffect(() => {
     if (open) {
-      setMounted(true);
-      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
-      setTimeout(() => inputRef.current?.focus(), 700);
-    } else {
-      setVisible(false);
-      const t = setTimeout(() => setMounted(false), 650);
-      return () => clearTimeout(t);
+      const raf = requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
+      const focus = setTimeout(() => inputRef.current?.focus(), 700);
+      return () => { cancelAnimationFrame(raf); clearTimeout(focus); };
     }
+    const t = setTimeout(() => setMounted(false), 650);
+    return () => clearTimeout(t);
   }, [open]);
 
   /* ===== KUNCI SCROLL + ESC ===== */
