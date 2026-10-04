@@ -2,16 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import FlowSection from '../sections/FlowSection';
+import StatsSection from '../sections/StatsSection';
+import { api } from '../lib/api';
 import photoTop from '../assets/photos/hero-top.jpg';
 import photoLeft from '../assets/photos/hero-left.jpg';
 import photoRight from '../assets/photos/hero-right.jpg';
 import photoBottom from '../assets/photos/hero-bottom.jpg';
 
-const STATS = [
-  { label: 'Proyek Selesai', target: 127 },
-  { label: 'Talenta Terdaftar', target: 89 },
-  { label: 'Komunitas Terbantu', target: 45 },
-];
+const VISIT_KEY = 'susi_visit_recorded';
+
 // Foto Unsplash disimpan lokal agar landing tetap utuh tanpa internet (cadangan demo onsite).
 const PHOTOS = { top: photoTop, left: photoLeft, right: photoRight, bottom: photoBottom };
 const QUESTIONS = [
@@ -30,6 +29,18 @@ export default function HomePage({ navigateTo, onAsk }) {
   const rootRef = useRef(null);
   const heroRef = useRef(null);
   const [askInput, setAskInput] = useState('');
+
+  // Catat kunjungan landing sekali per sesi browser (daily_stats). Penanda dipasang
+  // sebelum request agar efek ganda StrictMode tidak mencatat dua kali.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(VISIT_KEY)) return;
+      sessionStorage.setItem(VISIT_KEY, '1');
+    } catch {
+      // Storage diblokir (mode privat): tetap catat; server membatasi per IP.
+    }
+    api.post('/public/visit').catch(() => {});
+  }, []);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -67,17 +78,6 @@ export default function HomePage({ navigateTo, onAsk }) {
 
       /* Scroll indicator bounce */
       gsap.to('.scroll-arrow', { y: 8, duration: 1, yoyo: true, repeat: -1, ease: 'sine.inOut' });
-
-      /* Counter */
-      gsap.utils.toArray('.counter').forEach((el) => {
-        const target = +el.dataset.target;
-        const obj = { val: 0 };
-        gsap.to(obj, {
-          val: target, duration: 2.2, ease: 'power2.out',
-          scrollTrigger: { trigger: el, start: 'top 85%' },
-          onUpdate: () => { el.textContent = Math.round(obj.val); },
-        });
-      });
 
       /* Reveal */
       gsap.utils.toArray('.sec-reveal').forEach((el) => {
@@ -210,24 +210,8 @@ export default function HomePage({ navigateTo, onAsk }) {
         <Dither />
       </section>
 
-      {/* ===== 4. STATISTIK ===== */}
-      <section className="relative bg-[#0e2233] py-20 md:py-28 px-6 lg:px-12">
-        <div className="max-w-[1200px] mx-auto">
-          <div className="sec-reveal mb-14 flex items-end justify-between flex-wrap gap-6">
-            <div>
-              <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-[0.95]">Angka yang<br />kami <span className="text-[#e62b2b]">banggakan</span>.</h2>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/10 rounded-2xl overflow-hidden border border-white/10">
-            {STATS.map((s, i) => (
-              <div key={i} className="sec-reveal bg-[#0e2233] p-10 md:p-14 text-center hover:bg-[#e62b2b] transition-colors duration-500 group">
-                <div className="text-6xl md:text-8xl font-black tabular-nums text-[#f2efe6]"><span className="counter" data-target={s.target}>0</span>+</div>
-                <p className="mt-4 font-mono text-[10px] font-bold tracking-[0.3em] text-[#f2efe6]/50 group-hover:text-white">{s.label.toUpperCase()}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ===== 4. STATISTIK (data nyata dari /api/public/stats) ===== */}
+      <StatsSection />
 
       {/* ===== BRIDGE 2 ===== */}
       <section className="relative h-56 md:h-72" style={{ background: 'linear-gradient(180deg, #0e2233 0%, #1a2a3a 22%, #35414b 45%, #6e6f68 68%, #b9b3a4 86%, #f2efe6 100%)' }}>
