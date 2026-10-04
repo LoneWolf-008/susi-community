@@ -107,11 +107,23 @@ topik mading, notifikasi, dan entri KB awal.
 ```bash
 cd frontend
 npm ci
-npm run dev               # http://localhost:5173
+npm run dev               # http://localhost:5173 (backend harus jalan di :3009)
+npm run lint              # ESLint
+npm run build             # hasil di dist/ (Tailwind di-build lokal, tanpa CDN)
 ```
 
 Port dikunci ke 5173 (`strictPort`) agar selalu cocok dengan `FRONTEND_URL` di
 backend. Bila port terpakai, Vite berhenti alih-alih pindah ke port lain.
+
+Saat dev, Vite mem-proxy `/api` ke backend (`VITE_DEV_API_TARGET`, default
+`http://localhost:3009`), jadi frontend dan API satu origin dan cookie refresh
+berfungsi tanpa CORS. Untuk produksi lintas domain isi `VITE_API_URL`.
+
+Rute: `/` beranda · `/tentang` · `/masuk` (masuk/daftar) · `/admin` (masuk admin,
+pintasan Ctrl+Shift+A di halaman masuk) · `/ajukan` (form kebutuhan, khusus komunitas) ·
+`/dashboard` (sesuai peran). Sesi bertahan setelah reload lewat `POST /api/auth/refresh`;
+access token hanya disimpan di memori. `vercel.json` dan `public/_redirects` menyiapkan
+fallback SPA untuk Vercel/Netlify.
 
 ## Variabel environment
 
@@ -149,6 +161,7 @@ backend. Bila port terpakai, Vite berhenti alih-alih pindah ke port lain.
 | Variabel | Keterangan |
 |---|---|
 | `VITE_API_URL` | Basis URL API untuk produksi. Kosongkan saat dev. Jangan isi secret: semua `VITE_*` ikut ter-bundle ke browser. |
+| `VITE_DEV_API_TARGET` | Target proxy `/api` saat `npm run dev`/`preview` (default `http://localhost:3009`). |
 
 ## Alur kerja
 
