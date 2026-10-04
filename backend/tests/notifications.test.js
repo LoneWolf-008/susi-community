@@ -80,6 +80,27 @@ describe('Notifikasi untuk semua transisi (T3.5)', () => {
     expect((await all(`SELECT id FROM notifications WHERE user_id = ?`, [owner.id])).length).toBe(countMuted);
   });
 
+  it('notif_talenta dimatikan → lamaran baru tidak membuat notifikasi; tipe lain tetap terkirim (regresi T10)', async () => {
+    const mutedOwner = await createUser('requester');
+    await pool.query(`UPDATE user_settings SET notif_talenta = 0 WHERE user_id = ?`, [mutedOwner.id]);
+    const need = await createNeed(mutedOwner);
+    const applicant = await createUser('talent');
+    const applied = await api().post(`/api/applications/needs/${need.id}`).set(applicant.auth).send({ message: 'Siap' });
+    expect(applied.status).toBe(201);
+    expect(await all(`SELECT id FROM notifications WHERE user_id = ? AND type = 'talenta'`, [mutedOwner.id])).toHaveLength(0);
+
+    // Notifikasi non-talenta (mis. moderasi) tidak terpengaruh.
+    const pending = await createNeed(mutedOwner, { moderation: 'PENDING', moderationItem: true });
+    const item = await one(`SELECT id FROM moderation_items WHERE ref_id = ?`, [pending.id]);
+    await api().patch(`/api/admin/moderation/${item.id}`).set(admin.auth).send({ decision: 'APPROVED' });
+    expect(await latest(mutedOwner.id)).toMatchObject({ type: 'moderasi' });
+
+    // Dinyalakan lagi → lamaran berikutnya memberi notifikasi.
+    await api().patch('/api/settings').set(mutedOwner.auth).send({ notif_talenta: true });
+    await api().post(`/api/applications/needs/${need.id}`).set((await createUser('talent')).auth).send({});
+    expect(await latest(mutedOwner.id)).toMatchObject({ type: 'talenta' });
+  });
+
   it('enum notifications.type sudah memuat "eskalasi" (untuk T13)', async () => {
     await expect(pool.query(
       `INSERT INTO notifications (user_id, type, title) VALUES (?, 'eskalasi', 'Uji eskalasi')`, [admin.id],
