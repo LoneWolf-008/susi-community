@@ -1,34 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import GoogleMapsEmbed from '../components/common/GoogleMapsEmbed';
 
 export default function RequestPage({ user, navigateTo }) {
-  const mapRef = useRef(null);
-  const mapInst = useRef(null);
-  const markerRef = useRef(null);
   const rootRef = useRef(null);
   const [addr, setAddr] = useState('');
   const [coords, setCoords] = useState(null);
   const [cat, setCat] = useState('PENCATATAN');
   const [searching, setSearching] = useState(false);
+  const [locationMessage, setLocationMessage] = useState('');
   const [sent, setSent] = useState(false);
   const BDG = { lat: -6.9175, lng: 107.6191 };
-  const pinIcon = L.divIcon({ className: '', html: '<div style="width:18px;height:18px;background:#e62b2b;border:2px solid #12283c;transform:rotate(45deg)"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
-  const placeMarker = (lat, lng) => {
-    if (!mapInst.current) return;
-    if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
-    else markerRef.current = L.marker([lat, lng], { icon: pinIcon }).addTo(mapInst.current);
-    setCoords({ lat, lng });
-  };
-  useEffect(() => {
-    if (sent || !mapRef.current || mapInst.current) return;
-    const map = L.map(mapRef.current).setView([BDG.lat, BDG.lng], 12);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
-    map.on('click', (e) => placeMarker(e.latlng.lat, e.latlng.lng));
-    mapInst.current = map;
-    return () => { map.remove(); mapInst.current = null; markerRef.current = null; };
-  }, [sent]);
   useEffect(() => {
     const ctx = gsap.context(() => {
       gsap.fromTo('.req-item', { y: 25, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, stagger: 0.07, ease: 'power2.out' });
@@ -38,15 +20,23 @@ export default function RequestPage({ user, navigateTo }) {
   const searchAddress = async () => {
     if (!addr.trim() || searching) return;
     setSearching(true);
+    setLocationMessage('');
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addr + ', Kota Bandung')}`);
+      if (!res.ok) throw new Error('Layanan pencarian alamat sedang tidak tersedia.');
       const data = await res.json();
-      if (data && data[0] && mapInst.current) {
+      if (data && data[0]) {
         const lat = parseFloat(data[0].lat), lng = parseFloat(data[0].lon);
-        placeMarker(lat, lng); mapInst.current.setView([lat, lng], 15);
+        setCoords({ lat, lng });
+        setLocationMessage('Lokasi ditemukan. Periksa titik pada peta sebelum mengirim.');
+      } else {
+        setLocationMessage('Alamat tidak ditemukan. Coba tambahkan nama jalan atau kelurahan.');
       }
-    } catch (_) {}
-    setSearching(false);
+    } catch (error) {
+      setLocationMessage(error instanceof Error ? error.message : 'Pencarian alamat gagal. Coba lagi.');
+    } finally {
+      setSearching(false);
+    }
   };
   const quadrant = coords ? `${coords.lng < BDG.lng ? 'BARAT' : 'TIMUR'}–${coords.lat > BDG.lat ? 'UTARA' : 'SELATAN'}` : '—';
   if (sent) {
@@ -102,17 +92,19 @@ export default function RequestPage({ user, navigateTo }) {
             <div className="col-span-12 lg:col-span-7">
               <div className="req-item card-light p-7">
                 <div className="flex justify-between items-center flex-wrap gap-3 mb-5">
-                  <label className="field-label !mb-0">Posisi Lokasi · Klik Map atau Cari Alamat</label>
+                  <label className="field-label !mb-0">Posisi Lokasi · Cari Alamat</label>
                   <span className="chip-mono border-0 bg-[#12283c] text-[#f2efe6]">{coords ? `${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)} · ${quadrant}` : 'BELUM ADA TITIK'}</span>
                 </div>
                 <div className="flex gap-2 mb-4">
-                  <input value={addr} onChange={(e) => setAddr(e.target.value)} className="input-line" placeholder="Ketik alamat: Mis. Jl. Ambon No.11, Bandung" />
-                  <button type="button" onClick={searchAddress} className="btn-pill btn-navy !px-6 !py-3 text-[10px] shrink-0">{searching ? '...' : 'Cari →'}</button>
+                  <input value={addr} onChange={(e) => { setAddr(e.target.value); setCoords(null); setLocationMessage(''); }} className="input-line" placeholder="Ketik alamat: Mis. Jl. Ambon No.11, Bandung" />
+                  <button type="button" onClick={searchAddress} disabled={searching || !addr.trim()} className="btn-pill btn-navy !px-6 !py-3 text-[10px] shrink-0">{searching ? 'MENCARI...' : 'Cari →'}</button>
                 </div>
                 <div className="rounded-xl overflow-hidden border border-[#12283c]/15 h-[380px] md:h-[440px] relative z-0">
-                  <div ref={mapRef} className="w-full h-full" />
+                  <GoogleMapsEmbed lat={coords?.lat} lng={coords?.lng} query="Bandung, Indonesia" zoom={coords ? 16 : 12} title="Peta Google Maps untuk lokasi pengaduan" />
                 </div>
-                <p className="font-mono text-[10px] opacity-50 mt-3 leading-relaxed">KLIK MAP UNTUK MENARUH PENANDA · PENANDA WAJIK MERAH = LOKASI PENGADUAN · DATA © OPENSTREETMAP</p>
+                <p className="font-mono text-[10px] opacity-50 mt-3 leading-relaxed">CARI ALAMAT UNTUK MENENTUKAN TITIK LOKASI · PETA GOOGLE MAPS</p>
+                {locationMessage && <p role="status" className="font-mono text-[10px] mt-2">{locationMessage}</p>}
+                {coords && <a href={`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`} target="_blank" rel="noreferrer" className="inline-block mt-2 font-mono text-[10px] font-bold text-[#e62b2b] underline">BUKA LOKASI DI GOOGLE MAPS ↗</a>}
               </div>
               <div className="req-item flex gap-3 mt-6">
                 <button type="button" onClick={() => navigateTo('dashboard')} className="flex-1 btn-pill btn-ghost-dark">Batal</button>

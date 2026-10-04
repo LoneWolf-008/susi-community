@@ -3,8 +3,8 @@ export default function ProjSteps({ status }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMounted(true), 150); return () => clearTimeout(t); }, []);
   const labels = ['DITERIMA', 'DIKERJAKAN', 'SELESAI', 'VERIFIKASI'];
-  const curIdx = status === 'PROSES' ? 1 : (status === 'VERIFIKASI' || status === 'MENUNGGU') ? 3 : status === 'SELESAI' ? 4 : 0;
-  const pct = status === 'PROSES' ? 50 : (status === 'VERIFIKASI' || status === 'MENUNGGU') ? 83 : status === 'SELESAI' ? 100 : 10;
+  const curIdx = (status === 'PROSES' || status === 'REVISI') ? 1 : (status === 'VERIFIKASI' || status === 'MENUNGGU') ? 3 : status === 'SELESAI' ? 4 : 0;
+  const pct = (status === 'PROSES' || status === 'REVISI') ? 50 : (status === 'VERIFIKASI' || status === 'MENUNGGU') ? 83 : status === 'SELESAI' ? 100 : 10;
   return (
     <div>
       <div className="flex justify-between items-center mb-3">

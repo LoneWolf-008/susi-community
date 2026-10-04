@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import GoogleMapsEmbed from '../components/common/GoogleMapsEmbed';
 import { MessagesSquare, Mails, Map, Copy, ArrowRight } from 'lucide-react';
 import fotoHasby from '../assets/hasby.jpg';
 import fotoEzra from '../assets/ezra.jpg';
@@ -72,8 +71,6 @@ function TeamMember({ m, idx }) {
 
 export default function TentangPage() {
   const rootRef = useRef(null);
-  const mapRef = useRef(null);
-  const mapInst = useRef(null);
   const contactRef = useRef(null);
   const [contactOpen, setContactOpen] = useState(false);
   const [copiedKey, setCopiedKey] = useState('');
@@ -160,22 +157,6 @@ export default function TentangPage() {
     return () => ctx.revert();
   }, []);
 
-  /* ===== MAP ===== */
-  useEffect(() => {
-    if (!mapRef.current || mapInst.current) return;
-    const map = L.map(mapRef.current, { scrollWheelZoom: false, zoomControl: false }).setView([HQ.lat, HQ.lng], 15);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
-    L.marker([HQ.lat, HQ.lng], {
-      icon: L.divIcon({
-        className: '',
-        html: '<div style="width:22px;height:22px;background:#e62b2b;border:2px solid #12283c;transform:rotate(45deg)"></div>',
-        iconSize: [22, 22], iconAnchor: [11, 11],
-      }),
-    }).addTo(map);
-    mapInst.current = map;
-    return () => { map.remove(); mapInst.current = null; };
-  }, []);
-
   /* ===== MODAL KONTAK ===== */
   useEffect(() => {
     if (!contactOpen) return;
@@ -259,10 +240,13 @@ export default function TentangPage() {
 
           <div className="lg:col-span-6">
             <div className="relative aspect-square md:aspect-[4/5] bg-[#12283c] border border-white/10 overflow-hidden">
-              <div className="absolute inset-0 z-0"><div ref={mapRef} className="w-full h-full" /></div>
+              <div className="absolute inset-0 z-0"><GoogleMapsEmbed lat={HQ.lat} lng={HQ.lng} zoom={15} title="Google Maps SMKN 4 Bandung" /></div>
               <div className="absolute bottom-4 right-4 z-[500] font-mono text-[10px] font-bold text-white/70 bg-[#0e2233]/80 backdrop-blur px-3 py-1.5">
-                OPENSTREETMAP ©
+                GOOGLE MAPS
               </div>
+              <a href="https://www.google.com/maps/dir/?api=1&destination=SMKN+4+Bandung" target="_blank" rel="noreferrer" className="absolute bottom-4 left-4 z-[500] font-mono text-[10px] font-bold text-white bg-[#0e2233]/80 backdrop-blur px-3 py-1.5 hover:bg-[#e62b2b]">
+                BUKA RUTE ↗
+              </a>
             </div>
           </div>
         </div>
