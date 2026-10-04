@@ -39,6 +39,12 @@ export function toDateInput(value) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** Tautan wa.me dari nomor lokal ("0812-..." → "62812..."); null bila nomor kosong. */
+export const whatsappLink = (phone) => {
+  const digits = String(phone || '').replace(/\D/g, '').replace(/^0/, '62');
+  return digits ? `https://wa.me/${digits}` : null;
+};
+
 export const initialOf = (name) => (name || '?').trim().charAt(0).toUpperCase() || '?';
 export const firstName = (name, fallback = '') => (name || fallback).trim().split(/\s+/)[0] || fallback;
 

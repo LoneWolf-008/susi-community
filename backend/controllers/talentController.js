@@ -19,9 +19,11 @@ export const getProfile = async (req, res, next) => {
       [req.user.id]
     );
     const [projects] = await pool.query(
-      `SELECT p.id, n.title, n.category, p.status, p.progress_pct, p.created_at
+      `SELECT p.id, n.title, n.category, p.status, p.progress_pct, p.created_at, p.community_verified_at,
+              c.name AS community_name
        FROM projects p
        JOIN needs n ON n.id = p.need_id
+       LEFT JOIN communities c ON c.id = p.community_id
        WHERE p.talent_id = ?
        ORDER BY p.created_at DESC, p.id DESC
        LIMIT 50`,

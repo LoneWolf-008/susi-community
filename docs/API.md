@@ -42,9 +42,9 @@ Peran: `requester` (komunitas), `talent`, `liaison` (AgenSUSI), `admin`. "Login"
 
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
-| GET | `/needs/catalog` | login | `APPROVED + OPEN`. Filter `category, sector, source, skill (id/nama), search`. Item memuat `skills[]` |
+| GET | `/needs/catalog` | login | `APPROVED + OPEN`. Filter `category, sector, source, skill (id/nama), search`. Item memuat `skills[]` dan `my_application_status` (status lamaran pengguna ini, atau `null`) |
 | GET | `/needs/mine` | requester, liaison | Milik sendiri (liaison: kebutuhan Assisted yang ia catat). Memuat `applicants, applicants_waiting, project_id, project_status, skills[]` |
-| GET | `/needs/:id` | login | Belum `APPROVED` hanya untuk pemilik/admin. Pemilik/admin juga menerima `project_id, project_status` (proyek terbaru, bisa `CANCELLED`) |
+| GET | `/needs/:id` | login | Belum `APPROVED` hanya untuk pemilik/admin. Pemilik/admin juga menerima `project_id, project_status` (proyek terbaru, bisa `CANCELLED`). Semua menerima `my_application_status` |
 | POST | `/needs` | requester, liaison | `title, description, category?, summary?, address?, lat?, lng?, community_id?, skill_ids?[]`. Requester harus anggota komunitas. Masuk antrean moderasi (`PENDING`) |
 | PATCH | `/needs/:id` | pemilik | Hanya saat `PENDING`/`REJECTED`; dari `REJECTED` kembali `PENDING` |
 | POST | `/needs/:id/withdraw` | pemilik | `reason?`. Tutup lunak (`CLOSED`); 409 bila sudah ada proyek aktif |
@@ -55,7 +55,7 @@ Peran: `requester` (komunitas), `talent`, `liaison` (AgenSUSI), `admin`. "Login"
 
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
-| GET | `/applications/mine` | talent | Lamaran saya + status kebutuhan |
+| GET | `/applications/mine` | talent | Lamaran saya + `need_status`, `project_id` (bila diterima). Filter `?status=MENUNGGU\|DITERIMA\|DITOLAK` (lain → 400) |
 | POST | `/applications/needs/:needId` | talent | `message?`. 409 bila sudah melamar |
 | GET | `/applications/for-need/:needId` | pemilik | Pelamar + `reputation_points, level, projects_completed, skills[], recent_testimonials[]` (maks 3). Tanpa email |
 | PATCH | `/applications/:id/decide` | pemilik | `decision: DITERIMA\|DITOLAK`; saat `DITERIMA` wajib `scope, done_definition` (≥5 karakter), `deadline?` (YYYY-MM-DD, tidak di masa lalu). Membuat proyek `AGREEMENT` |
@@ -98,7 +98,7 @@ Status: `AGREEMENT → IN_PROGRESS → AWAITING_VERIFICATION → COMPLETED`, den
 
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
-| GET/PATCH | `/talent/profile` | talent | PATCH: `bio?, phone?, extra_info?, skill_ids?[], skills?[] (nama)` |
+| GET/PATCH | `/talent/profile` | talent | GET: `user, profile (reputation_points, level, next_level_target), skills[], projects[]` (+ `community_name, community_verified_at`). PATCH: `bio?, phone?, extra_info?, skill_ids?[], skills?[] (nama)` |
 | GET | `/talent/top` | login | Peringkat reputasi |
 | GET | `/talent/:id/testimonials` | login | Testimoni publik (disetujui & `is_public`) |
 | GET | `/testimonials/mine` | login | Testimoni yang saya terima |
