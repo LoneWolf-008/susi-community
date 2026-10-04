@@ -4,10 +4,61 @@ import { parsePagination, paged } from '../utils/pagination.js';
 import { HttpError } from '../utils/httpError.js';
 
 const VISIT_STATUSES = ['DIRENCANAKAN', 'BERLANGSUNG', 'TERDATA'];
+const DEFAULT_TARGETS = { target_visits_month: 30, target_intake_month: 25 };
+const OWN_NEED = `n.requester_id IS NULL AND n.created_by = ?`;
+
+// Ringkasan kinerja liaison untuk beranda & laporan: target bulanan, capaian bulan ini,
+// status kebutuhan yang ia catat, dan kunjungan selesai per minggu (4 minggu terakhir).
+export const getSummary = async (req, res, next) => {
+  try {
+    const id = req.user.id;
+    const [[profile]] = await pool.query(
+      `SELECT target_visits_month, target_intake_month FROM liaison_profiles WHERE user_id = ?`, [id]
+    );
+    const [[month]] = await pool.query(
+      `SELECT
+         (SELECT COUNT(*) FROM liaison_visits WHERE liaison_id = ? AND status = 'TERDATA'
+            AND finished_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')) AS visits,
+         (SELECT COUNT(*) FROM needs n WHERE ${OWN_NEED}
+            AND n.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')) AS intake`,
+      [id, id]
+    );
+    const [[needs]] = await pool.query(
+      `SELECT COUNT(*) AS total,
+              COALESCE(SUM(n.moderation_status = 'PENDING'), 0) AS pending,
+              COALESCE(SUM(n.moderation_status = 'APPROVED' AND n.status = 'OPEN'), 0) AS open,
+              COALESCE(SUM(n.status = 'IN_PROGRESS'), 0) AS in_progress,
+              COALESCE(SUM(n.status = 'COMPLETED'), 0) AS completed
+       FROM needs n WHERE ${OWN_NEED}`,
+      [id]
+    );
+    const [weekRows] = await pool.query(
+      `SELECT FLOOR(DATEDIFF(CURDATE(), DATE(finished_at)) / 7) AS weeks_ago, COUNT(*) AS visits
+       FROM liaison_visits
+       WHERE liaison_id = ? AND status = 'TERDATA' AND finished_at >= CURDATE() - INTERVAL 27 DAY
+       GROUP BY weeks_ago`,
+      [id]
+    );
+    const byWeek = new Map(weekRows.map((r) => [Number(r.weeks_ago), Number(r.visits)]));
+
+    return success(res, {
+      targets: {
+        visits_month: Number((profile || DEFAULT_TARGETS).target_visits_month),
+        intake_month: Number((profile || DEFAULT_TARGETS).target_intake_month),
+      },
+      month: { visits: Number(month.visits), intake: Number(month.intake) },
+      needs: Object.fromEntries(Object.entries(needs).map(([k, v]) => [k, Number(v)])),
+      // Urut dari yang terlama: indeks 3 = minggu ini.
+      weekly_visits: [3, 2, 1, 0].map((weeksAgo) => byWeek.get(weeksAgo) || 0),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
 export const getVisits = async (req, res, next) => {
   try {
-    const { status } = req.query;
+    const { status, date } = req.query;
     const pg = parsePagination(req.query);
     let where = `WHERE lv.liaison_id = ?`;
     const params = [req.user.id];
@@ -16,6 +67,12 @@ export const getVisits = async (req, res, next) => {
       if (!VISIT_STATUSES.includes(status)) return fail(res, 'Status kunjungan tidak valid', 400);
       where += ` AND lv.status = ?`;
       params.push(status);
+    }
+    // ?date=YYYY-MM-DD → agenda satu hari (mis. "hari ini" menurut zona waktu pengguna).
+    if (date !== undefined) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) return fail(res, 'Format tanggal harus YYYY-MM-DD', 400);
+      where += ` AND lv.scheduled_date = ?`;
+      params.push(date);
     }
 
     const [rows] = await pool.query(
