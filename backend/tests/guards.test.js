@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { api, resetData, one, all, createUser, createNeed, createApplication, createProject } from './helpers.js';
 
+// Kesepakatan wajib saat menerima (PRD P0-4, T3.6).
+const AGREEMENT = { scope: 'Lingkup kerja uji', done_definition: 'Selesai bila uji lulus' };
+
 describe('Guard status & race condition (T2.7)', () => {
   let admin;
   let owner;
@@ -55,7 +58,7 @@ describe('Guard status & race condition (T2.7)', () => {
     it('lamaran yang sudah diputus tidak bisa diputus ulang → 409', async () => {
       const need = await createNeed(owner);
       const app = await createApplication(need, talentA, 'DITOLAK');
-      const res = await api().patch(`/api/applications/${app.id}/decide`).set(owner.auth).send({ decision: 'DITERIMA' });
+      const res = await api().patch(`/api/applications/${app.id}/decide`).set(owner.auth).send({ decision: 'DITERIMA', ...AGREEMENT });
       expect(res.status).toBe(409);
       expect(await all(`SELECT id FROM projects WHERE need_id = ?`, [need.id])).toHaveLength(0);
     });
@@ -66,8 +69,8 @@ describe('Guard status & race condition (T2.7)', () => {
       const appB = await createApplication(need, talentB);
 
       const results = await Promise.all([
-        api().patch(`/api/applications/${appA.id}/decide`).set(owner.auth).send({ decision: 'DITERIMA', scope: 'Lingkup A' }),
-        api().patch(`/api/applications/${appB.id}/decide`).set(owner.auth).send({ decision: 'DITERIMA', scope: 'Lingkup B' }),
+        api().patch(`/api/applications/${appA.id}/decide`).set(owner.auth).send({ decision: 'DITERIMA', ...AGREEMENT, scope: 'Lingkup A' }),
+        api().patch(`/api/applications/${appB.id}/decide`).set(owner.auth).send({ decision: 'DITERIMA', ...AGREEMENT, scope: 'Lingkup B' }),
       ]);
       expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
       expect(await all(`SELECT id FROM projects WHERE need_id = ?`, [need.id])).toHaveLength(1);
@@ -80,7 +83,7 @@ describe('Guard status & race condition (T2.7)', () => {
     it('kebutuhan yang tidak lagi OPEN tidak bisa memilih talenta → 409', async () => {
       const need = await createNeed(owner, { status: 'CLOSED' });
       const app = await createApplication(need, talentA);
-      const res = await api().patch(`/api/applications/${app.id}/decide`).set(owner.auth).send({ decision: 'DITERIMA' });
+      const res = await api().patch(`/api/applications/${app.id}/decide`).set(owner.auth).send({ decision: 'DITERIMA', ...AGREEMENT });
       expect(res.status).toBe(409);
     });
 
@@ -88,7 +91,7 @@ describe('Guard status & race condition (T2.7)', () => {
       const need = await createNeed(owner);
       const app = await createApplication(need, talentA);
       const res = await api().patch(`/api/applications/${app.id}/decide`).set(owner.auth)
-        .send({ decision: 'DITERIMA', deadline: '31/12/2026' });
+        .send({ decision: 'DITERIMA', ...AGREEMENT, deadline: '31/12/2026' });
       expect(res.status).toBe(400);
     });
   });
