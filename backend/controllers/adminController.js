@@ -10,14 +10,75 @@ import { completeProject } from '../services/projectService.js';
 const REJECT_REASONS = ['SPAM', 'DUPLIKAT', 'SALAH KATEGORI', 'TIDAK LAYAK'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const WEEKS = 6;
+
+// Angka platform (v_platform_stats) + rincian untuk dasbor admin: hasil moderasi, pengguna per
+// peran, dan kunjungan situs per minggu (daily_stats, terlama → minggu ini).
 export const getStats = async (req, res, next) => {
   try {
-    const [rows] = await pool.query(`SELECT * FROM v_platform_stats`);
-    return success(res, rows[0]);
+    const [[stats]] = await pool.query(`SELECT * FROM v_platform_stats`);
+    const [moderation] = await pool.query(`SELECT decision, COUNT(*) AS n FROM moderation_items GROUP BY decision`);
+    const [roles] = await pool.query(
+      `SELECT role, COUNT(*) AS n FROM users WHERE deleted_at IS NULL AND status = 'AKTIF' GROUP BY role`
+    );
+    const [weeks] = await pool.query(
+      `SELECT FLOOR(DATEDIFF(CURDATE(), stat_date) / 7) AS weeks_ago, SUM(visits) AS visits
+       FROM daily_stats WHERE stat_date > CURDATE() - INTERVAL ? DAY
+       GROUP BY weeks_ago`,
+      [WEEKS * 7]
+    );
+    const count = (rows, key, value) => Number(rows.find((r) => r[key] === value)?.n || 0);
+    const byWeek = new Map(weeks.map((w) => [Number(w.weeks_ago), Number(w.visits)]));
+
+    return success(res, {
+      ...stats,
+      moderation: {
+        pending: count(moderation, 'decision', 'PENDING'),
+        approved: count(moderation, 'decision', 'APPROVED'),
+        rejected: count(moderation, 'decision', 'REJECTED'),
+      },
+      users_by_role: Object.fromEntries(['requester', 'talent', 'liaison', 'admin'].map((r) => [r, count(roles, 'role', r)])),
+      weekly_visits: Array.from({ length: WEEKS }, (_, i) => byWeek.get(WEEKS - 1 - i) || 0),
+    });
   } catch (err) {
     next(err);
   }
 };
+
+/** Isi item moderasi (cerita kebutuhan / teks testimoni) agar admin memutus dari konten, bukan judul. */
+async function attachModerationDetails(rows) {
+  const idsOf = (type) => rows.filter((r) => r.item_type === type).map((r) => r.ref_id);
+  const details = new Map();
+  const needIds = idsOf('KEBUTUHAN');
+  if (needIds.length > 0) {
+    const [needs] = await pool.query(
+      `SELECT n.id, n.title, n.summary, n.description, n.category, n.address, n.source,
+              n.moderation_status, n.status, c.name AS community_name, u.name AS created_by_name
+       FROM needs n
+       LEFT JOIN communities c ON c.id = n.community_id
+       LEFT JOIN users u ON u.id = n.created_by
+       WHERE n.id IN (?)`,
+      [needIds]
+    );
+    needs.forEach((n) => details.set(`KEBUTUHAN:${n.id}`, n));
+  }
+  const testimonialIds = idsOf('TESTIMONI');
+  if (testimonialIds.length > 0) {
+    const [testimonials] = await pool.query(
+      `SELECT t.id, t.text, t.is_public, t.moderation_status, f.name AS from_name, r.name AS to_name,
+              n.title AS project_title
+       FROM testimonials t
+       JOIN users f ON f.id = t.from_user_id
+       JOIN users r ON r.id = t.to_user_id
+       JOIN projects p ON p.id = t.project_id
+       JOIN needs n ON n.id = p.need_id
+       WHERE t.id IN (?)`,
+      [testimonialIds]
+    );
+    testimonials.forEach((t) => details.set(`TESTIMONI:${t.id}`, t));
+  }
+  return rows.map((r) => ({ ...r, detail: details.get(`${r.item_type}:${r.ref_id}`) || null }));
+}
 
 export const getModerationQueue = async (req, res, next) => {
   try {
@@ -40,7 +101,7 @@ export const getModerationQueue = async (req, res, next) => {
       [...params, pg.limit, pg.offset]
     );
     const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM moderation_items mi ${where}`, params);
-    return success(res, paged(rows, total, pg));
+    return success(res, paged(await attachModerationDetails(rows), total, pg));
   } catch (err) {
     next(err);
   }
@@ -147,12 +208,13 @@ export const getDisputes = async (req, res, next) => {
 
     const [rows] = await pool.query(
       `SELECT d.*, n.title AS project_title, c.name AS community_name,
-              t.name AS talent_name, a.name AS decided_by_name
+              t.name AS talent_name, r.name AS requester_name, a.name AS decided_by_name
        FROM disputes d
        JOIN projects p ON p.id = d.project_id
        JOIN needs n ON n.id = p.need_id
        LEFT JOIN communities c ON c.id = p.community_id
        LEFT JOIN users t ON t.id = p.talent_id
+       LEFT JOIN users r ON r.id = p.requester_id
        LEFT JOIN users a ON a.id = d.decided_by
        ${where}
        ORDER BY d.opened_at DESC, d.id DESC
@@ -170,13 +232,14 @@ export const getDisputeById = async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       `SELECT d.*, p.id AS project_id, p.status AS project_status, n.title AS project_title,
-              c.name AS community_name, t.name AS talent_name,
-              p.requester_id, p.talent_id
+              c.name AS community_name, t.name AS talent_name, r.name AS requester_name,
+              p.requester_id, p.talent_id, p.scope, p.done_definition, p.deadline
        FROM disputes d
        JOIN projects p ON p.id = d.project_id
        JOIN needs n ON n.id = p.need_id
        LEFT JOIN communities c ON c.id = p.community_id
        LEFT JOIN users t ON t.id = p.talent_id
+       LEFT JOIN users r ON r.id = p.requester_id
        WHERE d.id = ?`,
       [req.params.id]
     );
