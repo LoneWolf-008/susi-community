@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router';
 import gsap from 'gsap';
 import logoSusi from '../../assets/logo-susi.svg';
 import { TransitionContext } from '../../context/transitionContext';
@@ -11,32 +11,47 @@ const prefersReducedMotion = () =>
 // rute berganti di balik overlay, lalu overlay navy turun membuka halaman baru.
 export default function TransitionProvider({ children }) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const navigateRef = useRef(navigate);
   const overlayRef = useRef(null);
   const logoRef = useRef(null);
   const busyRef = useRef(false);
+  const pendingRef = useRef(null);
 
-  const go = useCallback((to, { replace = false, state } = {}) => {
-    if (to === pathname && !state) return;
+  useEffect(() => { navigateRef.current = navigate; }, [navigate]);
+
+  const go = useCallback(function go(to, { replace = false, state } = {}) {
+    // Permintaan saat transisi berjalan (mis. klik tepat setelah masuk) dijalankan setelah
+    // transisi selesai, bukan dibuang diam-diam. Yang terakhir diminta yang menang.
+    if (busyRef.current) {
+      pendingRef.current = { to, options: { replace, state } };
+      return;
+    }
+    if (to === window.location.pathname && !state) return;
     const overlay = overlayRef.current;
     const finish = () => {
-      navigate(to, { replace, state });
+      navigateRef.current(to, { replace, state });
       window.scrollTo(0, 0);
     };
     if (!overlay || prefersReducedMotion()) {
       finish();
       return;
     }
-    if (busyRef.current) return;
     busyRef.current = true;
-    gsap.timeline({ onComplete: () => { busyRef.current = false; } })
+    gsap.timeline({
+      onComplete: () => {
+        busyRef.current = false;
+        const next = pendingRef.current;
+        pendingRef.current = null;
+        if (next) go(next.to, next.options);
+      },
+    })
       .set(overlay, { y: '100%', backgroundColor: '#e62b2b' })
       .to(overlay, { y: '0%', duration: 0.55, ease: 'power4.inOut' })
       .add(finish)
       .set(overlay, { backgroundColor: '#0e2233' })
       .to(overlay, { y: '-100%', duration: 0.55, ease: 'power4.inOut' })
       .set(overlay, { y: '100%' });
-  }, [navigate, pathname]);
+  }, []);
 
   const onOverlayMove = (e) => {
     if (!logoRef.current) return;
