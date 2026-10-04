@@ -155,12 +155,12 @@ function TestimonialForm({ project, onDone }) {
 }
 
 /** Detail proyek dari sisi talenta: kesepakatan, kirim hasil, revisi, sengketa, mundur, testimoni. */
-export default function ProjectView({ projectId, userId, onBack, onChanged }) {
+export default function ProjectView({ projectId, userId, liveKey = 0, onBack, onChanged }) {
   const toast = useToast();
   const [version, setVersion] = useState(0);
   const [panel, setPanel] = useState(null); // 'cancel' | 'dispute'
   const [agreeing, setAgreeing] = useState(false);
-  const { data: project, loading, error } = useApi((signal) => api.get(`/projects/${projectId}`, { signal }), [projectId, version]);
+  const { data: project, loading, error } = useApi((signal) => api.get(`/projects/${projectId}`, { signal }), [projectId, version, liveKey]);
 
   const refresh = () => {
     setPanel(null);

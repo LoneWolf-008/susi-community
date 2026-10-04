@@ -30,11 +30,15 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
   const [intake, setIntake] = useState({ key: 0, visit: null }); // visit = kunjungan yang sedang dicatat
   const [selected, setSelected] = useState(null); // id kebutuhan yang dibuka (pemilik proksi)
   const rootRef = useRef(null);
-  const notifications = useNotifications();
+  const [liveKey, setLiveKey] = useState(0);
 
   const summaryQ = useApi((signal) => api.get('/liaison/summary', { signal }), []);
   const needsQ = useApi((signal) => api.get('/needs/mine', { signal, query: { limit: 50 } }), []);
   const projectsQ = useApi((signal) => api.get('/projects/mine', { signal, query: { limit: 50 } }), []);
+  // Notifikasi baru (moderasi, lamaran, hasil kerja) → papan, ringkasan, dan detail dimuat ulang.
+  const notifications = useNotifications({
+    onNew: () => { summaryQ.refetch(); needsQ.refetch(); projectsQ.refetch(); setLiveKey((k) => k + 1); },
+  });
   const cards = buildBoard(needsQ.data?.items, projectsQ.data?.items);
   const reload = () => { summaryQ.refetch(); needsQ.refetch(); projectsQ.refetch(); notifications.refetch(); };
 
@@ -53,9 +57,17 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
   };
   // Form intake baru (key berganti → form bersih), opsional dari kunjungan yang sedang berlangsung.
   const startIntake = (visit = null) => { setIntake((s) => ({ key: s.key + 1, visit })); setTab('catat'); setSelected(null); };
+  const openNotification = (n) => {
+    if (n.ref_type === 'visit') { onTab('kunjungan'); return; }
+    const needId = n.ref_type === 'need' ? n.ref_id
+      : n.ref_type === 'project' ? cards.find((c) => Number(c.project?.id) === Number(n.ref_id))?.need.id
+        : null;
+    onTab('kebutuhan');
+    setSelected(needId ?? null);
+  };
 
   return (
-    <DashShell user={user} roleLabel="AGENSUSI" nav={NAV} tab={tab} onTab={onTab} notifs={notifications.items} onLogout={onLogout} navigateTo={navigateTo}>
+    <DashShell user={user} roleLabel="AGENSUSI" nav={NAV} tab={tab} onTab={onTab} notifications={notifications} onNotificationClick={openNotification} onLogout={onLogout} navigateTo={navigateTo}>
       <div ref={rootRef}>
         {tab === 'beranda' && (
           <BerandaTab
@@ -78,7 +90,7 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
           />
         )}
         {tab === 'kebutuhan' && (selected ? (
-          <NeedDetail needId={selected} onBack={() => setSelected(null)} onChanged={reload} />
+          <NeedDetail needId={selected} liveKey={liveKey} onBack={() => setSelected(null)} onChanged={reload} />
         ) : (
           <BoardTab
             first={firstName(user?.name, 'Agen')}

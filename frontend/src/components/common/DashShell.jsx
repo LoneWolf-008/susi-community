@@ -1,18 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import { CONTACT } from '../../data/contact';
+import { CONTACT, contactHref } from '../../data/contact';
+
+const helpHref = contactHref('Halo tim SUSI, saya butuh bantuan.');
 
 /* Shell dasbor gaya Think Co: chrome navy gelap + area konten krem.
    Pemakaian di setiap dashboard:
+   const notifications = useNotifications({ onNew: reload });
    <DashShell user={user} roleLabel="KOMUNITAS" nav={NAV} tab={tab} onTab={setTab}
-              notifs={notifs} onLogout={onLogout} navigateTo={navigateTo}>
+              notifications={notifications} onNotificationClick={(n) => ...}
+              onLogout={onLogout} navigateTo={navigateTo}>
      ...isi tab...
    </DashShell>
-   Item notifs: { id, title, sub, read, color, label } */
-export default function DashShell({ user, roleLabel, nav, tab, onTab, notifs = [], onLogout, navigateTo, children }) {
-  // Status "dibaca" disimpan sebagai id; daftar diturunkan dari props (tanpa setState di efek).
-  const [readIds, setReadIds] = useState(() => new Set());
-  const items = notifs.map((n) => (readIds.has(n.id) ? { ...n, read: true } : n));
+   `onNotificationClick` menerima baris notifikasi backend ({ type, ref_type, ref_id, ... }). */
+export default function DashShell({ user, roleLabel, nav, tab, onTab, notifications, onNotificationClick, onLogout, navigateTo, children }) {
+  const items = notifications?.items || [];
+  const unread = notifications?.unread ?? 0;
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -23,9 +26,13 @@ export default function DashShell({ user, roleLabel, nav, tab, onTab, notifs = [
   useEffect(() => {
     if (open) gsap.fromTo('.notif-panel', { y: -10, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.25, ease: 'power2.out' });
   }, [open]);
-  const unread = items.filter((n) => !n.read).length;
-  const markAll = () => setReadIds(new Set(notifs.map((n) => n.id)));
-  const markOne = (id) => setReadIds((prev) => new Set(prev).add(id));
+  const openNotification = (n) => {
+    notifications?.markRead(n.id);
+    if (onNotificationClick) {
+      onNotificationClick(n.raw);
+      setOpen(false);
+    }
+  };
   const first = (user?.name || 'SUSI').split(' ')[0];
   return (
     <div className="min-h-screen bg-[#0e2233] text-[#f2efe6]">
@@ -38,11 +45,11 @@ export default function DashShell({ user, roleLabel, nav, tab, onTab, notifs = [
           <span className="chip-mono hidden md:inline-block text-[#f2efe6]/60">{roleLabel}</span>
           <div className="flex-1" />
           <div className="relative" ref={ref}>
-            <button onClick={() => setOpen(!open)} className={`relative w-10 h-10 rounded-full border flex items-center justify-center transition-colors ${open ? 'bg-[#e62b2b] border-[#e62b2b]' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" className="w-5 h-5">
+            <button onClick={() => setOpen(!open)} aria-label={`Notifikasi, ${unread} belum dibaca`} aria-expanded={open} className={`relative w-10 h-10 rounded-full border flex items-center justify-center transition-colors ${open ? 'bg-[#e62b2b] border-[#e62b2b]' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" className="w-5 h-5" aria-hidden="true">
                 <path d="M12 3v2" /><path d="M7 10a5 5 0 0 1 10 0v4l2 3H5l2-3v-4z" /><path d="M10 20h4" />
               </svg>
-              {unread > 0 && <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-0.5 rounded-full bg-[#e62b2b] text-white text-[9px] font-black flex items-center justify-center border-2 border-[#0e2233]">{unread}</span>}
+              {unread > 0 && <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-0.5 rounded-full bg-[#e62b2b] text-white text-[9px] font-black flex items-center justify-center border-2 border-[#0e2233]">{unread > 99 ? '99+' : unread}</span>}
             </button>
             {open && (
               <div className="notif-panel absolute right-0 top-12 w-[340px] md:w-[380px] bg-[#12283c] border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-[60]">
@@ -51,20 +58,30 @@ export default function DashShell({ user, roleLabel, nav, tab, onTab, notifs = [
                     <p className="text-sm font-black">NOTIFIKASI</p>
                     <p className="font-mono text-[9px] opacity-50">{unread} BELUM DIBACA</p>
                   </div>
-                  <button onClick={markAll} className="font-mono text-[9px] font-bold text-[#e62b2b] hover:underline">TANDAI SEMUA</button>
+                  <button onClick={() => notifications?.markAllRead()} disabled={unread === 0} className="font-mono text-[9px] font-bold text-[#e62b2b] hover:underline disabled:opacity-40 disabled:no-underline">TANDAI SEMUA</button>
                 </div>
                 <div className="max-h-[320px] overflow-y-auto">
-                  {items.length === 0 && <p className="p-6 text-center font-mono text-xs opacity-50">TIDAK ADA NOTIFIKASI.</p>}
+                  {notifications?.loading && <p className="p-6 text-center font-mono text-xs opacity-50">MEMUAT…</p>}
+                  {notifications?.error && (
+                    <div className="p-6 text-center">
+                      <p className="font-mono text-xs opacity-70">NOTIFIKASI GAGAL DIMUAT.</p>
+                      <button onClick={() => notifications.refetch()} className="font-mono text-[10px] font-bold text-[#e62b2b] underline mt-2">COBA LAGI</button>
+                    </div>
+                  )}
+                  {!notifications?.loading && !notifications?.error && items.length === 0 && <p className="p-6 text-center font-mono text-xs opacity-50">TIDAK ADA NOTIFIKASI.</p>}
                   {items.map((n) => (
-                    <button key={n.id} onClick={() => markOne(n.id)} className={`w-full text-left p-4 border-b border-white/5 last:border-0 flex gap-3 transition-colors hover:bg-white/5 ${n.read ? 'opacity-50' : ''}`}>
-                      <span className="w-2 h-2 mt-1.5 shrink-0 rotate-45" style={{ background: n.color || '#e62b2b' }} />
-                      <div className="flex-1 min-w-0">
-                        <span className="chip-mono border-0 px-1.5 py-0.5 text-[8px] mb-1 inline-block text-white" style={{ background: n.color || '#e62b2b' }}>{n.label || 'INFO'}</span>
-                        <p className="text-xs font-black leading-snug">{n.title}</p>
-                        <p className="text-[10px] text-[#f2efe6]/50 mt-0.5">{n.sub}</p>
-                      </div>
-                      {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-[#e62b2b] mt-1 shrink-0" />}
-                    </button>
+                    <div key={n.id} className={`group flex items-stretch border-b border-white/5 last:border-0 transition-colors hover:bg-white/5 ${n.read ? 'opacity-50' : ''}`}>
+                      <button onClick={() => openNotification(n)} className="flex-1 min-w-0 text-left p-4 pr-2 flex gap-3">
+                        <span className="w-2 h-2 mt-1.5 shrink-0 rotate-45" style={{ background: n.color || '#e62b2b' }} />
+                        <span className="flex-1 min-w-0">
+                          <span className="chip-mono border-0 px-1.5 py-0.5 text-[8px] mb-1 inline-block text-white" style={{ background: n.color || '#e62b2b' }}>{n.label || 'INFO'}</span>
+                          <span className="block text-xs font-black leading-snug">{n.title}</span>
+                          <span className="block text-[10px] text-[#f2efe6]/50 mt-0.5 break-words">{n.sub}</span>
+                        </span>
+                        {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-[#e62b2b] mt-1 shrink-0" aria-label="Belum dibaca" />}
+                      </button>
+                      <button onClick={() => notifications?.remove(n.id)} aria-label={`Hapus notifikasi: ${n.title}`} className="px-3 text-sm font-black opacity-40 hover:opacity-100 hover:text-[#e62b2b] transition-opacity">×</button>
+                    </div>
                   ))}
                 </div>
                 <div className="p-3 border-t border-white/10 text-right">
@@ -91,14 +108,16 @@ export default function DashShell({ user, roleLabel, nav, tab, onTab, notifs = [
             </button>
           ))}
         </div>
-        <div className="mt-auto card-dark p-4">
-          <p className="font-mono text-[10px] text-[#f2efe6]/50 leading-relaxed">
-            Butuh bantuan?<br />
-            <a href={CONTACT.whatsappUrl('Halo tim SUSI, saya butuh bantuan.')} target="_blank" rel="noreferrer" className="hover:text-[#e62b2b]">
-              WA: {CONTACT.whatsappDisplay}
-            </a>
-          </p>
-        </div>
+        {helpHref && (
+          <div className="mt-auto card-dark p-4">
+            <p className="font-mono text-[10px] text-[#f2efe6]/50 leading-relaxed">
+              Butuh bantuan?<br />
+              <a href={helpHref} target="_blank" rel="noreferrer" className="hover:text-[#e62b2b]">
+                {CONTACT.whatsappDisplay ? `WA: ${CONTACT.whatsappDisplay}` : CONTACT.email}
+              </a>
+            </p>
+          </div>
+        )}
       </aside>
 
       {/* NAV MOBILE */}

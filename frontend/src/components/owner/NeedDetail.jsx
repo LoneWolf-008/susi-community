@@ -89,18 +89,19 @@ function RevisionForm({ projectId, onDone, onCancel }) {
 /**
  * Detail kebutuhan untuk pemiliknya (requester, atau liaison sebagai pemilik proksi).
  * Proyek diambil dari `project_id` kebutuhan, jadi tetap benar setelah talenta dipilih.
- * @param {{ needId: number, onBack: () => void, onChanged?: () => void }} props
+ * `liveKey` dinaikkan dasbor saat ada notifikasi baru agar detail ikut dimuat ulang.
+ * @param {{ needId: number, liveKey?: number, onBack: () => void, onChanged?: () => void }} props
  */
-export default function NeedDetail({ needId, onBack, onChanged }) {
+export default function NeedDetail({ needId, liveKey = 0, onBack, onChanged }) {
   const toast = useToast();
   const [version, setVersion] = useState(0);
   const [panel, setPanel] = useState(null); // 'edit' | 'revision' | 'dispute' | 'withdraw'
   const [verifying, setVerifying] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const needQ = useApi((signal) => api.get(`/needs/${needId}`, { signal }), [needId, version]);
+  const needQ = useApi((signal) => api.get(`/needs/${needId}`, { signal }), [needId, version, liveKey]);
   const projectId = needQ.data?.project_id ?? null;
-  const projQ = useApi((signal) => api.get(`/projects/${projectId}`, { signal }), [projectId, version], { enabled: Boolean(projectId) });
+  const projQ = useApi((signal) => api.get(`/projects/${projectId}`, { signal }), [projectId, version, liveKey], { enabled: Boolean(projectId) });
 
   const refresh = () => {
     setPanel(null);

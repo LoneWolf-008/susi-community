@@ -29,11 +29,15 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
   const [needId, setNeedId] = useState(null); // detail kebutuhan dari katalog/histori
   const [projectId, setProjectId] = useState(null); // detail proyek
   const [catalogVersion, setCatalogVersion] = useState(0);
+  const [liveKey, setLiveKey] = useState(0);
   const rootRef = useRef(null);
-  const notifications = useNotifications();
 
   const projectsQ = useApi((signal) => api.get('/projects/mine', { signal, query: { limit: 50 } }), []);
   const appsQ = useApi((signal) => api.get('/applications/mine', { signal, query: { limit: 1 } }), []);
+  // Notifikasi baru (lamaran diputus, verifikasi, revisi) → daftar & detail yang terbuka dimuat ulang.
+  const notifications = useNotifications({
+    onNew: () => { projectsQ.refetch(); appsQ.refetch(); setCatalogVersion((v) => v + 1); setLiveKey((k) => k + 1); },
+  });
   const stats = {
     applications: appsQ.data?.total,
     completed: projectsQ.data ? projectsQ.data.items.filter((p) => p.status === 'COMPLETED').length : undefined,
@@ -56,15 +60,23 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
   };
   const openNeed = (id) => { setTab('jelajahi'); setProjectId(null); setNeedId(id); };
   const openProject = (id) => { setTab('projek'); setNeedId(null); setProjectId(id); };
+  const openNotification = (n) => {
+    if (n.ref_type === 'project') openProject(n.ref_id);
+    else if (n.ref_type === 'need') openNeed(n.ref_id);
+    else if (n.ref_type === 'topic') onTab('mading');
+    else if (n.ref_type === 'application') onTab('histori');
+    else onTab('projek');
+  };
 
   return (
-    <DashShell user={user} roleLabel="TALENTA" nav={NAV} tab={tab} onTab={onTab} notifs={notifications.items} onLogout={onLogout} navigateTo={navigateTo}>
+    <DashShell user={user} roleLabel="TALENTA" nav={NAV} tab={tab} onTab={onTab} notifications={notifications} onNotificationClick={openNotification} onLogout={onLogout} navigateTo={navigateTo}>
       <div ref={rootRef}>
         {tab === 'jelajahi' && (
           <>
             {needId && (
               <NeedView
                 needId={needId}
+                liveKey={liveKey}
                 onBack={() => setNeedId(null)}
                 onApplied={() => { setCatalogVersion((v) => v + 1); reload(); }}
                 onOpenHistory={() => onTab('histori')}
@@ -79,7 +91,7 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
         )}
         {tab === 'histori' && <HistoryTab onOpenNeed={openNeed} onOpenProject={openProject} onBrowse={() => onTab('jelajahi')} />}
         {tab === 'projek' && (projectId ? (
-          <ProjectView projectId={projectId} userId={user?.id} onBack={() => setProjectId(null)} onChanged={reload} />
+          <ProjectView projectId={projectId} userId={user?.id} liveKey={liveKey} onBack={() => setProjectId(null)} onChanged={reload} />
         ) : (
           <ProjectsTab query={projectsQ} onOpen={setProjectId} onBrowse={() => onTab('jelajahi')} />
         ))}

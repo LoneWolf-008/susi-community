@@ -26,10 +26,12 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
   const [tab, setTab] = useState('beranda');
   const [selected, setSelected] = useState(null); // id kebutuhan yang dibuka
   const rootRef = useRef(null);
-  const notifications = useNotifications();
 
   const needsQ = useApi((signal) => api.get('/needs/mine', { signal, query: { limit: 50 } }), []);
   const projectsQ = useApi((signal) => api.get('/projects/mine', { signal, query: { limit: 50 } }), []);
+  // Notifikasi baru (lamaran, hasil kerja, moderasi) berarti papan/detail berubah: muat ulang.
+  const [liveKey, setLiveKey] = useState(0);
+  const notifications = useNotifications({ onNew: () => { needsQ.refetch(); projectsQ.refetch(); setLiveKey((k) => k + 1); } });
   const cards = buildBoard(needsQ.data?.items, projectsQ.data?.items);
   const reload = () => { needsQ.refetch(); projectsQ.refetch(); notifications.refetch(); };
 
@@ -47,12 +49,22 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
     if (id === 'beranda' || id === 'profile') reload();
   };
   const openCard = ({ need }) => setSelected(need.id);
+  // Klik notifikasi → buka kebutuhan terkait (lewat kebutuhan atau proyeknya) atau mading.
+  const openNotification = (n) => {
+    if (n.ref_type === 'topic') { onTab('komunitas'); return; }
+    const needId = n.ref_type === 'need' ? n.ref_id
+      : n.ref_type === 'project' ? cards.find((c) => Number(c.project?.id) === Number(n.ref_id))?.need.id
+        : null;
+    setTab('beranda');
+    setSelected(needId ?? null);
+    reload();
+  };
 
   return (
-    <DashShell user={user} roleLabel="KOMUNITAS" nav={NAV} tab={tab} onTab={onTab} notifs={notifications.items} onLogout={onLogout} navigateTo={navigateTo}>
+    <DashShell user={user} roleLabel="KOMUNITAS" nav={NAV} tab={tab} onTab={onTab} notifications={notifications} onNotificationClick={openNotification} onLogout={onLogout} navigateTo={navigateTo}>
       <div ref={rootRef}>
         {tab === 'beranda' && (selected ? (
-          <NeedDetail needId={selected} onBack={() => setSelected(null)} onChanged={reload} />
+          <NeedDetail needId={selected} liveKey={liveKey} onBack={() => setSelected(null)} onChanged={reload} />
         ) : (
           <BerandaTab
             first={firstName(user?.name, 'Warga')}

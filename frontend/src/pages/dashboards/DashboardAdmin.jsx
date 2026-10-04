@@ -26,8 +26,8 @@ const NAV = [
 export default function DashboardAdmin({ user, onLogout, navigateTo }) {
   const [tab, setTab] = useState('ringkasan');
   const rootRef = useRef(null);
-  const notifications = useNotifications();
   const statsQ = useApi((signal) => api.get('/admin/stats', { signal }), []);
+  const notifications = useNotifications({ onNew: () => statsQ.refetch() });
   const refreshStats = () => { statsQ.refetch(); notifications.refetch(); };
 
   useEffect(() => {
@@ -41,7 +41,11 @@ export default function DashboardAdmin({ user, onLogout, navigateTo }) {
   const onTab = (id) => { setTab(id); refreshStats(); };
 
   return (
-    <DashShell user={user} roleLabel="ADMIN" nav={NAV} tab={tab} onTab={onTab} notifs={notifications.items} onLogout={onLogout} navigateTo={navigateTo}>
+    <DashShell
+      user={user} roleLabel="ADMIN" nav={NAV} tab={tab} onTab={onTab} notifications={notifications}
+      onNotificationClick={(n) => onTab(n.ref_type === 'dispute' ? 'sengketa' : 'moderasi')}
+      onLogout={onLogout} navigateTo={navigateTo}
+    >
       <div ref={rootRef}>
         {tab === 'ringkasan' && <RingkasanTab first={firstName(user?.name, 'Admin')} statsQ={statsQ} onTab={onTab} />}
         {tab === 'moderasi' && <ModerasiTab statsQ={statsQ} onChanged={refreshStats} />}
