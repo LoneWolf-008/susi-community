@@ -17,6 +17,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [extra, setExtra] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const rootRef = useRef(null);
   const activeRole = AUTH_ROLES.find((r) => r.id === role);
@@ -45,12 +46,34 @@ export default function AuthPage() {
   const switchMode = (next) => {
     setMode(next);
     setError('');
+    setFieldErrors({});
+  };
+
+  const clearField = (field) => {
+    setError('');
+    setFieldErrors((f) => (f[field] ? { ...f, [field]: undefined } : f));
+  };
+
+  // Aturan sama dengan backend (validators/schemas.js) agar pengguna tahu sebelum mengirim.
+  const validate = () => {
+    const errs = {};
+    if (mode === 'register') {
+      if (!name.trim()) errs.name = 'Nama wajib diisi';
+      if (password.length < 10) errs.password = 'Kata sandi minimal 10 karakter';
+      if (password.length > 72) errs.password = 'Kata sandi maksimal 72 karakter';
+    } else if (!password) {
+      errs.password = 'Kata sandi wajib diisi';
+    }
+    return errs;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
     setError('');
+    const errs = validate();
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) return;
     setSubmitting(true);
     try {
       if (mode === 'register') {
@@ -66,10 +89,24 @@ export default function AuthPage() {
       }
       go(location.state?.from || '/dashboard', { replace: true });
     } catch (err) {
+      // Pesan backend sudah berbahasa Indonesia: "Email sudah terdaftar",
+      // "Email atau password salah", "Akun Anda ditangguhkan", batas percobaan, dll.
       setError(err.message || 'Gagal masuk. Coba lagi.');
+      if (err.details) {
+        const byField = {};
+        for (const d of err.details) {
+          const key = d.field === 'extra_info' ? 'extra' : d.field;
+          if (key && !byField[key]) byField[key] = d.message;
+        }
+        setFieldErrors(byField);
+      }
       setSubmitting(false);
     }
   };
+
+  const fieldError = (field) => fieldErrors[field] && (
+    <p className="mt-2 font-mono text-[10px] font-bold text-[#e62b2b]">{fieldErrors[field]}</p>
+  );
 
   return (
     <div ref={rootRef} className="min-h-screen bg-[#0e2233] text-[#f2efe6] flex items-center justify-center px-4 py-16"
@@ -111,12 +148,14 @@ export default function AuthPage() {
             {mode === 'register' && (
               <div className="form-anim">
                 <label className="field-label" htmlFor="auth-name">Nama Lengkap</label>
-                <input id="auth-name" value={name} onChange={(e) => setName(e.target.value)} className="input-line" placeholder="Nama kamu" required />
+                <input id="auth-name" value={name} onChange={(e) => { setName(e.target.value); clearField('name'); }} className="input-line" placeholder="Nama kamu" aria-invalid={!!fieldErrors.name} required />
+                {fieldError('name')}
               </div>
             )}
             <div className="form-anim">
               <label className="field-label" htmlFor="auth-email">Email</label>
-              <input id="auth-email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(''); }} className="input-line" placeholder="nama@email.com" required />
+              <input id="auth-email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); clearField('email'); }} className="input-line" placeholder="nama@email.com" aria-invalid={!!fieldErrors.email} required />
+              {fieldError('email')}
             </div>
             <div className="form-anim">
               <label className="field-label" htmlFor="auth-password">Kata Sandi</label>
@@ -126,13 +165,18 @@ export default function AuthPage() {
                   type={showPass ? 'text' : 'password'}
                   autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                   value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                  onChange={(e) => { setPassword(e.target.value); clearField('password'); }}
                   className="input-line"
                   placeholder="••••••••"
+                  aria-invalid={!!fieldErrors.password}
+                  aria-describedby={mode === 'register' ? 'auth-password-hint' : undefined}
                   required
                 />
                 <button type="button" onClick={() => setShowPass(!showPass)} className="chip-mono shrink-0 hover:text-[#e62b2b] transition-colors">{showPass ? 'TUTUP' : 'LIHAT'}</button>
               </div>
+              {fieldError('password') || (mode === 'register' && (
+                <p id="auth-password-hint" className="mt-2 font-mono text-[10px] opacity-50">MINIMAL 10 KARAKTER</p>
+              ))}
             </div>
             {mode === 'register' && activeRole && (
               <>
@@ -149,7 +193,8 @@ export default function AuthPage() {
                 </div>
                 <div className="form-anim">
                   <label className="field-label" htmlFor="auth-extra">{activeRole.field}</label>
-                  <input id="auth-extra" value={extra} onChange={(e) => setExtra(e.target.value)} className="input-line" placeholder={activeRole.ph} />
+                  <input id="auth-extra" value={extra} onChange={(e) => { setExtra(e.target.value); clearField('extra'); }} className="input-line" placeholder={activeRole.ph} maxLength={150} />
+                  {fieldError('extra')}
                 </div>
               </>
             )}

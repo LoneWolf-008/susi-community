@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
+import { ROLE_LABELS } from '../../context/authContext';
 
 export default function Navigation({ currentPage, navigateTo, goToSection, menuOpen, setMenuOpen, user, onLogout, onAsk, theme = 'dark' }) {
 
@@ -148,6 +149,17 @@ export default function Navigation({ currentPage, navigateTo, goToSection, menuO
           {/* KOLOM KIRI */}
           <div className="p-8 md:p-10 md:border-r border-white/10 flex flex-col">
             <div className="menu-logo mb-8">
+              {user && (
+                <div className="mt-5 inline-flex items-center gap-3 rounded-full bg-white/5 border border-white/10 pl-1 pr-4 py-1">
+                  <span className="w-8 h-8 rounded-full bg-[#e62b2b] text-white text-xs font-black flex items-center justify-center">
+                    {(user.name || 'S').charAt(0).toUpperCase()}
+                  </span>
+                  <span className="text-left leading-tight">
+                    <span className="block text-sm font-bold text-[#f2efe6]">{user.name}</span>
+                    <span className="block font-mono text-[9px] font-bold tracking-[0.25em] text-[#f2efe6]/50">{ROLE_LABELS[user.role] || user.role}</span>
+                  </span>
+                </div>
+              )}
               <p className="font-mono text-[10px] font-bold tracking-[0.35em] text-[#f2efe6]/50 mt-5">JELAJAH</p>
             </div>
 
