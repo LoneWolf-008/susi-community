@@ -22,7 +22,7 @@ export default function DeliveriesList({ deliveries = [], dark = false }) {
   };
 
   if (deliveries.length === 0) {
-    return <p className={`text-sm ${dark ? 'text-[#f2efe6]/60' : 'text-[#12283c]/60'}`}>Belum ada hasil yang dikirim talenta.</p>;
+    return <p className={`text-sm ${dark ? 'text-[#f2efe6]/60' : 'text-[#12283c]/60'}`}>Belum ada hasil yang dikirim.</p>;
   }
 
   return (

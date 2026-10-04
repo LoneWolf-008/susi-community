@@ -5,7 +5,7 @@ import { useToast } from '../../context/toastContext';
 import {
   projectStatus, needStatus, moderationStatus, NEED_CATEGORY, NEED_SOURCE,
 } from '../../lib/statusMap';
-import { formatDate } from '../../lib/format';
+import { formatDate, whatsappLink } from '../../lib/format';
 import StatusChip, { TagChip } from '../common/StatusChip';
 import ProjSteps from '../common/ProjSteps';
 import { SkeletonCard } from '../ui/Skeleton';
@@ -17,10 +17,6 @@ import ProjectTimeline from '../project/ProjectTimeline';
 import DisputePanel, { OpenDisputeForm } from '../project/DisputePanel';
 
 const CATEGORIES = Object.keys(NEED_CATEGORY);
-const waLink = (phone) => {
-  const digits = String(phone || '').replace(/\D/g, '').replace(/^0/, '62');
-  return digits ? `https://wa.me/${digits}` : null;
-};
 
 function EditNeedForm({ need, onSaved, onCancel }) {
   const toast = useToast();
@@ -286,8 +282,8 @@ export default function NeedDetail({ needId, onBack, onChanged }) {
               <p className="label-mono mb-2">KONTAK TALENTA</p>
               <p className="text-lg font-black">{project.talent_name}</p>
               {project.talent_email && <p className="font-mono text-xs opacity-70 mt-1">{project.talent_email}</p>}
-              {waLink(project.talent_phone) && (
-                <a href={waLink(project.talent_phone)} target="_blank" rel="noreferrer" className="btn-pill btn-red !py-2.5 !px-5 text-[10px] mt-4">CHAT WHATSAPP ↗</a>
+              {whatsappLink(project.talent_phone) && (
+                <a href={whatsappLink(project.talent_phone)} target="_blank" rel="noreferrer" className="btn-pill btn-red !py-2.5 !px-5 text-[10px] mt-4">CHAT WHATSAPP ↗</a>
               )}
             </div>
 
