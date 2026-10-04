@@ -20,6 +20,21 @@ export const loginLimiter = rateLimit({
   message: errorBody('Terlalu banyak percobaan masuk. Coba lagi dalam 15 menit.'),
 });
 
+// Endpoint publik (tanpa login) dibatasi lebih ketat dari /api umum.
+export const publicLimiter = rateLimit({
+  ...common,
+  windowMs: 60 * 1000,
+  limit: env.rateLimit.publicMax,
+  message: errorBody('Terlalu banyak request ke data publik, coba lagi sebentar lagi.'),
+});
+
+export const visitLimiter = rateLimit({
+  ...common,
+  windowMs: 15 * 60 * 1000,
+  limit: env.rateLimit.visitMax,
+  message: errorBody('Kunjungan sudah tercatat.'),
+});
+
 export const registerLimiter = rateLimit({
   ...common,
   windowMs: env.rateLimit.authWindowMs,
