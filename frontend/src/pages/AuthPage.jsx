@@ -63,7 +63,7 @@ export default function AuthPage({ onLogin, goToHome, goAdmin }) {
               <span className="block text-white/20">SUSI.</span>
             </h1>
           </div>
-          <div className="relative z-10 border-t border-white/15 pt-6">
+          <div className="relative z-10 border-t border-white/15 pt-6 hidden lg:block">
             {mode === 'register' && activeRole && (
               <>
                 <p className="label-mono mb-3">Peran dipilih</p>
@@ -127,6 +127,19 @@ export default function AuthPage({ onLogin, goToHome, goAdmin }) {
             </button>
           </form>
         </div>
+        {/* MOBILE: Peran dipilih – muncul setelah form */}
+        {mode === 'register' && activeRole && (
+          <div className="lg:hidden p-8 border-t border-white/10" style={{ background: 'linear-gradient(160deg,#12283c 0%,#12283c 45%,#7a1a1f 100%)' }}>
+            <p className="label-mono mb-3">Peran dipilih</p>
+            <div key={role} className="role-display flex items-end gap-5">
+              <span className="text-5xl font-black text-[#e62b2b] leading-none">{activeRole.num}</span>
+              <div>
+                <p className="text-xl font-black uppercase tracking-tight">{activeRole.label}</p>
+                <p className="text-xs opacity-60 mt-2 max-w-xs leading-relaxed">{activeRole.desc}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
