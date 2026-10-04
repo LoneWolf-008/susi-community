@@ -9,20 +9,28 @@ const REFRESH_SECRET = env.jwt.refreshSecret;
 const ACCESS_EXPIRES = env.jwt.accessExpires;
 const REFRESH_EXPIRES = env.jwt.refreshExpires;
 
+const ALGORITHM = 'HS256';
+
 export const signAccessToken = (payload) => {
-  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: ACCESS_EXPIRES });
+  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: ACCESS_EXPIRES, algorithm: ALGORITHM });
 };
 
+// jwtid acak: tanpa ini dua token untuk user yang sama di detik yang sama identik dan
+// bentrok di uq_rt_hash (mis. login lalu langsung refresh).
 export const signRefreshToken = (payload) => {
-  return jwt.sign(payload, REFRESH_SECRET, { expiresIn: REFRESH_EXPIRES });
+  return jwt.sign(payload, REFRESH_SECRET, {
+    expiresIn: REFRESH_EXPIRES,
+    algorithm: ALGORITHM,
+    jwtid: crypto.randomUUID(),
+  });
 };
 
 export const verifyAccessToken = (token) => {
-  return jwt.verify(token, ACCESS_SECRET);
+  return jwt.verify(token, ACCESS_SECRET, { algorithms: [ALGORITHM] });
 };
 
 export const verifyRefreshToken = (token) => {
-  return jwt.verify(token, REFRESH_SECRET);
+  return jwt.verify(token, REFRESH_SECRET, { algorithms: [ALGORITHM] });
 };
 
 export const hashToken = (token) => {
