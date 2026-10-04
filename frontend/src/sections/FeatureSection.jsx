@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import featurePhoto from '../assets/photos/feature.jpg';
 
 export default function FeatureSection({ navigateTo, goToSection }) {
   const rootRef = useRef(null);
@@ -8,7 +9,7 @@ export default function FeatureSection({ navigateTo, goToSection }) {
   useEffect(() => {
     const ctx = gsap.context(() => {
       gsap.fromTo('.mix-head', { y: 30, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8, ease: 'power3.out' });
-      gsap.utils.toArray('.mix-card').forEach((card, i) => {
+      gsap.utils.toArray('.mix-card').forEach((card) => {
         gsap.fromTo(card, { y: 50, autoAlpha: 0 }, {
           y: 0, autoAlpha: 1, duration: 0.8, ease: 'power3.out',
           scrollTrigger: { trigger: card, start: 'top 85%' },
@@ -41,7 +42,7 @@ export default function FeatureSection({ navigateTo, goToSection }) {
           {/* Kartu gelap ala video */}
           <div className="mix-card relative rounded-xl overflow-hidden bg-[#101d2b] min-h-[420px] p-8 flex flex-col justify-end text-[#f2efe6]">
             <img
-              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=60"
+              src={featurePhoto}
               alt=""
               className="absolute inset-0 w-full h-full object-cover opacity-60"
             />

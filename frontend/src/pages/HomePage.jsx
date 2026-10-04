@@ -2,18 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import FlowSection from '../sections/FlowSection';
+import photoTop from '../assets/photos/hero-top.jpg';
+import photoLeft from '../assets/photos/hero-left.jpg';
+import photoRight from '../assets/photos/hero-right.jpg';
+import photoBottom from '../assets/photos/hero-bottom.jpg';
 
 const STATS = [
   { label: 'Proyek Selesai', target: 127 },
   { label: 'Talenta Terdaftar', target: 89 },
   { label: 'Komunitas Terbantu', target: 45 },
 ];
-const PHOTOS = {
-  top: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=60',
-  left: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=600&q=60',
-  right: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=700&q=60',
-  bottom: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=900&q=60',
-};
+// Foto Unsplash disimpan lokal agar landing tetap utuh tanpa internet (cadangan demo onsite).
+const PHOTOS = { top: photoTop, left: photoLeft, right: photoRight, bottom: photoBottom };
 const QUESTIONS = [
   'Apa saja pekerjaan yang SUSI lakukan?',
   'Bagaimana pendekatan SUSI terhadap komunitas?',
@@ -26,7 +26,7 @@ const Dither = () => (
   <div className="absolute inset-0 opacity-15 mix-blend-overlay pointer-events-none" style={{ backgroundImage: NOISE, backgroundSize: '240px 240px' }} />
 );
 
-export default function HomePage({ navigateTo, goToSection, onAsk }) {
+export default function HomePage({ navigateTo, onAsk }) {
   const rootRef = useRef(null);
   const heroRef = useRef(null);
   const [askInput, setAskInput] = useState('');
