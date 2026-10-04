@@ -1,0 +1,49 @@
+{
+  "_sumber": "Dipindah apa adanya dari frontend/src/utils/askSusi.js dan frontend/src/components/common/AiAgent.jsx (T1). Kata kunci adalah gabungan kedua array; jawaban memakai versi askSusi.js. Jangan menambah entri tanpa sumber dokumen (PRD/Proposal/wawancara).",
+  "entries": [
+    {
+      "keywords": ["halo", "hai", "hi", "hello", "pagi", "siang", "sore"],
+      "reply": "Halo! Saya Agen SUSI AI 👋\nSiap bantu navigasi platform SUSI. Mau tanya soal apa hari ini?"
+    },
+    {
+      "keywords": ["proyek", "status", "progress", "lacak", "lacak proyek"],
+      "reply": "Untuk melihat progres proyek, buka tab **Beranda** di dasbor → klik kartu proyek yang ingin dipantau.\n\nSetiap proyek punya 4 fase:\n• DITERIMA → DIKERJAKAN → SELESAI → VERIFIKASI\n\nProgres visual muncul otomatis di kartu proyek."
+    },
+    {
+      "keywords": ["verifikasi", "selesai", "konfirmasi", "testimoni"],
+      "reply": "SUSI pakai **verifikasi dua arah** (langkah 08):\n\n1. Talenta menandai proyek selesai\n2. Komunitas mengonfirmasi + beri testimoni\n\nReputasi talenta bertambah **setelah kedua pihak konfirmasi** — menjaga kejujuran sistem."
+    },
+    {
+      "keywords": ["talenta", "reputasi", "poin", "level"],
+      "reply": "Sistem Reputasi Talenta:\n\n• Setiap proyek terverifikasi = +1 poin\n• Level: Talenta Muda → Terpercaya → Ahli\n• Reputasi tinggi = prioritas dipilih komunitas\n\nCek poinmu di tab **Profil** dasbor talenta."
+    },
+    {
+      "keywords": ["cara kerja", "alur", "langkah", "8 langkah", "proses"],
+      "reply": "SUSI bekerja dalam **8 langkah**:\n\n1. Komunitas cerita masalah\n2. AgenSUSI data lapangan\n3. Masuk katalog terbuka\n4. Talenta mengajukan diri\n5. Komunitas pilih talenta\n6. Kesepakatan target\n7. Pengerjaan\n8. Verifikasi dua arah\n\nScroll ke section \"Delapan Langkah\" di beranda untuk detail visualnya."
+    },
+    {
+      "keywords": ["komunitas", "daftar", "gabung", "ikut"],
+      "reply": "Komunitas bergabung **gratis**:\n\n1. Daftar via halaman Masuk/Daftar → pilih peran Komunitas\n2. Lengkapi profil\n3. Ajukan kebutuhan di dasbor\n\nBelum familiar digital? AgenSUSI siap datang ke lokasi Anda."
+    },
+    {
+      "keywords": ["mading", "diskusi", "forum", "topik"],
+      "reply": "**Mading Komunitas** adalah ruang diskusi lintas komunitas:\n\n• Drag papan untuk jelajah topik\n• Tempel topik baru (Diskusi/Tanya/Info)\n• Balas topik komunitas lain\n\nAkses via tab **Komunitas** di dasbor komunitas."
+    },
+    {
+      "keywords": ["map", "peta", "lokasi", "cari komunitas"],
+      "reply": "Tab **Map** menampilkan komunitas terdaftar di Bandung:\n\n• Titik merah = komunitas existing\n• Titik mint = komunitas Anda\n• Klik titik → detail + rute Google Maps\n\nAnda juga bisa menandai komunitas baru dari tab ini."
+    },
+    {
+      "keywords": ["agen", "agensusi", "lapangan", "kunjungan"],
+      "reply": "**AgenSUSI** adalah tim lapangan kami yang:\n\n• Datang langsung ke komunitas\n• Mencatat kebutuhan secara personal\n• Menjembatani komunitas yang belum familiar digital\n\nButuh kunjungan? Hubungi via WhatsApp di halaman Tentang Kami."
+    },
+    {
+      "keywords": ["biaya", "bayar", "gratis", "harga", "mahal"],
+      "reply": "**SUSI 100% gratis** untuk komunitas maupun talenta.\n\n• Komunitas dapat solusi tanpa biaya\n• Talenta dapat portofolio + poin reputasi\n\nPlatform didukung SMKN 4 Bandung sebagai proyek sosial-edukasi."
+    },
+    {
+      "keywords": ["bantuan", "help", "tolong", "support"],
+      "reply": "Saya siap bantu! Beberapa hal yang bisa saya jawab:\n\n• Cara kerja SUSI\n• Status proyek & verifikasi\n• Reputasi talenta\n• Mading komunitas & Map\n\nAtau ketik pertanyaan spesifik Anda 😊"
+    }
+  ]
+}

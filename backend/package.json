@@ -7,7 +7,14 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "db:init": "node utils/migrate.js init",
+    "db:migrate": "node utils/migrate.js migrate",
+    "db:status": "node utils/migrate.js status",
+    "db:reset": "node utils/migrate.js reset",
     "seed": "node utils/seed.js"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
