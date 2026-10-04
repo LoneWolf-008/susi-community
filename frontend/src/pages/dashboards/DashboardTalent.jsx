@@ -4,7 +4,6 @@ import DashShell from '../../components/common/DashShell';
 import ProjSteps from '../../components/common/ProjSteps';
 import AiAgent from '../../components/common/AiAgent';
 import GoogleMapsEmbed from '../../components/common/GoogleMapsEmbed';
-import { loadProjectSubmissions, saveProjectSubmissions } from '../../utils/projectSubmissions';
 
 const CHIP = { green: 'bg-[#c9ecd9] text-[#12283c]', navy: 'bg-[#12283c] text-[#f2efe6]', red: 'bg-[#e62b2b] text-white', ghost: 'bg-[#12283c]/10 text-[#12283c]/70' };
 const chip = (k, t) => <span className={`chip-mono border-0 ${CHIP[k]}`}>{t}</span>;
@@ -27,20 +26,11 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
     { id: 3, type: 'diskusi', title: 'PKK RW 05 membalas diskusi Anda', sub: 'Forum Diskusi · 1 hari lalu', read: false },
     { id: 4, type: 'sistem', title: 'Reputasi Anda: 12 / 20', sub: '2 proyek lagi menuju level berikutnya', read: true },
   ]);
-  const [projects, setProjects] = useState(() => {
-    const initialProjects = [
-      { id: 1, t: 'Aplikasi Iuran Warga', comm: 'PKK RW 05', scope: 'Form rekap iuran + dashboard sederhana, akses via HP.', deadline: '30 AGU 2026', status: 'PROSES' },
-      { id: 2, t: 'Website Galeri Karang Taruna', comm: 'Karang Taruna Mekar', scope: 'Landing page + galeri foto kegiatan.', deadline: '12 SEP 2026', status: 'KESEPAKATAN' },
-      { id: 3, t: 'Formulir Pendaftaran Digital', comm: 'Forum Warga Bandung', scope: 'Form pendaftaran warga baru.', deadline: '01 AGU 2026', status: 'VERIFIKASI' },
-    ];
-    const submissions = loadProjectSubmissions().filter((submission) => submission.talent === user?.name);
-    return initialProjects.map((project) => {
-      const submission = submissions.find((item) => item.projectId === project.id);
-      if (!submission) return project;
-      const status = { MENUNGGU: 'VERIFIKASI', REVISI: 'REVISI', DISETUJUI: 'SELESAI' }[submission.status];
-      return status ? { ...project, status, submission } : project;
-    });
-  });
+  const [projects, setProjects] = useState([
+    { id: 1, t: 'Aplikasi Iuran Warga', comm: 'PKK RW 05', scope: 'Form rekap iuran + dashboard sederhana, akses via HP.', deadline: '30 AGU 2026', status: 'PROSES' },
+    { id: 2, t: 'Website Galeri Karang Taruna', comm: 'Karang Taruna Mekar', scope: 'Landing page + galeri foto kegiatan.', deadline: '12 SEP 2026', status: 'KESEPAKATAN' },
+    { id: 3, t: 'Formulir Pendaftaran Digital', comm: 'Forum Warga Bandung', scope: 'Form pendaftaran warga baru.', deadline: '01 AGU 2026', status: 'VERIFIKASI' },
+  ]);
   const [applications, setApplications] = useState([
     { id: 1, t: 'Aplikasi Iuran Warga', comm: 'PKK RW 05', date: '02 AGU 2026', status: 'DITERIMA' },
     { id: 2, t: 'Website Galeri', comm: 'KT Mekar', date: '05 AGU 2026', status: 'DITERIMA' },
@@ -93,7 +83,6 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
   const submitCompletion = (event) => {
     event.preventDefault();
     if (!completionTarget) return;
-    const submissions = loadProjectSubmissions();
     const submission = {
       id: Date.now(),
       projectId: completionTarget.id,
@@ -106,7 +95,6 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
       status: 'MENUNGGU',
       submittedAt: new Date().toISOString(),
     };
-    saveProjectSubmissions([...submissions.filter((item) => item.projectId !== submission.projectId || item.talent !== submission.talent), submission]);
     setProjects((current) => current.map((project) => project.id === submission.projectId ? { ...project, status: 'VERIFIKASI', submission } : project));
     setCompletionTarget(null);
     setCompletionForm({ summary: '', link: '', notes: '' });

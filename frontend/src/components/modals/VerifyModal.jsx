@@ -1,61 +1,77 @@
 import { useState } from 'react';
-export default function VerifyModal({ onClose }) {
-  const [proj, setProj] = useState(0);
-  const [step, setStep] = useState(0);
-  const PROJECTS = [
-    { t: 'Aplikasi Iuran Warga', talent: 'Derien A.' },
-    { t: 'Website Profil PKK', talent: 'Khalifa H.' },
-    { t: 'Formulir Pendaftaran Digital', talent: 'Ezra P.' },
-  ];
-  const p = PROJECTS[proj];
-  const steps = [
-    { n: '06', l: 'TALENTA MENANDAI SELESAI' },
-    { n: '07', l: 'KOMUNITAS MEMBENARKAN' },
-    { n: '08', l: 'REPUTASI +1' },
-  ];
-  const pct = [10, 55, 100][step];
+import Modal from './Modal';
+import { api } from '../../lib/api';
+
+const MAX_TESTIMONIAL = 1000;
+
+/**
+ * Verifikasi dua arah (PRD P0-5): talenta sudah menandai selesai, pemilik kebutuhan
+ * membenarkan → proyek COMPLETED dan reputasi talenta +1. Testimoni opsional tampil publik.
+ *
+ * @param {{ project: { id: number, project_title?: string, talent_name?: string }, onClose: () => void,
+ *           onVerified: (project: object) => void }} props
+ */
+export default function VerifyModal({ project, onClose, onVerified }) {
+  const [testimonial, setTestimonial] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async () => {
+    setSubmitting(true);
+    setError('');
+    try {
+      const updated = await api.post(`/projects/${project.id}/verify`, {
+        testimonial: testimonial.trim() || undefined,
+      });
+      onVerified(updated);
+    } catch (err) {
+      setError(err.message);
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-[500] bg-[#0e2233]/90 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#12283c] text-[#f2efe6] w-full max-w-2xl border border-white/10 rounded-2xl p-8 relative max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-xl font-black hover:bg-[#e62b2b] hover:border-[#e62b2b] transition-colors">×</button>
-        <span className="chip-mono border-0 bg-[#e62b2b] text-white">F5 · VERIFIKASI DUA ARAH</span>
-        <h3 className="text-2xl md:text-3xl font-black tracking-tight mt-3 mb-6">Verifikasi Projek</h3>
-        <p className="label-mono mb-2">Pilih Projek</p>
-        <div className="flex flex-wrap gap-2 mb-6">
-          {PROJECTS.map((pr, i) => (
-            <button key={i} onClick={() => { setProj(i); setStep(0); }} className={`rounded-full px-4 py-2 text-[10px] font-mono font-bold border transition-colors ${proj === i ? 'bg-[#e62b2b] text-white border-[#e62b2b]' : 'border-white/20 hover:border-white/60'}`}>
-              {pr.t}
-            </button>
-          ))}
-        </div>
-        <div className="flex justify-between font-mono text-[10px] font-bold mb-2"><span>PROGRES VERIFIKASI</span><span className="text-[#e62b2b]">{pct}%</span></div>
-        <div className="h-2 rounded-full bg-white/10 mb-6 overflow-hidden"><div className="h-full rounded-full bg-[#e62b2b] transition-all duration-700" style={{ width: `${pct}%` }} /></div>
-        <div className="grid grid-cols-3 gap-2 mb-6">
-          {steps.map((s, i) => (
-            <div key={i} className={`rounded-xl border p-3 text-center transition-colors ${step > i ? 'border-[#c9ecd9] bg-[#c9ecd9] text-[#12283c]' : step === i ? 'border-[#e62b2b] bg-[#e62b2b]/10' : 'border-white/10 opacity-50'}`}>
-              <p className="text-lg font-black">{s.n}</p>
-              <p className="font-mono text-[8px] font-bold leading-tight">{s.l}</p>
-            </div>
-          ))}
-        </div>
-        {step < 2 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <button onClick={() => setStep(1)} disabled={step > 0} className={`btn-pill ${step === 0 ? 'btn-red' : 'border border-[#c9ecd9]/40 text-[#c9ecd9] cursor-default'}`}>
-              {step === 0 ? '06 · Talenta: Tandai Selesai' : '✓ Talenta selesai'}
-            </button>
-            <button onClick={() => setStep(2)} disabled={step < 1} className={`btn-pill ${step === 1 ? 'bg-[#c9ecd9] text-[#12283c] hover:bg-white' : 'border border-white/10 opacity-40 cursor-not-allowed'}`}>
-              07 · Komunitas: Benarkan
-            </button>
+    <Modal title="Benarkan proyek selesai?" eyebrow="VERIFIKASI DUA ARAH" onClose={onClose} busy={submitting}>
+      <div className="grid grid-cols-3 gap-2 mb-6">
+        {[
+          { n: '01', l: 'TALENTA MENANDAI SELESAI', done: true },
+          { n: '02', l: 'KOMUNITAS MEMBENARKAN', active: true },
+          { n: '03', l: 'REPUTASI TALENTA +1' },
+        ].map((s) => (
+          <div
+            key={s.n}
+            className={`rounded-xl border p-3 text-center ${s.done ? 'border-[#c9ecd9] bg-[#c9ecd9] text-[#12283c]' : s.active ? 'border-[#e62b2b] bg-[#e62b2b]/10' : 'border-white/10 opacity-50'}`}
+          >
+            <p className="text-lg font-black">{s.n}</p>
+            <p className="font-mono text-[8px] font-bold leading-tight">{s.l}</p>
           </div>
-        ) : (
-          <div className="rounded-xl bg-[#c9ecd9] text-[#12283c] p-6 text-center">
-            <p className="text-xl font-black">✓ SELESAI DIVERIFIKASI</p>
-            <p className="font-mono text-[10px] mt-1">REPUTASI {p.talent.toUpperCase()} +1 · TESTIMONI TERCATAT</p>
-          </div>
-        )}
-        <p className="font-mono text-[10px] opacity-50 mt-4">{step < 2 ? 'STATUS MENGGANTUNG — REPUTASI TIDAK BERUBAH SAMPAI KEDUA PIHAK KONFIRMASI.' : ''}</p>
-        {step === 2 && <button onClick={() => setStep(0)} className="mt-2 font-mono text-[10px] font-bold underline hover:text-[#e62b2b] transition-colors">↺ Ulangi simulasi</button>}
+        ))}
       </div>
-    </div>
+
+      <p className="text-sm text-[#f2efe6]/80 leading-relaxed mb-6">
+        Pastikan hasil <strong>{project.project_title || 'proyek'}</strong>
+        {project.talent_name ? <> dari <strong>{project.talent_name}</strong></> : null} sudah sesuai definisi selesai
+        yang disepakati. Setelah dibenarkan, status tidak bisa dibatalkan dan reputasi talenta bertambah.
+      </p>
+
+      <label className="field-label" htmlFor="verify-testimonial">Testimoni untuk talenta (opsional, tampil publik)</label>
+      <textarea
+        id="verify-testimonial"
+        value={testimonial}
+        onChange={(e) => setTestimonial(e.target.value.slice(0, MAX_TESTIMONIAL))}
+        className="input-line input-line-dark h-28 resize-none"
+        placeholder="Contoh: Hasilnya dipakai bendahara setiap hari, penjelasannya sabar."
+      />
+      <p className="font-mono text-[9px] opacity-50 mt-1 text-right">{testimonial.length}/{MAX_TESTIMONIAL}</p>
+
+      {error && <p role="alert" className="mt-4 rounded-lg bg-[#e62b2b] text-white p-3 text-xs font-bold">⚠ {error}</p>}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
+        <button type="button" onClick={onClose} disabled={submitting} className="btn-pill btn-ghost-light">Batal</button>
+        <button type="button" onClick={submit} disabled={submitting} className="btn-pill bg-[#c9ecd9] text-[#12283c] hover:bg-white disabled:opacity-60">
+          {submitting ? 'Memproses…' : '✓ Ya, proyek selesai'}
+        </button>
+      </div>
+    </Modal>
   );
 }
