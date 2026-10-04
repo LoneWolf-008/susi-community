@@ -44,7 +44,7 @@ Peran: `requester` (komunitas), `talent`, `liaison` (AgenSUSI), `admin`. "Login"
 |---|---|---|---|
 | GET | `/needs/catalog` | login | `APPROVED + OPEN`. Filter `category, sector, source, skill (id/nama), search`. Item memuat `skills[]` |
 | GET | `/needs/mine` | requester, liaison | Milik sendiri (liaison: kebutuhan Assisted yang ia catat). Memuat `applicants, applicants_waiting, project_id, project_status, skills[]` |
-| GET | `/needs/:id` | login | Belum `APPROVED` hanya untuk pemilik/admin |
+| GET | `/needs/:id` | login | Belum `APPROVED` hanya untuk pemilik/admin. Pemilik/admin juga menerima `project_id, project_status` (proyek terbaru, bisa `CANCELLED`) |
 | POST | `/needs` | requester, liaison | `title, description, category?, summary?, address?, lat?, lng?, community_id?, skill_ids?[]`. Requester harus anggota komunitas. Masuk antrean moderasi (`PENDING`) |
 | PATCH | `/needs/:id` | pemilik | Hanya saat `PENDING`/`REJECTED`; dari `REJECTED` kembali `PENDING` |
 | POST | `/needs/:id/withdraw` | pemilik | `reason?`. Tutup lunak (`CLOSED`); 409 bila sudah ada proyek aktif |
@@ -68,7 +68,7 @@ Status: `AGREEMENT → IN_PROGRESS → AWAITING_VERIFICATION → COMPLETED`, den
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
 | GET | `/projects/mine` | login | Talenta: proyek yang ia kerjakan; pemilik: proyek dari kebutuhannya |
-| GET | `/projects/:id` | pihak proyek, admin | Detail + `deliveries, events, revisions` + kontak kedua pihak |
+| GET | `/projects/:id` | pihak proyek, admin | Detail + `deliveries, events, revisions, testimonials` (dua arah, tanpa yang diturunkan admin) + kontak kedua pihak |
 | PATCH | `/projects/:id/agree` | talent (pemilik proyek) | `AGREEMENT → IN_PROGRESS` |
 | POST | `/projects/:id/cancel` | talent | `reason` (≥5). Dari `AGREEMENT/IN_PROGRESS/REVISION` → `CANCELLED`; kebutuhan kembali `OPEN` |
 | POST | `/upload/delivery` | talent | multipart field `file` (zip, rar, pdf, png, jpg, doc, docx, txt, mp4, mov; ≤25 MB) → `{ file_name, file_path, file_size }` |
