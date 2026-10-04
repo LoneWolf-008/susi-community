@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { useAuth } from '../../context/authContext';
 import FullPageLoader from '../ui/FullPageLoader';
@@ -18,11 +19,17 @@ export default function ProtectedRoute({ roles, children }) {
   return children;
 }
 
-/** Halaman tamu (masuk/daftar): pengguna yang sudah login langsung ke dasbor. */
+/**
+ * Halaman tamu (masuk/daftar): pengguna yang sudah login langsung ke dasbor.
+ * Bila pengguna baru saja masuk DARI halaman ini (sempat anonim), halaman itu sendiri yang
+ * berpindah dengan transisi; mengalihkan di sini akan memotong overlay dan menggandakan riwayat.
+ */
 export function GuestOnly({ children }) {
   const { status } = useAuth();
   const location = useLocation();
+  const [sawAnonymous, setSawAnonymous] = useState(false);
+  if (status === 'anonymous' && !sawAnonymous) setSawAnonymous(true);
   if (status === 'loading') return <FullPageLoader />;
-  if (status === 'authenticated') return <Navigate to={location.state?.from || '/dashboard'} replace />;
+  if (status === 'authenticated' && !sawAnonymous) return <Navigate to={location.state?.from || '/dashboard'} replace />;
   return children;
 }
