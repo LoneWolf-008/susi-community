@@ -17,9 +17,9 @@ const APPLIED_COPY = {
 };
 
 /** Detail kebutuhan dari katalog + form lamaran (POST /applications/needs/:id). */
-export default function NeedView({ needId, onBack, onApplied, onOpenHistory, onOpenProjects }) {
+export default function NeedView({ needId, liveKey = 0, onBack, onApplied, onOpenHistory, onOpenProjects }) {
   const toast = useToast();
-  const { data: need, loading, error, refetch } = useApi((signal) => api.get(`/needs/${needId}`, { signal }), [needId]);
+  const { data: need, loading, error, refetch } = useApi((signal) => api.get(`/needs/${needId}`, { signal }), [needId, liveKey]);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [formError, setFormError] = useState('');

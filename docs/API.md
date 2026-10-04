@@ -104,9 +104,9 @@ Status: `AGREEMENT → IN_PROGRESS → AWAITING_VERIFICATION → COMPLETED`, den
 | GET | `/testimonials/mine` | login | Testimoni yang saya terima |
 | POST | `/testimonials` | pihak proyek selesai | `project_id, to_user_id (pihak lawan), text, is_public?` → `PENDING` (antrean moderasi) |
 | GET | `/notifications` | login | `unread_only=true` opsional |
-| GET | `/notifications/unread-count` | login | `{ count }` |
+| GET | `/notifications/unread-count` | login | `{ count }`. Dasbor mem-polling tiap 30 detik (berhenti saat tab peramban tidak aktif) |
 | PATCH | `/notifications/:id/read` · `/notifications/read-all` · DELETE `/notifications/:id` | login | |
-| GET/PATCH | `/settings` | login | `notif_email, notif_whatsapp, notif_talenta, notif_diskusi, show_location` (boolean) |
+| GET/PATCH | `/settings` | login | `notif_email, notif_whatsapp, notif_talenta, notif_diskusi, show_location` (boolean). `notif_talenta`/`notif_diskusi` = 0 → notifikasi bertipe `talenta`/`diskusi` tidak dibuat; `show_location` = 0 → titik & sektor komunitas yang didaftarkan pengguna itu disembunyikan di peta publik (komunitasnya tetap terdaftar). Email & WhatsApp belum punya kanal pengiriman |
 
 ## Liaison (AgenSUSI)
 

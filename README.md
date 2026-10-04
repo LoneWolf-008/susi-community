@@ -162,6 +162,8 @@ fallback SPA untuk Vercel/Netlify.
 |---|---|
 | `VITE_API_URL` | Basis URL API untuk produksi. Kosongkan saat dev. Jangan isi secret: semua `VITE_*` ikut ter-bundle ke browser. |
 | `VITE_DEV_API_TARGET` | Target proxy `/api` saat `npm run dev`/`preview` (default `http://localhost:3009`). |
+| `VITE_CONTACT_WHATSAPP`, `VITE_CONTACT_EMAIL` | Kontak resmi tim SUSI (dasbor, footer, halaman Tentang). WhatsApp boleh `0812…` atau `62812…`. Kosong = tidak ditampilkan (tidak ada nomor contoh). |
+| `VITE_CONTACT_INSTAGRAM`, `VITE_CONTACT_DISCORD`, `VITE_CONTACT_GITHUB` | Tautan media sosial di footer; yang kosong disembunyikan. |
 
 ## Alur kerja
 

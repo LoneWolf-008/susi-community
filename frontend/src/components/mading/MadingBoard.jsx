@@ -179,10 +179,11 @@ export default function MadingBoard({ user }) {
     return { x: Math.max(minX, Math.min(0, x)), y: Math.max(minY, Math.min(0, y)) };
   };
 
+  // Mulai dari pojok kiri atas: catatan seed & sebagian besar catatan baru ada di sana
+  // (dulu dipusatkan, sehingga catatan di pojok tersembunyi sampai papan digeser).
   useEffect(() => {
     if (view !== 'board' || !wrapRef.current) return;
-    const vp = wrapRef.current;
-    const p = clampPan(-(CANVAS_W - vp.clientWidth) / 2, -(CANVAS_H - vp.clientHeight) / 2);
+    const p = clampPan(0, 0);
     pan.current = p;
     gsap.set(canvasRef.current, { x: p.x, y: p.y });
   }, [view, topics.length]);

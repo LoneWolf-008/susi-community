@@ -141,7 +141,8 @@ export default function VisitsTab({ onRecord, onChanged }) {
       {error && <ErrorState error={error} onRetry={refetch} />}
 
       <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-12 lg:col-span-7 space-y-4">
+        {/* Diredupkan saat filter/halaman baru dimuat, agar daftar lama tidak terbaca sebagai hasil filter. */}
+        <div className={`col-span-12 lg:col-span-7 space-y-4 transition-opacity ${loading && data ? 'opacity-50' : ''}`} aria-busy={loading}>
           {loading && !data && !error && <><SkeletonCard /><SkeletonCard /></>}
           {data && items.length === 0 && (
             <EmptyState

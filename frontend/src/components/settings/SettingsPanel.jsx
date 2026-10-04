@@ -4,7 +4,7 @@ import { api } from '../../lib/api';
 import { useApi } from '../../hooks/useApi';
 import { useAuth } from '../../context/authContext';
 import { useToast } from '../../context/toastContext';
-import { CONTACT } from '../../data/contact';
+import { contactHref } from '../../data/contact';
 import { SkeletonLines } from '../ui/Skeleton';
 import ErrorState from '../ui/ErrorState';
 
@@ -139,7 +139,11 @@ export default function SettingsPanel({ onLogout }) {
                 <p className="text-sm text-[#12283c]/70 mb-5">
                   Penghapusan akun diproses tim SUSI agar riwayat proyek dan reputasi pihak lain tetap utuh.
                 </p>
-                <a href={CONTACT.whatsappUrl(`Halo tim SUSI, saya ingin menghapus akun ${user?.email}.`)} target="_blank" rel="noreferrer" className="btn-pill btn-ghost-dark w-full">HUBUNGI ADMIN →</a>
+                {contactHref(`Halo tim SUSI, saya ingin menghapus akun ${user?.email}.`) ? (
+                  <a href={contactHref(`Halo tim SUSI, saya ingin menghapus akun ${user?.email}.`)} target="_blank" rel="noreferrer" className="btn-pill btn-ghost-dark w-full">HUBUNGI ADMIN →</a>
+                ) : (
+                  <p className="font-mono text-[10px] opacity-60">HUBUNGI ADMIN SUSI LEWAT KANTOR ATAU AGENSUSI TERDEKAT.</p>
+                )}
               </div>
             </>
           )}
