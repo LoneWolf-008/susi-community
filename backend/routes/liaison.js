@@ -9,6 +9,7 @@ const router = Router();
 
 router.use(authenticate, requireRole('liaison'));
 
+router.get('/summary', ctrl.getSummary);
 router.get('/visits', ctrl.getVisits);
 router.get('/visits/:id', ctrl.getVisitById);
 router.post('/visits', validate(createVisitSchema), ctrl.createVisit);

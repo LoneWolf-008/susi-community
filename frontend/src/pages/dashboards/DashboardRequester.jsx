@@ -40,7 +40,12 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
     return () => ctx.revert();
   }, [tab, selected]);
 
-  const onTab = (id) => { setTab(id); setSelected(null); };
+  const onTab = (id) => {
+    setTab(id);
+    setSelected(null);
+    // Status berubah karena aksi pihak lain (moderasi, lamaran, kiriman hasil): muat ulang saat dibuka.
+    if (id === 'beranda' || id === 'profile') reload();
+  };
   const openCard = ({ need }) => setSelected(need.id);
 
   return (

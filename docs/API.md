@@ -112,7 +112,8 @@ Status: `AGREEMENT → IN_PROGRESS → AWAITING_VERIFICATION → COMPLETED`, den
 
 | Method | Path | Keterangan |
 |---|---|---|
-| GET | `/liaison/visits` | Filter `status` (`DIRENCANAKAN`, `BERLANGSUNG`, `TERDATA`) |
+| GET | `/liaison/summary` | `targets {visits_month, intake_month}`, `month {visits, intake}` (bulan berjalan), `needs {total, pending, open, in_progress, completed}`, `weekly_visits[4]` (kunjungan terdata per minggu, terlama → minggu ini) |
+| GET | `/liaison/visits` | Filter `status` (`DIRENCANAKAN`, `BERLANGSUNG`, `TERDATA`) dan `date` (`YYYY-MM-DD`, agenda satu hari) |
 | GET | `/liaison/visits/:id` | |
 | POST | `/liaison/visits` | `community_name, scheduled_date (YYYY-MM-DD), scheduled_time? (HH:MM), community_id?, address?, lat?, lng?, note?, contact_person?` |
 | PATCH | `/liaison/visits/:id` | Kolom yang sama (opsional); `status` ditolak |

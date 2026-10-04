@@ -87,7 +87,8 @@ function NewCommunityForm({ onCreated, onCancel }) {
   );
 }
 
-export default function CommunitiesTab({ onOpenMading }) {
+/** `canJoin=false` untuk liaison: daftar & pendaftaran komunitas tanpa aksi gabung/keluar. */
+export default function CommunitiesTab({ onOpenMading, canJoin = true }) {
   const toast = useToast();
   const [onlyMine, setOnlyMine] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -123,7 +124,7 @@ export default function CommunitiesTab({ onOpenMading }) {
           <p className="label-mono mt-2">{data ? `${data.total} KOMUNITAS ${onlyMine ? 'DIIKUTI' : 'TERDAFTAR'}` : 'MEMUAT…'}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button type="button" onClick={() => setOnlyMine((v) => !v)} className={`btn-pill !py-3 text-[10px] ${onlyMine ? 'btn-navy' : 'btn-ghost-dark'}`}>{onlyMine ? 'Tampilkan semua' : 'Komunitasku'}</button>
+          {canJoin && <button type="button" onClick={() => setOnlyMine((v) => !v)} className={`btn-pill !py-3 text-[10px] ${onlyMine ? 'btn-navy' : 'btn-ghost-dark'}`}>{onlyMine ? 'Tampilkan semua' : 'Komunitasku'}</button>}
           <button type="button" onClick={() => setCreating((v) => !v)} className={`btn-pill !py-3 text-[10px] ${creating ? 'btn-navy' : 'btn-red'}`}>{creating ? '✕ Batal' : '+ Daftarkan Komunitas'}</button>
         </div>
       </div>
@@ -150,9 +151,11 @@ export default function CommunitiesTab({ onOpenMading }) {
                   <span className="block font-mono text-[9px] opacity-60">{c.type} · {c.members_count} ANGGOTA{c.sector ? ` · ${c.sector}` : ''}</span>
                 </span>
               </button>
-              <button type="button" onClick={() => toggleMembership(c)} disabled={busyId === c.id} className={`chip-mono shrink-0 ${c.is_member ? 'text-[#12283c]' : 'border-0 bg-[#12283c] text-[#f2efe6]'}`}>
-                {busyId === c.id ? '…' : c.is_member ? 'KELUAR' : 'GABUNG'}
-              </button>
+              {canJoin && (
+                <button type="button" onClick={() => toggleMembership(c)} disabled={busyId === c.id} className={`chip-mono shrink-0 ${c.is_member ? 'text-[#12283c]' : 'border-0 bg-[#12283c] text-[#f2efe6]'}`}>
+                  {busyId === c.id ? '…' : c.is_member ? 'KELUAR' : 'GABUNG'}
+                </button>
+              )}
             </div>
           ))}
         </div>
