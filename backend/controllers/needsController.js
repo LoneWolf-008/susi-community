@@ -1,10 +1,61 @@
 import { pool } from '../config/db.js';
 import { success, created, fail } from '../utils/response.js';
+import { parsePagination, paged } from '../utils/pagination.js';
+import { HttpError } from '../utils/httpError.js';
+import { isNeedOwner } from '../utils/ownership.js';
+import { assertCommunityAccess } from '../utils/communityAccess.js';
+import { audit } from '../utils/activity.js';
+import { closeNeed } from '../services/needService.js';
+
+const CATEGORIES = ['PENCATATAN', 'WEBSITE', 'APLIKASI', 'LAINNYA'];
+// Kebutuhan hanya boleh diubah sebelum tayang di katalog.
+const EDITABLE_MODERATION = ['PENDING', 'REJECTED'];
+
+const optionalText = (value, field, max) => {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string') throw new HttpError(400, `${field} harus berupa teks`);
+  const text = value.trim();
+  if (text.length > max) throw new HttpError(400, `${field} maksimal ${max} karakter`);
+  return text;
+};
+
+const optionalCoordinate = (value, field, min, max) => {
+  if (value === undefined || value === null || value === '') return undefined;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < min || n > max) throw new HttpError(400, `${field} tidak valid`);
+  return n;
+};
+
+// Validasi field kebutuhan; `partial` untuk PATCH (field boleh tidak dikirim).
+function readNeedFields(body, { partial }) {
+  const title = optionalText(body.title, 'Judul', 200);
+  const description = optionalText(body.description, 'Deskripsi', 5000);
+  if (!partial && (!title || !description)) throw new HttpError(400, 'Judul dan deskripsi wajib diisi');
+  if (partial && (title === '' || description === '')) throw new HttpError(400, 'Judul dan deskripsi tidak boleh kosong');
+
+  let category;
+  if (body.category !== undefined && body.category !== null && body.category !== '') {
+    if (!CATEGORIES.includes(body.category)) {
+      throw new HttpError(400, `Kategori harus salah satu dari: ${CATEGORIES.join(', ')}`);
+    }
+    category = body.category;
+  }
+
+  return {
+    title,
+    description,
+    category,
+    summary: optionalText(body.summary, 'Ringkasan', 300),
+    address: optionalText(body.address, 'Alamat', 255),
+    lat: optionalCoordinate(body.lat, 'Latitude', -90, 90),
+    lng: optionalCoordinate(body.lng, 'Longitude', -180, 180),
+  };
+}
 
 export const getCatalog = async (req, res, next) => {
   try {
-    const { category, sector, search, page = 1, limit = 20 } = req.query;
-    const offset = (Math.max(1, +page) - 1) * +limit;
+    const { category, sector, search } = req.query;
+    const pg = parsePagination(req.query);
 
     let where = `WHERE n.moderation_status = 'APPROVED' AND n.status = 'OPEN'`;
     const params = [];
@@ -24,15 +75,15 @@ export const getCatalog = async (req, res, next) => {
 
     const [rows] = await pool.query(
       `SELECT n.id, n.title, n.category, n.summary, n.description, n.address,
-              n.lat, n.lng, n.sector, n.created_at,
+              n.lat, n.lng, n.sector, n.source, n.created_at,
               c.name AS community_name, c.leader_name, c.members_count,
               (SELECT COUNT(*) FROM applications a WHERE a.need_id = n.id) AS applicants
        FROM needs n
        LEFT JOIN communities c ON c.id = n.community_id
        ${where}
-       ORDER BY n.created_at DESC
+       ORDER BY n.created_at DESC, n.id DESC
        LIMIT ? OFFSET ?`,
-      [...params, +limit, offset]
+      [...params, pg.limit, pg.offset]
     );
 
     const [[{ total }]] = await pool.query(
@@ -40,7 +91,7 @@ export const getCatalog = async (req, res, next) => {
       params
     );
 
-    return success(res, { items: rows, total, page: +page, limit: +limit });
+    return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);
   }
@@ -48,15 +99,24 @@ export const getCatalog = async (req, res, next) => {
 
 export const getMyNeeds = async (req, res, next) => {
   try {
+    const pg = parsePagination(req.query);
     const [rows] = await pool.query(
-      `SELECT n.*, c.name AS community_name
+      `SELECT n.*, c.name AS community_name,
+              (SELECT COUNT(*) FROM applications a WHERE a.need_id = n.id) AS applicants,
+              (SELECT p.id FROM projects p WHERE p.need_id = n.id ORDER BY p.id DESC LIMIT 1) AS project_id,
+              (SELECT p.status FROM projects p WHERE p.need_id = n.id ORDER BY p.id DESC LIMIT 1) AS project_status
        FROM needs n
        LEFT JOIN communities c ON c.id = n.community_id
        WHERE n.requester_id = ?
-       ORDER BY n.created_at DESC`,
+       ORDER BY n.created_at DESC, n.id DESC
+       LIMIT ? OFFSET ?`,
+      [req.user.id, pg.limit, pg.offset]
+    );
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM needs WHERE requester_id = ?`,
       [req.user.id]
     );
-    return success(res, rows);
+    return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);
   }
@@ -73,7 +133,13 @@ export const getNeedById = async (req, res, next) => {
        WHERE n.id = ?`,
       [req.params.id]
     );
-    if (!rows[0]) return fail(res, 'Kebutuhan tidak ditemukan', 404);
+    const need = rows[0];
+    if (!need) return fail(res, 'Kebutuhan tidak ditemukan', 404);
+
+    // Kebutuhan yang belum lolos moderasi hanya terlihat oleh pemilik dan admin.
+    if (need.moderation_status !== 'APPROVED' && req.user.role !== 'admin' && !isNeedOwner(need, req.user.id)) {
+      return fail(res, 'Kebutuhan tidak ditemukan', 404);
+    }
 
     // Ambil skill yang dibutuhkan
     const [skills] = await pool.query(
@@ -83,7 +149,7 @@ export const getNeedById = async (req, res, next) => {
       [req.params.id]
     );
 
-    return success(res, { ...rows[0], skills });
+    return success(res, { ...need, skills });
   } catch (err) {
     next(err);
   }
@@ -92,15 +158,11 @@ export const getNeedById = async (req, res, next) => {
 export const createNeed = async (req, res, next) => {
   const conn = await pool.getConnection();
   try {
+    const fields = readNeedFields(req.body, { partial: false });
+
     await conn.beginTransaction();
 
-    const { title, category, description, summary, address, lat, lng, community_id } = req.body;
-
-    if (!title || !description) {
-      await conn.rollback();
-      return fail(res, 'Judul dan deskripsi wajib diisi', 400);
-    }
-
+    const communityId = await assertCommunityAccess(conn, req.user, req.body.community_id);
     const source = req.user.role === 'liaison' ? 'AGENSUSI' : 'MANDIRI';
 
     const [result] = await conn.query(
@@ -109,16 +171,16 @@ export const createNeed = async (req, res, next) => {
          address, lat, lng, source, moderation_status, risk_level)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'RENDAH')`,
       [
-        community_id || null,
+        communityId,
         req.user.role === 'requester' ? req.user.id : null,
         req.user.id,
-        title.trim(),
-        category || 'LAINNYA',
-        summary || null,
-        description.trim(),
-        address || null,
-        lat || null,
-        lng || null,
+        fields.title,
+        fields.category || 'LAINNYA',
+        fields.summary || null,
+        fields.description,
+        fields.address || null,
+        fields.lat ?? null,
+        fields.lng ?? null,
         source,
       ]
     );
@@ -130,19 +192,14 @@ export const createNeed = async (req, res, next) => {
       `INSERT INTO moderation_items
         (item_type, ref_id, title, submitted_by, source, risk_level, decision)
        VALUES ('KEBUTUHAN', ?, ?, ?, ?, 'RENDAH', 'PENDING')`,
-      [needId, title.trim(), req.user.id, source]
+      [needId, fields.title, req.user.id, source]
     );
 
-    // Catat ke audit log
-    await conn.query(
-      `INSERT INTO audit_logs (actor_id, action, entity, entity_id, title)
-       VALUES (?, 'CREATE', 'needs', ?, ?)`,
-      [req.user.id, needId, title.trim()]
-    );
+    await audit(conn, { actorId: req.user.id, action: 'CREATE', entity: 'needs', entityId: needId, title: fields.title });
 
     await conn.commit();
 
-    const [rows] = await conn.query(`SELECT * FROM needs WHERE id = ?`, [needId]);
+    const [rows] = await pool.query(`SELECT * FROM needs WHERE id = ?`, [needId]);
     return created(res, rows[0], 'Kebutuhan berhasil diajukan, menunggu moderasi');
   } catch (err) {
     await conn.rollback();
@@ -153,40 +210,84 @@ export const createNeed = async (req, res, next) => {
 };
 
 export const updateNeed = async (req, res, next) => {
+  const conn = await pool.getConnection();
   try {
-    const [existing] = await pool.query(
-      `SELECT * FROM needs WHERE id = ? AND requester_id = ?`,
-      [req.params.id, req.user.id]
-    );
-    if (!existing[0]) return fail(res, 'Kebutuhan tidak ditemukan', 404);
+    const fields = readNeedFields(req.body, { partial: true });
 
-    const { title, category, description, summary, address, lat, lng } = req.body;
-    await pool.query(
+    await conn.beginTransaction();
+    const [existing] = await conn.query(`SELECT * FROM needs WHERE id = ? FOR UPDATE`, [req.params.id]);
+    const need = existing[0];
+    if (!need || !isNeedOwner(need, req.user.id)) throw new HttpError(404, 'Kebutuhan tidak ditemukan');
+
+    if (!EDITABLE_MODERATION.includes(need.moderation_status)) {
+      throw new HttpError(409, 'Kebutuhan yang sudah disetujui tidak bisa diubah');
+    }
+
+    const communityId = req.body.community_id === undefined
+      ? undefined
+      : await assertCommunityAccess(conn, req.user, req.body.community_id);
+
+    await conn.query(
       `UPDATE needs SET title = COALESCE(?, title), category = COALESCE(?, category),
         description = COALESCE(?, description), summary = COALESCE(?, summary),
-        address = COALESCE(?, address), lat = COALESCE(?, lat), lng = COALESCE(?, lng)
+        address = COALESCE(?, address), lat = COALESCE(?, lat), lng = COALESCE(?, lng),
+        community_id = IF(?, ?, community_id)
        WHERE id = ?`,
-      [title, category, description, summary, address, lat, lng, req.params.id]
+      [fields.title, fields.category, fields.description, fields.summary, fields.address,
+        fields.lat, fields.lng, communityId !== undefined, communityId ?? null, need.id]
     );
 
-    const [rows] = await pool.query(`SELECT * FROM needs WHERE id = ?`, [req.params.id]);
-    return success(res, rows[0], 'Kebutuhan diperbarui');
+    const title = fields.title || need.title;
+    if (need.moderation_status === 'REJECTED') {
+      // Diperbaiki setelah ditolak → masuk antrean moderasi lagi.
+      await conn.query(
+        `UPDATE needs SET moderation_status = 'PENDING', reject_reason = NULL WHERE id = ?`,
+        [need.id]
+      );
+      await conn.query(
+        `INSERT INTO moderation_items (item_type, ref_id, title, submitted_by, source, risk_level, decision)
+         VALUES ('KEBUTUHAN', ?, ?, ?, ?, ?, 'PENDING')`,
+        [need.id, title, req.user.id, need.source, need.risk_level]
+      );
+    } else {
+      await conn.query(
+        `UPDATE moderation_items SET title = ?
+         WHERE item_type = 'KEBUTUHAN' AND ref_id = ? AND decision = 'PENDING'`,
+        [title, need.id]
+      );
+    }
+
+    await audit(conn, { actorId: req.user.id, action: 'UPDATE', entity: 'needs', entityId: need.id, title });
+    await conn.commit();
+
+    const [rows] = await pool.query(`SELECT * FROM needs WHERE id = ?`, [need.id]);
+    return success(res, rows[0], need.moderation_status === 'REJECTED'
+      ? 'Kebutuhan diperbarui dan dikirim ulang ke moderasi'
+      : 'Kebutuhan diperbarui');
   } catch (err) {
+    await conn.rollback();
     next(err);
+  } finally {
+    conn.release();
   }
 };
 
+// "Hapus" = tutup lunak. Kebutuhan yang sudah punya proyek ditolak (409) agar riwayat
+// proyek, pengiriman, dan reputasi tidak ikut hilang.
 export const deleteNeed = async (req, res, next) => {
+  const conn = await pool.getConnection();
   try {
-    const [existing] = await pool.query(
-      `SELECT * FROM needs WHERE id = ? AND requester_id = ?`,
-      [req.params.id, req.user.id]
-    );
-    if (!existing[0]) return fail(res, 'Kebutuhan tidak ditemukan', 404);
+    await conn.beginTransaction();
+    const [existing] = await conn.query(`SELECT * FROM needs WHERE id = ? FOR UPDATE`, [req.params.id]);
+    if (!existing[0] || !isNeedOwner(existing[0], req.user.id)) throw new HttpError(404, 'Kebutuhan tidak ditemukan');
 
-    await pool.query(`DELETE FROM needs WHERE id = ?`, [req.params.id]);
-    return success(res, null, 'Kebutuhan dihapus');
+    await closeNeed(conn, { needId: existing[0].id, actorId: req.user.id, reason: 'Dihapus oleh pemilik' });
+    await conn.commit();
+    return success(res, { id: existing[0].id, status: 'CLOSED' }, 'Kebutuhan ditutup');
   } catch (err) {
+    await conn.rollback();
     next(err);
+  } finally {
+    conn.release();
   }
 };

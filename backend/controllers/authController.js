@@ -12,6 +12,7 @@ import {
 } from '../utils/jwt.js';
 
 const REFRESH_COOKIE = 'susi_refresh_token';
+const SELF_REGISTER_ROLES = ['requester', 'talent'];
 
 const setRefreshCookie = (res, token) => {
   res.cookie(REFRESH_COOKIE, token, {
@@ -46,14 +47,16 @@ export const register = async (req, res, next) => {
 
     const { email, password, role, name, extra_info } = req.body;
 
-    if (!email || !password || !role || !name) {
+    if (![email, password, role, name].every((v) => typeof v === 'string' && v.trim())) {
       await conn.rollback();
       return fail(res, 'Email, password, role, dan nama wajib diisi', 400);
     }
 
-    if (!['requester', 'talent', 'liaison'].includes(role)) {
+    // Pendaftaran mandiri hanya untuk komunitas dan talenta; akun liaison dibuat admin
+    // lewat POST /api/admin/liaisons.
+    if (!SELF_REGISTER_ROLES.includes(role)) {
       await conn.rollback();
-      return fail(res, 'Peran tidak valid', 400);
+      return fail(res, 'Peran tidak valid. Pilih komunitas (requester) atau talenta.', 400);
     }
 
     if (password.length < 10) {
@@ -84,11 +87,6 @@ export const register = async (req, res, next) => {
     if (role === 'talent') {
       await conn.query(
         `INSERT INTO talent_profiles (user_id) VALUES (?)`,
-        [userId]
-      );
-    } else if (role === 'liaison') {
-      await conn.query(
-        `INSERT INTO liaison_profiles (user_id) VALUES (?)`,
         [userId]
       );
     }
@@ -139,7 +137,7 @@ export const register = async (req, res, next) => {
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
+    if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
       return fail(res, 'Email dan password wajib diisi', 400);
     }
 

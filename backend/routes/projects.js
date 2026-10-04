@@ -11,7 +11,8 @@ router.get('/mine', ctrl.getMyProjects);
 router.get('/:id', ctrl.getProjectById);
 router.patch('/:id/agree', requireRole('talent'), ctrl.agreeProject);
 router.post('/:id/deliveries', requireRole('talent'), ctrl.submitDelivery);
-router.post('/:id/verify', requireRole('requester'), ctrl.verifyProject);
+// Kepemilikan efektif & sign-off dua arah dicek di services/projectService.js.
+router.post('/:id/verify', requireRole('requester', 'admin'), ctrl.verifyProject);
 router.post('/:id/revisions', requireRole('requester'), ctrl.requestRevision);
 router.post('/:id/dispute', ctrl.openDispute);
 

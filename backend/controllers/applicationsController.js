@@ -1,18 +1,27 @@
 import { pool } from '../config/db.js';
 import { success, created, fail } from '../utils/response.js';
+import { parsePagination, paged } from '../utils/pagination.js';
+import { getNeedOwnerId, isNeedOwner } from '../utils/ownership.js';
+import { notify, addProjectEvent } from '../utils/activity.js';
 
 export const getMyApplications = async (req, res, next) => {
   try {
+    const pg = parsePagination(req.query);
     const [rows] = await pool.query(
-      `SELECT a.*, n.title, n.category, c.name AS community_name
+      `SELECT a.*, n.title, n.category, n.status AS need_status, c.name AS community_name
        FROM applications a
        JOIN needs n ON n.id = a.need_id
        LEFT JOIN communities c ON c.id = n.community_id
        WHERE a.talent_id = ?
-       ORDER BY a.created_at DESC`,
+       ORDER BY a.created_at DESC, a.id DESC
+       LIMIT ? OFFSET ?`,
+      [req.user.id, pg.limit, pg.offset]
+    );
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM applications WHERE talent_id = ?`,
       [req.user.id]
     );
-    return success(res, rows);
+    return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);
   }
@@ -20,12 +29,10 @@ export const getMyApplications = async (req, res, next) => {
 
 export const getApplicationsForNeed = async (req, res, next) => {
   try {
-    const [need] = await pool.query(
-      `SELECT * FROM needs WHERE id = ? AND requester_id = ?`,
-      [req.params.needId, req.user.id]
-    );
-    if (!need[0]) return fail(res, 'Kebutuhan tidak ditemukan', 404);
+    const [need] = await pool.query(`SELECT * FROM needs WHERE id = ?`, [req.params.needId]);
+    if (!need[0] || !isNeedOwner(need[0], req.user.id)) return fail(res, 'Kebutuhan tidak ditemukan', 404);
 
+    const pg = parsePagination(req.query);
     const [rows] = await pool.query(
       `SELECT a.*, u.name AS talent_name, u.email, u.bio, u.extra_info,
               tp.reputation_points, tp.level
@@ -33,10 +40,15 @@ export const getApplicationsForNeed = async (req, res, next) => {
        JOIN users u ON u.id = a.talent_id
        LEFT JOIN talent_profiles tp ON tp.user_id = u.id
        WHERE a.need_id = ?
-       ORDER BY a.created_at DESC`,
+       ORDER BY a.created_at DESC, a.id DESC
+       LIMIT ? OFFSET ?`,
+      [req.params.needId, pg.limit, pg.offset]
+    );
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM applications WHERE need_id = ?`,
       [req.params.needId]
     );
-    return success(res, rows);
+    return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);
   }
@@ -47,8 +59,9 @@ export const apply = async (req, res, next) => {
   try {
     await conn.beginTransaction();
 
+    // Kunci baris kebutuhan agar cek duplikasi & status tidak balapan dengan decide().
     const [needs] = await conn.query(
-      `SELECT * FROM needs WHERE id = ? AND moderation_status = 'APPROVED' AND status = 'OPEN'`,
+      `SELECT * FROM needs WHERE id = ? AND moderation_status = 'APPROVED' AND status = 'OPEN' FOR UPDATE`,
       [req.params.needId]
     );
     if (!needs[0]) {
@@ -79,27 +92,33 @@ export const apply = async (req, res, next) => {
     }
 
     const { message } = req.body;
+    const text = typeof message === 'string' ? message.trim().slice(0, 2000) : '';
 
     const [result] = await conn.query(
       `INSERT INTO applications (need_id, talent_id, message) VALUES (?, ?, ?)`,
-      [need.id, req.user.id, message || null]
+      [need.id, req.user.id, text || null]
     );
 
-    await conn.query(
-      `INSERT INTO notifications (user_id, type, title, body, ref_type, ref_id)
-       VALUES (?, 'talenta', 'Lamaran baru', 'Ada talenta yang melamar kebutuhan Anda', 'need', ?)`,
-      [need.requester_id, need.id]
-    );
+    // Pemilik efektif: requester, atau liaison untuk kebutuhan jalur Assisted.
+    await notify(conn, {
+      userId: getNeedOwnerId(need),
+      type: 'talenta',
+      title: 'Lamaran baru',
+      body: `Ada talenta yang melamar "${need.title}"`,
+      refType: 'need',
+      refId: need.id,
+    });
 
     await conn.commit();
 
-    const [rows] = await conn.query(
+    const [rows] = await pool.query(
       `SELECT * FROM applications WHERE id = ?`,
       [result.insertId]
     );
     return created(res, rows[0], 'Lamaran terkirim');
   } catch (err) {
     await conn.rollback();
+    if (err.code === 'ER_DUP_ENTRY') return fail(res, 'Anda sudah melamar kebutuhan ini', 409);
     next(err);
   } finally {
     conn.release();
@@ -109,30 +128,42 @@ export const apply = async (req, res, next) => {
 export const decide = async (req, res, next) => {
   const conn = await pool.getConnection();
   try {
+    const { decision, scope, done_definition, deadline } = req.body;
+    if (!['DITERIMA', 'DITOLAK'].includes(decision)) {
+      return fail(res, 'Keputusan tidak valid', 400);
+    }
+    if (deadline && !/^\d{4}-\d{2}-\d{2}$/.test(String(deadline))) {
+      return fail(res, 'Format tenggat harus YYYY-MM-DD', 400);
+    }
+
     await conn.beginTransaction();
 
-    const [apps] = await conn.query(
-      `SELECT a.*, n.requester_id, n.title AS need_title, n.community_id
-       FROM applications a
-       JOIN needs n ON n.id = a.need_id
-       WHERE a.id = ?`,
-      [req.params.id]
-    );
-    if (!apps[0]) {
+    const [found] = await conn.query(`SELECT need_id FROM applications WHERE id = ?`, [req.params.id]);
+    if (!found[0]) {
       await conn.rollback();
       return fail(res, 'Lamaran tidak ditemukan', 404);
     }
 
+    // Urutan kunci tetap: kebutuhan dulu, baru lamaran. Dua penerimaan serentak untuk
+    // kebutuhan yang sama akan antre di sini, dan yang kedua melihat status terbaru.
+    const [needs] = await conn.query(`SELECT * FROM needs WHERE id = ? FOR UPDATE`, [found[0].need_id]);
+    const need = needs[0];
+    const [apps] = await conn.query(`SELECT * FROM applications WHERE id = ? FOR UPDATE`, [req.params.id]);
     const app = apps[0];
-    if (app.requester_id !== req.user.id) {
+
+    if (!isNeedOwner(need, req.user.id)) {
       await conn.rollback();
       return fail(res, 'Akses ditolak', 403);
     }
 
-    const { decision, scope, done_definition, deadline } = req.body;
-    if (!['DITERIMA', 'DITOLAK'].includes(decision)) {
+    if (app.status !== 'MENUNGGU') {
       await conn.rollback();
-      return fail(res, 'Keputusan tidak valid', 400);
+      return fail(res, `Lamaran sudah diputus (${app.status})`, 409);
+    }
+
+    if (decision === 'DITERIMA' && (need.status !== 'OPEN' || need.moderation_status !== 'APPROVED')) {
+      await conn.rollback();
+      return fail(res, 'Kebutuhan tidak lagi terbuka untuk memilih talenta', 409);
     }
 
     await conn.query(
@@ -142,15 +173,15 @@ export const decide = async (req, res, next) => {
 
     if (decision === 'DITERIMA') {
       // Tolak lamaran lain untuk need yang sama
+      const [others] = await conn.query(
+        `SELECT id, talent_id FROM applications WHERE need_id = ? AND id <> ? AND status = 'MENUNGGU'`,
+        [need.id, app.id]
+      );
       await conn.query(
         `UPDATE applications SET status = 'DITOLAK', decided_at = NOW()
          WHERE need_id = ? AND id <> ? AND status = 'MENUNGGU'`,
-        [app.need_id, app.id]
+        [need.id, app.id]
       );
-
-      // Ambil data need
-      const [needs] = await conn.query(`SELECT * FROM needs WHERE id = ?`, [app.need_id]);
-      const need = needs[0];
 
       // Buat proyek
       const [projRes] = await conn.query(
@@ -159,13 +190,13 @@ export const decide = async (req, res, next) => {
            scope, done_definition, deadline, status, progress_pct, agreed_by_community_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'AGREEMENT', 5, NOW())`,
         [
-          app.need_id,
+          need.id,
           need.community_id,
-          req.user.id,
+          getNeedOwnerId(need),
           app.talent_id,
           app.id,
-          scope || need.description,
-          done_definition || null,
+          (typeof scope === 'string' && scope.trim()) || need.description,
+          (typeof done_definition === 'string' && done_definition.trim()) || null,
           deadline || null,
         ]
       );
@@ -173,32 +204,36 @@ export const decide = async (req, res, next) => {
       // Update status need
       await conn.query(
         `UPDATE needs SET status = 'IN_PROGRESS' WHERE id = ?`,
-        [app.need_id]
+        [need.id]
       );
 
-      await conn.query(
-        `INSERT INTO project_events (project_id, actor_id, event_type, label)
-         VALUES (?, ?, 'CREATED', 'Proyek dibuat dari lamaran yang diterima')`,
-        [projRes.insertId, req.user.id]
-      );
+      await addProjectEvent(conn, {
+        projectId: projRes.insertId, actorId: req.user.id, eventType: 'CREATED',
+        label: 'Proyek dibuat dari lamaran yang diterima',
+      });
 
-      await conn.query(
-        `INSERT INTO notifications (user_id, type, title, body, ref_type, ref_id)
-         VALUES (?, 'talenta', 'Lamaran diterima', 'Lamaran Anda diterima, silakan tinjau kesepakatan', 'project', ?)`,
-        [app.talent_id, projRes.insertId]
-      );
+      await notify(conn, {
+        userId: app.talent_id, type: 'talenta', title: 'Lamaran diterima',
+        body: 'Lamaran Anda diterima, silakan tinjau kesepakatan', refType: 'project', refId: projRes.insertId,
+      });
+      for (const other of others) {
+        await notify(conn, {
+          userId: other.talent_id, type: 'talenta', title: 'Lamaran ditolak',
+          body: 'Lamaran Anda belum diterima kali ini', refType: 'application', refId: other.id,
+        });
+      }
     } else {
-      await conn.query(
-        `INSERT INTO notifications (user_id, type, title, body, ref_type, ref_id)
-         VALUES (?, 'talenta', 'Lamaran ditolak', 'Lamaran Anda belum diterima kali ini', 'application', ?)`,
-        [app.talent_id, app.id]
-      );
+      await notify(conn, {
+        userId: app.talent_id, type: 'talenta', title: 'Lamaran ditolak',
+        body: 'Lamaran Anda belum diterima kali ini', refType: 'application', refId: app.id,
+      });
     }
 
     await conn.commit();
     return success(res, null, `Lamaran ${decision.toLowerCase()}`);
   } catch (err) {
     await conn.rollback();
+    if (err.code === 'ER_DUP_ENTRY') return fail(res, 'Kebutuhan ini sudah memiliki proyek', 409);
     next(err);
   } finally {
     conn.release();

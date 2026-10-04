@@ -1,9 +1,11 @@
 import { pool } from '../config/db.js';
-import { success, fail } from '../utils/response.js';
+import { success } from '../utils/response.js';
+import { parsePagination, paged } from '../utils/pagination.js';
 
 export const getMyNotifications = async (req, res, next) => {
   try {
-    const { limit = 20, unread_only } = req.query;
+    const { unread_only } = req.query;
+    const pg = parsePagination(req.query);
     let where = `WHERE user_id = ?`;
     const params = [req.user.id];
 
@@ -13,10 +15,11 @@ export const getMyNotifications = async (req, res, next) => {
 
     const [rows] = await pool.query(
       `SELECT * FROM notifications ${where}
-       ORDER BY created_at DESC LIMIT ?`,
-      [...params, +limit]
+       ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+      [...params, pg.limit, pg.offset]
     );
-    return success(res, rows);
+    const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM notifications ${where}`, params);
+    return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);
   }

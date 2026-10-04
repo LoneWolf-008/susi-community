@@ -1,5 +1,6 @@
 import { pool } from '../config/db.js';
-import { success, fail } from '../utils/response.js';
+import { success } from '../utils/response.js';
+import { parsePagination, paged } from '../utils/pagination.js';
 
 export const getProfile = async (req, res, next) => {
   try {
@@ -22,7 +23,8 @@ export const getProfile = async (req, res, next) => {
        FROM projects p
        JOIN needs n ON n.id = p.need_id
        WHERE p.talent_id = ?
-       ORDER BY p.created_at DESC`,
+       ORDER BY p.created_at DESC, p.id DESC
+       LIMIT 50`,
       [req.user.id]
     );
 
@@ -93,17 +95,23 @@ export const updateProfile = async (req, res, next) => {
 
 export const getTopTalents = async (req, res, next) => {
   try {
+    const pg = parsePagination(req.query);
     const [rows] = await pool.query(
-      `SELECT * FROM v_top_talents LIMIT 20`
+      `SELECT * FROM v_top_talents LIMIT ? OFFSET ?`,
+      [pg.limit, pg.offset]
     );
-    return success(res, rows);
+    const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM v_top_talents`);
+    return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);
   }
 };
 
+// Testimoni publik: sudah lolos moderasi dan tidak disembunyikan penerimanya.
 export const getTestimonials = async (req, res, next) => {
   try {
+    const pg = parsePagination(req.query);
+    const where = `WHERE t.to_user_id = ? AND t.moderation_status = 'APPROVED' AND t.is_public = 1`;
     const [rows] = await pool.query(
       `SELECT t.*, p.id AS project_id, n.title AS project_title,
               u.name AS from_name
@@ -111,11 +119,13 @@ export const getTestimonials = async (req, res, next) => {
        JOIN projects p ON p.id = t.project_id
        JOIN needs n ON n.id = p.need_id
        JOIN users u ON u.id = t.from_user_id
-       WHERE t.to_user_id = ? AND t.moderation_status = 'APPROVED'
-       ORDER BY t.created_at DESC`,
-      [req.params.id]
+       ${where}
+       ORDER BY t.created_at DESC, t.id DESC
+       LIMIT ? OFFSET ?`,
+      [req.params.id, pg.limit, pg.offset]
     );
-    return success(res, rows);
+    const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM testimonials t ${where}`, [req.params.id]);
+    return success(res, paged(rows, total, pg));
   } catch (err) {
     next(err);
   }
