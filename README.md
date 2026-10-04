@@ -25,8 +25,10 @@ Dokumen produk dan rencana kerja ada di [docs/](docs/README.md).
 
 ```bash
 cd backend
-cp .env.example .env      # lalu isi JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, dan DB_*
+cp .env.example .env      # lalu isi JWT_*_SECRET, DB_*, ADMIN_PASSWORD, SEED_USER_PASSWORD
 npm ci
+npm run db:init           # buat database + skema + migrasi
+npm run seed              # data demo (aman dijalankan berulang)
 npm run dev               # atau: npm start
 ```
 
@@ -39,7 +41,42 @@ Membuat secret JWT acak:
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-Skema database dan data seed disiapkan lewat skrip di T1 (lihat `docs/TASKS.md`).
+## Database
+
+Skema baseline ada di `backend/db/schema.sql` (MySQL 8 dan MariaDB 10.4+). Setiap
+perubahan skema **wajib** lewat berkas baru `backend/db/migrations/NNN_nama.sql`,
+bukan lewat phpMyAdmin.
+
+| Perintah (di `backend/`) | Fungsi |
+|---|---|
+| `npm run db:init` | Buat database bila belum ada, pasang `schema.sql` (hanya pada DB kosong), lalu jalankan migrasi tertunda |
+| `npm run db:migrate` | Jalankan migrasi tertunda; tercatat di tabel `schema_migrations` |
+| `npm run db:status` | Daftar migrasi yang sudah dan belum dijalankan |
+| `npm run db:reset` | **Menghapus semua tabel**, lalu `db:init`. Ditolak bila `NODE_ENV=production` |
+| `npm run seed` | Isi data demo. Idempoten; ditolak di production kecuali `-- --force` |
+
+Database hasil impor dump phpMyAdmin (tanpa `schema_migrations`) ditolak oleh
+`db:init`. Kosongkan dulu dengan `db:reset` atau pakai database baru.
+
+### Akun demo (setelah `npm run seed`)
+
+| Peran | Email | Password | Catatan |
+|---|---|---|---|
+| Admin | nilai `ADMIN_EMAIL` (default `admin@susi.test`) | `ADMIN_PASSWORD` | Moderasi, sengketa, pengguna |
+| Liaison (AgenSUSI) | `budi@susi.test` | `SEED_USER_PASSWORD` | Pemilik proksi kebutuhan jalur Assisted |
+| Requester | `siti@umkm.test` | `SEED_USER_PASSWORD` | Paguyuban UMKM Sepatu Cibaduyut; proyek menunggu verifikasi |
+| Requester | `deden@karta.test` | `SEED_USER_PASSWORD` | Karang Taruna RW 08 Antapani |
+| Requester | `ujang@kebun.test` | `SEED_USER_PASSWORD` | Urban Farming Buahbatu; proyek bersengketa |
+| Talenta | `rizky@talenta.test` | `SEED_USER_PASSWORD` | Fresh graduate |
+| Talenta | `nabila@talenta.test` | `SEED_USER_PASSWORD` | 1 proyek selesai (jalur Assisted) |
+| Talenta | `fajar@talenta.test` | `SEED_USER_PASSWORD` | 1 proyek selesai |
+| Talenta | `alya@talenta.test` | `SEED_USER_PASSWORD` | Mahasiswa DKV |
+
+Isi seed: 8 komunitas di empat sektor Bandung, 14 kebutuhan (MANDIRI dan AGENSUSI,
+2 menunggu moderasi, 1 ditolak), dan satu proyek untuk tiap status: `AGREEMENT`,
+`IN_PROGRESS`, `AWAITING_VERIFICATION`, `COMPLETED` (lengkap dengan testimoni dan
+reputasi), serta `DISPUTED` (dengan satu sengketa). Juga mencakup kunjungan liaison,
+topik mading, notifikasi, dan entri KB awal.
 
 ## Menjalankan frontend
 
@@ -72,6 +109,10 @@ backend. Bila port terpakai, Vite berhenti alih-alih pindah ke port lain.
 | `JWT_REFRESH_EXPIRES` | | `7d` | Masa berlaku refresh token |
 | `FRONTEND_URL` | ya | | Origin yang diizinkan CORS; pisahkan dengan koma bila lebih dari satu |
 | `UPLOAD_DIR` | | `uploads` | Folder unggahan, relatif terhadap `backend/` |
+| `ADMIN_EMAIL` | untuk seed | `admin@susi.test` (di contoh) | Akun admin yang dibuat `npm run seed` |
+| `ADMIN_PASSWORD` | untuk seed | | Minimal 10 karakter |
+| `SEED_USER_PASSWORD` | untuk seed | | Password semua akun demo lain; minimal 10 karakter |
+| `MIGRATIONS_DIR` | | `db/migrations` | Hanya untuk pengujian runner migrasi |
 
 ### `frontend/.env.local`
 
