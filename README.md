@@ -55,6 +55,10 @@ dari `schema.sql` + semua migrasi, jadi migrasi ikut teruji. DB dev tidak disent
 
 ### Konvensi API
 
+Daftar lengkap endpoint, peran, dan body ada di [docs/API.md](docs/API.md).
+
+- Body POST/PATCH divalidasi zod; kolom tak dikenal dibuang. Gagal → 400 dengan
+  `details: [{ field, message }]` berbahasa Indonesia.
 - Error selalu `{ "error": { "message": "..." } }`; pesan error server (5xx)
   disamarkan di production.
 - Endpoint daftar menerima `?page=&limit=` (limit maksimal 50) dan mengembalikan
@@ -135,6 +139,8 @@ backend. Bila port terpakai, Vite berhenti alih-alih pindah ke port lain.
 | `RATE_LIMIT_MAX` | | `500` | Batas request `/api` per IP per 15 menit |
 | `AUTH_RATE_LIMIT_MAX` | | `10` | Batas login gagal & registrasi per IP per jendela |
 | `AUTH_RATE_LIMIT_WINDOW_MS` | | `900000` | Jendela rate limit auth (15 menit) |
+| `PUBLIC_RATE_LIMIT_MAX` | | `60` | Batas `/api/public/*` per IP per menit |
+| `VISIT_RATE_LIMIT_MAX` | | `10` | Batas `POST /api/public/visit` per IP per 15 menit |
 | `MIGRATIONS_DIR` | | `db/migrations` | Hanya untuk pengujian runner migrasi |
 | `TEST_DB_NAME` | | `susi_community_test` | Database untuk `npm test` (harus berakhiran `_test`) |
 

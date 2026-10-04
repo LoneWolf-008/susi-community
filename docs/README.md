@@ -6,6 +6,7 @@
 | [PRD.md](PRD.md) | Product Requirements Document v1.1 | Acuan produk (apa & kenapa) |
 | [SDD.md](SDD.md) | System Design Document v1.1 | Acuan konsep; lihat catatan di bawah |
 | [SDD-addendum-F7-peta-komunitas.md](SDD-addendum-F7-peta-komunitas.md) | Addendum F7 Peta Komunitas | Sudah dilebur ke SDD v1.1 |
+| [API.md](API.md) | Referensi endpoint backend (peran, body, status) | Mengikuti kode di `backend/routes` |
 | [progress/](progress/) | Ringkasan hasil per task (`<ID>.md`) | Diperbarui tiap task selesai |
 
 ## Catatan tentang SDD
