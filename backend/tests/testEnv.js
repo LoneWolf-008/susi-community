@@ -15,5 +15,7 @@ export const TEST_ENV = {
   // Batas tinggi agar suite tidak terkena rate limit; tests/auth.ratelimit.test.js menurunkannya.
   RATE_LIMIT_MAX: '100000',
   AUTH_RATE_LIMIT_MAX: '100000',
+  PUBLIC_RATE_LIMIT_MAX: '100000',
+  VISIT_RATE_LIMIT_MAX: '100000',
   UPLOAD_DIR: TEST_UPLOAD_DIR,
 };

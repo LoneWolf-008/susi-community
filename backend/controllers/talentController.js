@@ -1,5 +1,5 @@
 import { pool } from '../config/db.js';
-import { success } from '../utils/response.js';
+import { success, fail } from '../utils/response.js';
 import { parsePagination, paged } from '../utils/pagination.js';
 
 export const getProfile = async (req, res, next) => {
@@ -44,7 +44,7 @@ export const updateProfile = async (req, res, next) => {
   try {
     await conn.beginTransaction();
 
-    const { bio, phone, extra_info, skills } = req.body;
+    const { bio, phone, extra_info, skills, skill_ids } = req.body;
 
     if (bio !== undefined || phone !== undefined || extra_info !== undefined) {
       const fields = [];
@@ -56,35 +56,45 @@ export const updateProfile = async (req, res, next) => {
       await conn.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
     }
 
-    if (Array.isArray(skills)) {
-      await conn.query(`DELETE FROM talent_skills WHERE talent_id = ?`, [req.user.id]);
-      if (skills.length > 0) {
-        // Pastikan skill ada, kalau belum buat baru
-        for (const skillName of skills) {
-          const trimmed = (skillName || '').trim();
-          if (!trimmed) continue;
-
-          const [existing] = await conn.query(
-            `SELECT id FROM skills WHERE name = ?`,
-            [trimmed]
-          );
-          let skillId;
-          if (existing.length > 0) {
-            skillId = existing[0].id;
-          } else {
-            const [res] = await conn.query(`INSERT INTO skills (name) VALUES (?)`, [trimmed]);
-            skillId = res.insertId;
-          }
-          await conn.query(
-            `INSERT INTO talent_skills (talent_id, skill_id) VALUES (?, ?)`,
-            [req.user.id, skillId]
-          );
+    // Daftar keahlian diganti utuh bila skill_ids (dari GET /api/skills) dan/atau skills
+    // (nama; dibuat bila belum ada) dikirim.
+    if (Array.isArray(skill_ids) || Array.isArray(skills)) {
+      const ids = new Set();
+      if (Array.isArray(skill_ids) && skill_ids.length > 0) {
+        const [found] = await conn.query(`SELECT id FROM skills WHERE id IN (?)`, [skill_ids]);
+        if (found.length !== skill_ids.length) {
+          await conn.rollback();
+          return fail(res, 'Ada keahlian yang tidak dikenal', 400);
         }
+        found.forEach((s) => ids.add(s.id));
+      }
+      for (const name of skills || []) {
+        await conn.query(`INSERT IGNORE INTO skills (name) VALUES (?)`, [name]);
+        const [[row]] = await conn.query(`SELECT id FROM skills WHERE name = ?`, [name]);
+        ids.add(row.id);
+      }
+      if (ids.size > 20) {
+        await conn.rollback();
+        return fail(res, 'Keahlian maksimal 20 item', 400);
+      }
+
+      await conn.query(`DELETE FROM talent_skills WHERE talent_id = ?`, [req.user.id]);
+      if (ids.size > 0) {
+        await conn.query(
+          `INSERT INTO talent_skills (talent_id, skill_id) VALUES ?`,
+          [[...ids].map((skillId) => [req.user.id, skillId])]
+        );
       }
     }
 
     await conn.commit();
-    return success(res, null, 'Profil talenta diperbarui');
+
+    const [skillRows] = await pool.query(
+      `SELECT s.id, s.name FROM talent_skills ts JOIN skills s ON s.id = ts.skill_id
+       WHERE ts.talent_id = ? ORDER BY s.name`,
+      [req.user.id]
+    );
+    return success(res, { skills: skillRows }, 'Profil talenta diperbarui');
   } catch (err) {
     await conn.rollback();
     next(err);

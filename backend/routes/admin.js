@@ -2,32 +2,38 @@ import { Router } from 'express';
 import * as ctrl from '../controllers/adminController.js';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/role.js';
+import { validate } from '../middleware/validate.js';
+import {
+  moderationDecisionSchema, takedownSchema, resolveDisputeSchema, adminMessageSchema,
+  userStatusSchema, createLiaisonSchema,
+} from '../validators/schemas.js';
 
 const router = Router();
 
 router.use(authenticate, requireRole('admin'));
 
-// Stats
+// Stats & audit
 router.get('/stats', ctrl.getStats);
+router.get('/audit-logs', ctrl.getAuditLogs);
 
 // Moderasi
 router.get('/moderation', ctrl.getModerationQueue);
-router.patch('/moderation/:id', ctrl.decideModeration);
-router.patch('/testimonials/:id/takedown', ctrl.takedownTestimonial);
+router.patch('/moderation/:id', validate(moderationDecisionSchema), ctrl.decideModeration);
+router.patch('/testimonials/:id/takedown', validate(takedownSchema), ctrl.takedownTestimonial);
 
 // Sengketa
 router.get('/disputes', ctrl.getDisputes);
 router.get('/disputes/:id', ctrl.getDisputeById);
-router.patch('/disputes/:id/resolve', ctrl.resolveDispute);
-router.post('/disputes/:id/messages', ctrl.sendMessage);
+router.patch('/disputes/:id/resolve', validate(resolveDisputeSchema), ctrl.resolveDispute);
+router.post('/disputes/:id/messages', validate(adminMessageSchema), ctrl.sendMessage);
 
 // Users
 router.get('/users', ctrl.getUsers);
-router.patch('/users/:id/status', ctrl.updateUserStatus);
+router.patch('/users/:id/status', validate(userStatusSchema), ctrl.updateUserStatus);
 
 // Liaison
 router.get('/liaisons', ctrl.getLiaisons);
-router.post('/liaisons', ctrl.createLiaison);
-router.patch('/liaisons/:id/status', ctrl.updateLiaisonStatus);
+router.post('/liaisons', validate(createLiaisonSchema), ctrl.createLiaison);
+router.patch('/liaisons/:id/status', validate(userStatusSchema), ctrl.updateLiaisonStatus);
 
 export default router;

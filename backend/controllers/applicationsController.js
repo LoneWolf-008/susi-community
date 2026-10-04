@@ -27,15 +27,57 @@ export const getMyApplications = async (req, res, next) => {
   }
 };
 
+// Rekam jejak pelamar (PRD P0-3 & P0-6): proyek selesai, keahlian, 3 testimoni publik terbaru.
+async function attachTrackRecord(rows) {
+  if (rows.length === 0) return rows;
+  const talentIds = [...new Set(rows.map((r) => r.talent_id))];
+
+  const [skills] = await pool.query(
+    `SELECT ts.talent_id, s.id, s.name FROM talent_skills ts JOIN skills s ON s.id = ts.skill_id
+     WHERE ts.talent_id IN (?) ORDER BY s.name`,
+    [talentIds]
+  );
+  const [testimonials] = await pool.query(
+    `SELECT id, to_user_id, text, created_at, project_title, from_name FROM (
+       SELECT t.id, t.to_user_id, t.text, t.created_at, n.title AS project_title, u.name AS from_name,
+              ROW_NUMBER() OVER (PARTITION BY t.to_user_id ORDER BY t.created_at DESC, t.id DESC) AS rn
+       FROM testimonials t
+       JOIN projects p ON p.id = t.project_id
+       JOIN needs n ON n.id = p.need_id
+       JOIN users u ON u.id = t.from_user_id
+       WHERE t.to_user_id IN (?) AND t.moderation_status = 'APPROVED' AND t.is_public = 1
+     ) ranked WHERE rn <= 3`,
+    [talentIds]
+  );
+
+  const group = (list, key) => list.reduce((map, item) => {
+    const k = item[key];
+    if (!map.has(k)) map.set(k, []);
+    const { [key]: _omit, ...rest } = item;
+    map.get(k).push(rest);
+    return map;
+  }, new Map());
+  const skillsBy = group(skills, 'talent_id');
+  const testimonialsBy = group(testimonials, 'to_user_id');
+
+  return rows.map((r) => ({
+    ...r,
+    skills: skillsBy.get(r.talent_id) || [],
+    recent_testimonials: testimonialsBy.get(r.talent_id) || [],
+  }));
+}
+
 export const getApplicationsForNeed = async (req, res, next) => {
   try {
     const [need] = await pool.query(`SELECT * FROM needs WHERE id = ?`, [req.params.needId]);
     if (!need[0] || !isNeedOwner(need[0], req.user.id)) return fail(res, 'Kebutuhan tidak ditemukan', 404);
 
     const pg = parsePagination(req.query);
+    // Email/telepon pelamar tidak dibuka di sini; kontak muncul di detail proyek setelah dipilih.
     const [rows] = await pool.query(
-      `SELECT a.*, u.name AS talent_name, u.email, u.bio, u.extra_info,
-              tp.reputation_points, tp.level
+      `SELECT a.*, u.name AS talent_name, u.bio, u.extra_info, u.avatar_url,
+              tp.reputation_points, tp.level,
+              (SELECT COUNT(*) FROM projects p WHERE p.talent_id = a.talent_id AND p.status = 'COMPLETED') AS projects_completed
        FROM applications a
        JOIN users u ON u.id = a.talent_id
        LEFT JOIN talent_profiles tp ON tp.user_id = u.id
@@ -48,7 +90,7 @@ export const getApplicationsForNeed = async (req, res, next) => {
       `SELECT COUNT(*) AS total FROM applications WHERE need_id = ?`,
       [req.params.needId]
     );
-    return success(res, paged(rows, total, pg));
+    return success(res, paged(await attachTrackRecord(rows), total, pg));
   } catch (err) {
     next(err);
   }

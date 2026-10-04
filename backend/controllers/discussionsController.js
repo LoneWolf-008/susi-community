@@ -2,6 +2,7 @@ import { pool } from '../config/db.js';
 import { success, created, fail } from '../utils/response.js';
 import { parsePagination, paged } from '../utils/pagination.js';
 import { assertCommunityAccess } from '../utils/communityAccess.js';
+import { notify } from '../utils/activity.js';
 
 const CATEGORIES = ['DISKUSI', 'TANYA', 'INFO'];
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -118,8 +119,42 @@ export const createReply = async (req, res, next) => {
       [req.params.id, req.user.id, communityId, text.trim()]
     );
 
+    // Beri tahu pemilik topik (kecuali membalas topik sendiri atau notif diskusi dimatikan).
+    const author = topic[0].author_id;
+    if (Number(author) !== Number(req.user.id)) {
+      const [[settings]] = await pool.query(`SELECT notif_diskusi FROM user_settings WHERE user_id = ?`, [author]);
+      if (!settings || settings.notif_diskusi) {
+        await notify(pool, {
+          userId: author, type: 'diskusi', title: 'Balasan baru di topik Anda',
+          body: text.trim(), refType: 'topic', refId: topic[0].id,
+        });
+      }
+    }
+
     const [rows] = await pool.query(`SELECT * FROM discussion_replies WHERE id = ?`, [result.insertId]);
     return created(res, rows[0], 'Balasan dikirim');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Posisi catatan di papan mading disimpan saat digeser (hanya oleh penulisnya).
+export const updatePosition = async (req, res, next) => {
+  try {
+    const { pos_x, pos_y, rotation } = req.body;
+    const [result] = await pool.query(
+      `UPDATE discussion_topics SET pos_x = ?, pos_y = ?, rotation = COALESCE(?, rotation)
+       WHERE id = ? AND author_id = ? AND deleted_at IS NULL`,
+      [pos_x, pos_y, rotation ?? null, req.params.id, req.user.id]
+    );
+    if (result.affectedRows === 0) {
+      const [exists] = await pool.query(`SELECT id FROM discussion_topics WHERE id = ? AND deleted_at IS NULL`, [req.params.id]);
+      return exists[0]
+        ? fail(res, 'Hanya penulis topik yang bisa memindahkan catatannya', 403)
+        : fail(res, 'Topik tidak ditemukan', 404);
+    }
+    const [rows] = await pool.query(`SELECT id, pos_x, pos_y, rotation FROM discussion_topics WHERE id = ?`, [req.params.id]);
+    return success(res, rows[0], 'Posisi tersimpan');
   } catch (err) {
     next(err);
   }

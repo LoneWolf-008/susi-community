@@ -106,6 +106,22 @@ export const decideModeration = async (req, res, next) => {
       );
     }
 
+    // Hasil moderasi diberitahukan ke pengaju (T3.5).
+    const approved = decision === 'APPROVED';
+    const what = item.item_type === 'KEBUTUHAN' ? 'Kebutuhan' : item.item_type === 'TESTIMONI' ? 'Testimoni' : 'Pengajuan';
+    await notify(conn, {
+      userId: item.submitted_by,
+      type: 'moderasi',
+      title: `${what} ${approved ? 'disetujui' : 'ditolak'}`,
+      body: approved
+        ? item.item_type === 'KEBUTUHAN'
+          ? `"${item.title}" sudah tayang di katalog talenta`
+          : `"${item.title}" sudah disetujui admin`
+        : `"${item.title}" ditolak. Alasan: ${reason}. Perbaiki lalu ajukan ulang.`,
+      refType: item.item_type === 'KEBUTUHAN' ? 'need' : item.item_type === 'TESTIMONI' ? 'testimonial' : 'moderation',
+      refId: item.ref_id,
+    });
+
     await audit(conn, {
       actorId: req.user.id, action: 'MODERATE', entity: 'moderation_items', entityId: item.id,
       title: item.title, meta: { decision, reject_reason: reason },
@@ -274,14 +290,26 @@ export const sendMessage = async (req, res, next) => {
     if (typeof body !== 'string' || !body.trim()) return fail(res, 'Pesan wajib diisi', 400);
 
     // Endpoint ini khusus pesan sengketa: target selalu sengketa pada URL.
-    const [disputes] = await pool.query(`SELECT id FROM disputes WHERE id = ?`, [req.params.id]);
+    const [disputes] = await pool.query(
+      `SELECT d.id, d.project_id, p.requester_id, p.talent_id
+       FROM disputes d JOIN projects p ON p.id = d.project_id WHERE d.id = ?`,
+      [req.params.id]
+    );
     if (!disputes[0]) return fail(res, 'Sengketa tidak ditemukan', 404);
+    const dispute = disputes[0];
 
     const [result] = await pool.query(
       `INSERT INTO admin_messages (sender_id, target_type, target_id, body)
        VALUES (?, 'DISPUTE', ?, ?)`,
-      [req.user.id, disputes[0].id, body.trim()]
+      [req.user.id, dispute.id, body.trim()]
     );
+    // Kedua pihak membaca pesan lewat GET /api/projects/:id/dispute.
+    for (const userId of new Set([dispute.requester_id, dispute.talent_id])) {
+      await notify(pool, {
+        userId, type: 'sengketa', title: 'Pesan baru dari admin',
+        body: body.trim(), refType: 'project', refId: dispute.project_id,
+      });
+    }
 
     const [rows] = await pool.query(`SELECT * FROM admin_messages WHERE id = ?`, [result.insertId]);
     return created(res, rows[0], 'Pesan terkirim');
@@ -469,6 +497,44 @@ export const updateLiaisonStatus = async (req, res, next) => {
       title: `Status liaison diubah ke ${status}`,
     });
     return success(res, null, 'Status liaison diperbarui');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Log audit (T3.8): tabel sudah terisi oleh semua aksi penting, kini bisa ditelusuri admin.
+export const getAuditLogs = async (req, res, next) => {
+  try {
+    const { entity, action, actor_id } = req.query;
+    const pg = parsePagination(req.query);
+    let where = `WHERE 1=1`;
+    const params = [];
+    if (entity) { where += ` AND al.entity = ?`; params.push(entity); }
+    if (action) { where += ` AND al.action = ?`; params.push(action); }
+    if (actor_id) { where += ` AND al.actor_id = ?`; params.push(actor_id); }
+
+    const [rows] = await pool.query(
+      `SELECT al.id, al.actor_id, u.name AS actor_name, u.role AS actor_role, al.action, al.entity,
+              al.entity_id, al.title, al.subtitle, al.meta, al.created_at
+       FROM audit_logs al
+       LEFT JOIN users u ON u.id = al.actor_id
+       ${where}
+       ORDER BY al.created_at DESC, al.id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, pg.limit, pg.offset]
+    );
+    const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM audit_logs al ${where}`, params);
+
+    const items = rows.map((r) => {
+      let meta = null;
+      try {
+        meta = r.meta ? JSON.parse(r.meta) : null;
+      } catch {
+        meta = null;
+      }
+      return { ...r, meta };
+    });
+    return success(res, paged(items, total, pg));
   } catch (err) {
     next(err);
   }

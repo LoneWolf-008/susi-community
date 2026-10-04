@@ -111,11 +111,12 @@ export async function createProject({ need, owner, talent, status = 'AGREEMENT',
   const app = await createApplication(need, talent, 'DITERIMA');
   const done = talentMarkedDone ?? DONE_BY_DEFAULT.includes(status);
   const [res] = await pool.query(
-    `INSERT INTO projects (need_id, requester_id, talent_id, application_id, scope, done_definition, deadline,
-                           status, progress_pct, agreed_by_community_at, agreed_by_talent_at, started_at,
+    `INSERT INTO projects (need_id, community_id, requester_id, talent_id, application_id, scope, done_definition,
+                           deadline, status, progress_pct, agreed_by_community_at, agreed_by_talent_at, started_at,
                            talent_marked_done_at)
-     VALUES (?, ?, ?, ?, 'Lingkup uji', 'Selesai bila uji lulus', ?, ?, 50, NOW(), ?, ?, ?)`,
-    [need.id, owner.id, talent.id, app.id, deadline, status,
+     VALUES (?, (SELECT community_id FROM needs WHERE id = ?), ?, ?, ?, 'Lingkup uji', 'Selesai bila uji lulus',
+             ?, ?, 50, NOW(), ?, ?, ?)`,
+    [need.id, need.id, owner.id, talent.id, app.id, deadline, status,
       status === 'AGREEMENT' ? null : new Date(), status === 'AGREEMENT' ? null : new Date(), done ? new Date() : null],
   );
   await pool.query(`UPDATE needs SET status = ? WHERE id = ?`, [status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS', need.id]);

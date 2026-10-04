@@ -23,6 +23,8 @@ import notificationsRoutes from './routes/notifications.js';
 import uploadRoutes from './routes/upload.js';
 import settingsRoutes from './routes/settings.js';
 import testimonialsRoutes from './routes/testimonials.js';
+import skillsRoutes from './routes/skills.js';
+import publicRoutes from './routes/public.js';
 
 // Folder unggahan dibuat saat boot agar multer tidak gagal di instalasi baru.
 fs.mkdirSync(env.deliveriesDir, { recursive: true });
@@ -56,7 +58,9 @@ app.get('/api/health', (req, res) => {
 // ===== ROUTES =====
 // Tidak ada express.static('/uploads'): berkas hasil kerja hanya bisa diunduh lewat
 // /api/upload/delivery/:filename yang memeriksa login dan keterlibatan di proyek.
+app.use('/api/public', publicRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/skills', skillsRoutes);
 app.use('/api/needs', needsRoutes);
 app.use('/api/projects', projectsRoutes);
 app.use('/api/applications', applicationsRoutes);

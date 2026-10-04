@@ -65,36 +65,40 @@ export const create = async (req, res, next) => {
   try {
     await conn.beginTransaction();
 
-    const { name, type, description, leader_name, leader_role, whatsapp, address, lat, lng } = req.body;
-    if (typeof name !== 'string' || !name.trim()) {
-      await conn.rollback();
-      return fail(res, 'Nama komunitas wajib diisi', 400);
-    }
+    // Body sudah divalidasi zod (createCommunitySchema).
+    const {
+      name, type, description, leader_name, leader_role, established_at, whatsapp, address, lat, lng,
+    } = req.body;
+    // Komunitas yang dicatat liaison (jalur Assisted) tidak punya akun pengurus;
+    // liaison tidak ikut menjadi anggotanya.
+    const isAssisted = req.user.role === 'liaison' || req.user.role === 'admin';
 
     const [result] = await conn.query(
       `INSERT INTO communities
-        (name, type, description, leader_name, leader_role, whatsapp, address, lat, lng, source, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (name, type, description, leader_name, leader_role, established_at, whatsapp, address, lat, lng,
+         source, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        name.trim(), type || 'LAINNYA', description || null,
-        leader_name || null, leader_role || null, whatsapp || null,
-        address || null, lat || null, lng || null,
-        req.user.role === 'liaison' ? 'AGENSUSI' : 'MANDIRI', req.user.id,
+        name, type || 'LAINNYA', description || null,
+        leader_name || null, leader_role || null, established_at || null, whatsapp || null,
+        address || null, lat ?? null, lng ?? null,
+        isAssisted ? 'AGENSUSI' : 'MANDIRI', req.user.id,
       ]
     );
 
     const communityId = result.insertId;
 
-    // Creator otomatis jadi PENGURUS
-    await conn.query(
-      `INSERT INTO community_members (community_id, user_id, role_in) VALUES (?, ?, 'PENGURUS')`,
-      [communityId, req.user.id]
-    );
-
-    await conn.query(
-      `UPDATE communities SET members_count = 1 WHERE id = ?`,
-      [communityId]
-    );
+    if (!isAssisted) {
+      // Creator otomatis jadi PENGURUS
+      await conn.query(
+        `INSERT INTO community_members (community_id, user_id, role_in) VALUES (?, ?, 'PENGURUS')`,
+        [communityId, req.user.id]
+      );
+      await conn.query(
+        `UPDATE communities SET members_count = 1 WHERE id = ?`,
+        [communityId]
+      );
+    }
 
     await conn.commit();
 

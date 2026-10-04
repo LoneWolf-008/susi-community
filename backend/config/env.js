@@ -111,5 +111,8 @@ export const env = Object.freeze({
     // Login (hanya percobaan gagal) dan registrasi per IP.
     authMax: intOr(process.env.AUTH_RATE_LIMIT_MAX, 10),
     authWindowMs: intOr(process.env.AUTH_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
+    // Endpoint publik tanpa login: per IP per menit, dan pencatatan kunjungan per 15 menit.
+    publicMax: intOr(process.env.PUBLIC_RATE_LIMIT_MAX, 60),
+    visitMax: intOr(process.env.VISIT_RATE_LIMIT_MAX, 10),
   }),
 });
