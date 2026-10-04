@@ -82,7 +82,7 @@ export default function Navigation({ currentPage, navigateTo, goToSection, menuO
   const go = (fn) => { setMenuOpen(false); setTimeout(fn, 250); };
 
   const LINKS = [
-    { l: 'Cara Kerja', fn: () => { navigateTo('home'); setTimeout(() => goToSection('alur'), 600); } },
+    { l: 'Cara Kerja', fn: () => goToSection('alur') },
     { l: 'Tentang Kami', fn: () => navigateTo('tentang') },
     { l: user ? 'Dashboard' : 'Masuk / Daftar', fn: () => navigateTo('dashboard') },
   ];

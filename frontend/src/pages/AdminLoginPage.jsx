@@ -1,37 +1,61 @@
 import { useState, useEffect, useRef } from 'react';
+import { Navigate } from 'react-router';
 import gsap from 'gsap';
+import { useAuth } from '../context/authContext';
+import { useTransitionNavigate } from '../context/transitionContext';
+import FullPageLoader from '../components/ui/FullPageLoader';
 
-export default function AdminLoginPage({ onLogin, goToAuth }) {
+// Login admin memakai /auth/login yang sama. Halaman ini hanya pintu masuk khusus:
+// keamanan sebenarnya ditegakkan backend (requireRole('admin') di setiap endpoint admin).
+export default function AdminLoginPage() {
+  const { status, user, login, logout } = useAuth();
+  const go = useTransitionNavigate();
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
-  const [code, setCode] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const rootRef = useRef(null);
 
-  // Kunci akses masuk khusus admin
-  const ADMIN_CODE = 'SUSI2026';
-
+  const ready = status !== 'loading';
   useEffect(() => {
+    if (!ready) return undefined;
     const ctx = gsap.context(() => {
       gsap.fromTo('.adm-fade', { y: 25, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.6, stagger: 0.08, ease: 'power3.out' });
     }, rootRef);
     return () => ctx.revert();
-  }, []);
+  }, [ready]);
 
-  const handleSubmit = (e) => {
+  if (status === 'loading') return <FullPageLoader />;
+  if (status === 'authenticated' && user?.role === 'admin' && !submitting) return <Navigate to="/dashboard" replace />;
+
+  const shake = () => gsap.fromTo('.adm-card', { x: 0 }, { x: 12, duration: 0.06, repeat: 5, yoyo: true, clearProps: 'x' });
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (code.trim().toUpperCase() !== ADMIN_CODE) {
-      setError('KODE AKSES SALAH — AREA INI KHUSUS ADMIN.');
-      // Efek getar kartu jika kode salah
-      gsap.fromTo('.adm-card', { x: 0 }, { x: 12, duration: 0.06, repeat: 5, yoyo: true, clearProps: 'x' });
-      return;
+    if (submitting) return;
+    setError('');
+    setSubmitting(true);
+    try {
+      // Sesi peran lain ditutup dulu agar cookie refresh lama dicabut.
+      if (status === 'authenticated') await logout();
+      const loggedIn = await login(email.trim(), pass);
+      if (loggedIn.role !== 'admin') {
+        await logout();
+        setError('AKUN INI BUKAN ADMIN — AREA INI KHUSUS PENGELOLA SUSI.');
+        shake();
+        setSubmitting(false);
+        return;
+      }
+      go('/dashboard', { replace: true });
+    } catch (err) {
+      setError((err.message || 'Gagal masuk').toUpperCase());
+      shake();
+      setSubmitting(false);
     }
-    onLogin({ role: 'admin', name: 'Admin SUSI' });
   };
 
   const inputCls = 'w-full border-b-2 border-white/20 bg-transparent p-3 text-sm font-medium outline-none focus:border-[#FF5733] transition-colors placeholder:text-white/30';
-  const isLocked = code.trim() === '';
 
   return (
     <div ref={rootRef} className="min-h-screen bg-black text-white flex items-center justify-center px-6 py-16 relative overflow-hidden">
@@ -48,7 +72,7 @@ export default function AdminLoginPage({ onLogin, goToAuth }) {
 
       <div className="adm-card w-full max-w-md border-2 border-white/20 p-8 md:p-10 relative z-10">
         <button
-          onClick={goToAuth}
+          onClick={() => go('/masuk')}
           className="adm-fade absolute -top-12 left-0 text-[10px] font-mono font-bold uppercase tracking-widest opacity-60 hover:opacity-100 hover:text-[#FF5733] transition-all"
         >
           ← Kembali ke halaman masuk
@@ -64,27 +88,37 @@ export default function AdminLoginPage({ onLogin, goToAuth }) {
           Halaman khusus pengelola platform SUSI.
         </p>
 
+        {status === 'authenticated' && user?.role !== 'admin' && (
+          <p className="adm-fade mb-6 border border-white/20 p-3 text-[10px] font-mono font-bold opacity-80">
+            ANDA SEDANG MASUK SEBAGAI {user.name?.toUpperCase()}. MASUK DENGAN AKUN ADMIN AKAN MENUTUP SESI INI.
+          </p>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="adm-fade">
-            <label className="text-[10px] font-black uppercase tracking-widest mb-2 block">Email</label>
+            <label htmlFor="adm-email" className="text-[10px] font-black uppercase tracking-widest mb-2 block">Email</label>
             <input
+              id="adm-email"
               type="email"
+              autoComplete="username"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setError(''); }}
               className={inputCls}
-              placeholder="admin@susi.id"
+              placeholder="admin@susi.test"
               required
             />
           </div>
 
           <div className="adm-fade">
-            <label className="text-[10px] font-black uppercase tracking-widest mb-2 block">Kata Sandi</label>
+            <label htmlFor="adm-pass" className="text-[10px] font-black uppercase tracking-widest mb-2 block">Kata Sandi</label>
             <div className="flex items-center">
               <input
+                id="adm-pass"
                 type={showPass ? 'text' : 'password'}
+                autoComplete="current-password"
                 value={pass}
-                onChange={(e) => setPass(e.target.value)}
-                className={inputCls}
+                onChange={(e) => { setPass(e.target.value); setError(''); }}
+                className={`${inputCls} ${error ? 'border-[#FF5733]' : ''}`}
                 placeholder="••••••••"
                 required
               />
@@ -96,33 +130,18 @@ export default function AdminLoginPage({ onLogin, goToAuth }) {
                 {showPass ? 'TUTUP' : 'LIHAT'}
               </button>
             </div>
-          </div>
-
-          <div className="adm-fade">
-            <label className="text-[10px] font-black uppercase tracking-widest mb-2 block">Kode Akses Internal</label>
-            <input
-              value={code}
-              onChange={(e) => { setCode(e.target.value); setError(''); }}
-              className={`${inputCls} ${error ? 'border-[#FF5733]' : ''}`}
-              placeholder="Kode khusus tim SUSI"
-              required
-            />
-            {error && <p className="text-[10px] font-mono font-bold text-[#FF5733] mt-2">⚠ {error}</p>}
+            {error && <p role="alert" className="text-[10px] font-mono font-bold text-[#FF5733] mt-2">⚠ {error}</p>}
           </div>
 
           <button
             type="submit"
-            disabled={isLocked}
+            disabled={submitting}
             className={`adm-fade w-full py-4 text-sm uppercase tracking-wider font-black transition-colors flex items-center justify-center gap-3 ${
-              isLocked ? 'bg-white/10 text-white/30 cursor-not-allowed' : 'bg-[#FF5733] text-white hover:bg-white hover:text-black'
+              submitting ? 'bg-white/10 text-white/30 cursor-wait' : 'bg-[#FF5733] text-white hover:bg-white hover:text-black'
             }`}
           >
-            Masuk →
+            {submitting ? 'Memeriksa…' : 'Masuk →'}
           </button>
-
-          <p className="adm-fade text-[9px] font-mono opacity-40 text-center">
-            DEMO: KODE AKSES = SUSI2026
-          </p>
         </form>
       </div>
     </div>
