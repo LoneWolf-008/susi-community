@@ -16,17 +16,19 @@ import VisitsTab from './liaison/VisitsTab';
 import IntakeTab from './liaison/IntakeTab';
 import LaporanTab from './liaison/LaporanTab';
 import EskalasiTab from './liaison/EskalasiTab';
+import CertificationReview from '../../components/certification/CertificationReview';
 import ChatWidget from '../../components/chat/ChatWidget';
 
 const NAV = [
   { id: 'beranda', n: '01', l: 'Beranda' },
   { id: 'eskalasi', n: '02', l: 'Eskalasi' },
-  { id: 'kunjungan', n: '03', l: 'Kunjungan' },
-  { id: 'catat', n: '04', l: 'Catat Kebutuhan' },
-  { id: 'kebutuhan', n: '05', l: 'Kebutuhan Tercatat' },
-  { id: 'komunitas', n: '06', l: 'Komunitas & Peta' },
-  { id: 'laporan', n: '07', l: 'Laporan' },
-  { id: 'setting', n: '08', l: 'Pengaturan' },
+  { id: 'sertifikasi', n: '03', l: 'Sertifikasi' },
+  { id: 'kunjungan', n: '04', l: 'Kunjungan' },
+  { id: 'catat', n: '05', l: 'Catat Kebutuhan' },
+  { id: 'kebutuhan', n: '06', l: 'Kebutuhan Tercatat' },
+  { id: 'komunitas', n: '07', l: 'Komunitas & Peta' },
+  { id: 'laporan', n: '08', l: 'Laporan' },
+  { id: 'setting', n: '09', l: 'Pengaturan' },
 ];
 
 export default function DashboardLiaison({ user, onLogout, navigateTo }) {
@@ -72,6 +74,7 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
   const openNotification = (n) => {
     if (n.ref_type === 'visit') { onTab('kunjungan'); return; }
     if (n.ref_type === 'escalation') { onTab('eskalasi'); setEscalationFocus(n.ref_id); return; }
+    if (n.ref_type === 'certification') { onTab('sertifikasi'); return; } // pengajuan sertifikasi (U5)
     if (n.ref_type === 'community') { onTab('komunitas'); return; } // permintaan bergabung (U1)
     const needId = n.ref_type === 'need' ? n.ref_id
       : n.ref_type === 'project' ? cards.find((c) => Number(c.project?.id) === Number(n.ref_id))?.need.id
@@ -95,6 +98,7 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
           />
         )}
         {tab === 'eskalasi' && <EskalasiTab liveKey={liveKey} focusId={escalationFocus} onChanged={reload} />}
+        {tab === 'sertifikasi' && <CertificationReview liveKey={liveKey} onChanged={reload} />}
         {tab === 'kunjungan' && <VisitsTab onRecord={startIntake} onChanged={reload} />}
         {tab === 'catat' && (
           <IntakeTab

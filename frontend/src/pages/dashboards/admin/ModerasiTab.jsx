@@ -12,7 +12,7 @@ import Pagination from '../../../components/ui/Pagination';
 import { RISK_TONE } from './labels';
 
 const PAGE_SIZE = 15;
-const TYPES = ['', 'KEBUTUHAN', 'TESTIMONI'];
+const TYPES = ['', 'KEBUTUHAN', 'TESTIMONI', 'TALENTA'];
 const DECISIONS = [['PENDING', 'MENUNGGU'], ['APPROVED', 'DISETUJUI'], ['REJECTED', 'DITOLAK']];
 const REJECT_REASONS = ['SPAM', 'DUPLIKAT', 'SALAH KATEGORI', 'TIDAK LAYAK'];
 
@@ -46,7 +46,27 @@ function TestimonialDetailBlock({ d }) {
   );
 }
 
-function ModerationItem({ item, open, onToggle, onDone }) {
+/** U5: pengajuan sertifikasi talenta; bukti lengkap (testimoni, hasil kerja) ada di tab Sertifikasi. */
+function CertificationDetailBlock({ d, onOpenCertifications }) {
+  return (
+    <div className="rounded-xl border border-[#12283c]/15 p-4">
+      <p className="label-mono mb-2">SERTIFIKASI · {d.focus_label} · {d.talent_name}</p>
+      <p className="text-sm leading-relaxed whitespace-pre-line break-words">{d.pitch}</p>
+      <p className="font-mono text-[10px] opacity-60 mt-2">{d.evidence_projects} PROYEK BUKTI · {d.completed_projects} PROYEK SELESAI</p>
+      {onOpenCertifications && (
+        <button type="button" onClick={onOpenCertifications} className="chip-mono mt-3 min-h-[36px] text-[#12283c] hover:border-[#e62b2b]">LIHAT BUKTI LENGKAP DI TAB SERTIFIKASI →</button>
+      )}
+    </div>
+  );
+}
+
+const CHECK_LABEL = {
+  KEBUTUHAN: 'Kategori sesuai cerita',
+  TESTIMONI: 'Isi wajar, tanpa data pribadi',
+  TALENTA: 'Bukti proyek sesuai bidang',
+};
+
+function ModerationItem({ item, open, onToggle, onDone, onOpenCertifications }) {
   const toast = useToast();
   const [checks, setChecks] = useState({ layak: false, kategori: false });
   const [rejecting, setRejecting] = useState(false);
@@ -104,13 +124,14 @@ function ModerationItem({ item, open, onToggle, onDone }) {
           {!d && <p className="text-sm text-[#12283c]/60">Data asal item ini tidak ditemukan.</p>}
           {d && item.item_type === 'KEBUTUHAN' && <NeedDetailBlock d={d} />}
           {d && item.item_type === 'TESTIMONI' && <TestimonialDetailBlock d={d} />}
+          {d && item.item_type === 'TALENTA' && <CertificationDetailBlock d={d} onOpenCertifications={onOpenCertifications} />}
 
           {item.decision === 'PENDING' ? (
             <>
               <div>
                 <p className="label-mono mb-2">CHECKLIST — WAJIB SEBELUM MENYETUJUI</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {[['layak', 'Konten layak & bukan spam'], ['kategori', item.item_type === 'KEBUTUHAN' ? 'Kategori sesuai cerita' : 'Isi wajar, tanpa data pribadi']].map(([key, label]) => (
+                  {[['layak', 'Konten layak & bukan spam'], ['kategori', CHECK_LABEL[item.item_type] || CHECK_LABEL.TESTIMONI]].map(([key, label]) => (
                     <button type="button" key={key} role="checkbox" aria-checked={checks[key]} onClick={() => setChecks((c) => ({ ...c, [key]: !c[key] }))} className={`rounded-xl p-3 border text-left text-[10px] font-bold transition-colors ${checks[key] ? 'bg-[#c9ecd9] border-[#12283c] text-[#12283c]' : 'border-[#12283c]/20 hover:border-[#12283c]'}`}>
                       {checks[key] ? '✓' : '○'} {label}
                     </button>
@@ -157,7 +178,7 @@ function ModerationItem({ item, open, onToggle, onDone }) {
 }
 
 /** Antrean moderasi (GET/PATCH /admin/moderation) dengan isi item, checklist, dan alasan penolakan. */
-export default function ModerasiTab({ statsQ, onChanged }) {
+export default function ModerasiTab({ statsQ, onChanged, onOpenCertifications }) {
   const [type, setType] = useState('');
   const [decision, setDecision] = useState('PENDING');
   const filterKey = `${type}|${decision}`;
@@ -175,7 +196,7 @@ export default function ModerasiTab({ statsQ, onChanged }) {
   return (
     <>
       <div className="dash-item flex items-end justify-between flex-wrap gap-4 mb-6">
-        <div><h1 className="text-4xl md:text-5xl font-black tracking-tight">Moderasi</h1><p className="label-mono mt-2">KEBUTUHAN & TESTIMONI SEBELUM TAYANG</p></div>
+        <div><h1 className="text-4xl md:text-5xl font-black tracking-tight">Moderasi</h1><p className="label-mono mt-2">KEBUTUHAN, TESTIMONI & SERTIFIKASI TALENTA</p></div>
         <div className="flex flex-wrap gap-2">
           {TYPES.map((t) => (
             <button type="button" key={t || 'all'} onClick={() => setType(t)} className={`chip-mono transition-colors ${type === t ? 'border-0 bg-[#e62b2b] text-white' : 'text-[#12283c] hover:border-[#e62b2b]'}`}>{t || 'SEMUA JENIS'}</button>
@@ -197,12 +218,12 @@ export default function ModerasiTab({ statsQ, onChanged }) {
         <EmptyState
           icon="✓"
           title={decision === 'PENDING' ? 'Antrean kosong' : 'Belum ada item'}
-          description={decision === 'PENDING' ? 'Semua kebutuhan dan testimoni sudah dimoderasi. Item baru muncul saat komunitas, AgenSUSI, atau talenta mengirimkannya.' : 'Belum ada item dengan keputusan ini.'}
+          description={decision === 'PENDING' ? 'Semua kebutuhan, testimoni, dan pengajuan sertifikasi sudah diputus. Item baru muncul saat komunitas, AgenSUSI, atau talenta mengirimkannya.' : 'Belum ada item dengan keputusan ini.'}
         />
       )}
       <div className="space-y-4">
         {items.map((item) => (
-          <ModerationItem key={item.id} item={item} open={openId === item.id} onToggle={() => setOpenId(openId === item.id ? null : item.id)} onDone={done} />
+          <ModerationItem key={item.id} item={item} open={openId === item.id} onToggle={() => setOpenId(openId === item.id ? null : item.id)} onDone={done} onOpenCertifications={onOpenCertifications} />
         ))}
       </div>
       {data && <Pagination page={page} limit={PAGE_SIZE} total={data.total} onPage={(p) => setPaging({ key: filterKey, page: p })} />}

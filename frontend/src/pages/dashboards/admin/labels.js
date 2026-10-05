@@ -15,6 +15,9 @@ export const AUDIT_ACTION = {
   RESOLVE_ESCALATION: { label: 'Menyelesaikan eskalasi', color: 'bg-[#c9ecd9]' },
   CLOSE_ESCALATION: { label: 'Menutup eskalasi', color: 'bg-[#6b7280]' },
   HANDBACK_ESCALATION: { label: 'Mengembalikan eskalasi ke AI', color: 'bg-[#0e7490]' },
+  APPROVE_CERTIFICATION: { label: 'Menyetujui sertifikasi', color: 'bg-[#c9ecd9]' },
+  REJECT_CERTIFICATION: { label: 'Menolak sertifikasi', color: 'bg-[#7a1a1f]' },
+  REVOKE_CERTIFICATE: { label: 'Mencabut sertifikat', color: 'bg-[#e62b2b]' },
   CREATE_KB: { label: 'Membuat entri KB', color: 'bg-[#12283c]' },
   UPDATE_KB: { label: 'Mengubah entri KB', color: 'bg-[#12283c]' },
   APPROVE_KB: { label: 'Menyetujui entri KB', color: 'bg-[#15803d]' },
@@ -31,6 +34,8 @@ export const AUDIT_ENTITY = {
   users: 'Pengguna',
   escalations: 'Eskalasi Tanya SUSI',
   kb_entries: 'Basis pengetahuan',
+  certification_requests: 'Pengajuan sertifikasi',
+  certificates: 'Sertifikat',
 };
 
 export const auditAction = (action) => AUDIT_ACTION[action] || { label: action, color: 'bg-[#9CA3AF]' };
