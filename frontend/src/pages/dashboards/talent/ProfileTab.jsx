@@ -6,6 +6,8 @@ import { TALENT_LEVEL } from '../../../lib/statusMap';
 import { formatDate, initialOf, timeAgo } from '../../../lib/format';
 import { SkeletonCard, SkeletonLines } from '../../../components/ui/Skeleton';
 import ErrorState from '../../../components/ui/ErrorState';
+import CertifiedBadge from '../../../components/common/CertifiedBadge';
+import CertificationCard from '../../../components/certification/CertificationCard';
 
 const MAX_SKILLS = 20;
 const NEXT_LEVEL = { TALENTA_MUDA: 'TALENTA_TERPERCAYA', TALENTA_TERPERCAYA: 'TALENTA_AHLI' };
@@ -97,6 +99,7 @@ export default function ProfileTab({ onEdit }) {
             <div>
               <h2 className="text-2xl font-black">{user.name}</h2>
               <p className="font-mono text-[10px] text-[#e62b2b] font-bold mt-1">TALENTA · {(TALENT_LEVEL[profile.level] || profile.level).toUpperCase()}</p>
+              {profileQ.data.certified && <CertifiedBadge dark className="mt-2" />}
               {user.extra_info && <p className="text-xs opacity-70 mt-1">{user.extra_info}</p>}
             </div>
           </div>
@@ -134,6 +137,8 @@ export default function ProfileTab({ onEdit }) {
                 : 'ANDA SUDAH DI LEVEL TERTINGGI. TERUS JAGA KUALITAS!'}
             </p>
           </div>
+
+          <CertificationCard onChanged={profileQ.refetch} />
 
           <div className="dash-item card-light p-7">
             <div className="flex items-center justify-between gap-3 mb-4">

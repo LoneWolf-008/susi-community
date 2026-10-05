@@ -20,7 +20,10 @@ import { readKbFile, upsertKbEntries } from './kbSeed.js';
 import { syncKbIndex } from '../services/chatbot/kb.js';
 import { ruleSummary } from '../services/chatbot/escalation.js';
 import { escalationCreatedReply } from '../services/chatbot/replies.js';
-import { SKILLS, USERS, COMMUNITIES, NEEDS, VISITS, TOPICS, INVITES, ESCALATIONS } from '../db/seeds/demo.js';
+import { generateCertificateCode, focusLabel } from '../services/certification.js';
+import {
+  SKILLS, USERS, COMMUNITIES, NEEDS, VISITS, TOPICS, INVITES, ESCALATIONS, CERTIFICATIONS,
+} from '../db/seeds/demo.js';
 
 const BCRYPT_ROUNDS = 12; // sama dengan authController.register
 const MIN_PASSWORD = 10;
@@ -51,7 +54,7 @@ function readSeedConfig() {
 const counter = () => ({ dibuat: 0, dilewati: 0 });
 const stats = {
   pengguna: counter(), skill: counter(), komunitas: counter(), anggota: counter(), kebutuhan: counter(),
-  kunjungan: counter(), topik: counter(), kb: counter(), eskalasi: counter(),
+  kunjungan: counter(), topik: counter(), kb: counter(), eskalasi: counter(), sertifikasi: counter(),
 };
 let passwordsUpdated = 0;
 let kbUpdated = 0;
@@ -416,6 +419,72 @@ async function seedInvites(conn, ctx) {
 }
 
 /**
+ * Sertifikasi talenta (U5), idempoten per (talenta, bidang, status). Sama dengan alur nyata: pengajuan +
+ * proyek bukti + item moderasi TALENTA; yang disetujui mendapat sertifikat berkode acak dan notifikasi.
+ */
+async function seedCertifications(conn, ctx) {
+  for (const def of CERTIFICATIONS) {
+    const talentId = ctx.userIds[def.talent];
+    const [[existing]] = await conn.query(
+      `SELECT id FROM certification_requests WHERE talent_id = ? AND focus_area = ? AND status = ? LIMIT 1`,
+      [talentId, def.focus, def.status],
+    );
+    if (existing) {
+      stats.sertifikasi.dilewati += 1;
+      continue;
+    }
+    const talent = USERS.find((u) => u.key === def.talent);
+    const createdAt = daysAgo(def.daysAgo);
+    const reviewedAt = def.reviewedDaysAgo === undefined ? null : daysAgo(def.reviewedDaysAgo);
+    const reviewerId = def.reviewer ? ctx.userIds[def.reviewer] : null;
+    const [req] = await conn.query(
+      `INSERT INTO certification_requests (talent_id, focus_area, pitch, status, reviewer_id, review_note, reviewed_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [talentId, def.focus, def.pitch, def.status, reviewerId, def.note ?? null, reviewedAt, createdAt],
+    );
+    const requestId = req.insertId;
+    for (const needKey of def.projects) {
+      const [[project]] = await conn.query(`SELECT id FROM projects WHERE need_id = ? AND talent_id = ? LIMIT 1`, [ctx.needIds[needKey], talentId]);
+      await conn.query(`INSERT INTO certification_request_projects (request_id, project_id) VALUES (?, ?)`, [requestId, project.id]);
+    }
+    const decided = def.status !== 'PENDING';
+    await conn.query(
+      `INSERT INTO moderation_items (item_type, ref_id, title, submitted_by, source, risk_level, decision, reviewed_by, reviewed_at, created_at)
+       VALUES ('TALENTA', ?, ?, ?, 'MANDIRI', 'RENDAH', ?, ?, ?, ?)`,
+      [requestId, `Sertifikasi ${focusLabel(def.focus)}: ${talent.name}`, talentId, def.status, reviewerId, reviewedAt, createdAt],
+    );
+
+    if (def.status === 'APPROVED') {
+      const code = generateCertificateCode();
+      await conn.query(
+        `INSERT INTO certificates (talent_id, request_id, code, focus_area, project_count, issued_at) VALUES (?, ?, ?, ?, ?, ?)`,
+        [talentId, requestId, code, def.focus, def.projects.length, reviewedAt],
+      );
+      await notify(conn, {
+        userId: talentId, type: 'verifikasi', title: 'Selamat, Anda Tersertifikasi SUSI',
+        body: `Sertifikasi bidang ${focusLabel(def.focus)} disetujui. Kode sertifikat: ${code}.`,
+        refType: 'certificate', refId: requestId, read: true, at: reviewedAt,
+      });
+      await conn.query(
+        `INSERT INTO audit_logs (actor_id, action, entity, entity_id, title, meta, created_at)
+         VALUES (?, 'APPROVE_CERTIFICATION', 'certification_requests', ?, ?, ?, ?)`,
+        [reviewerId, requestId, `${talent.name} · ${focusLabel(def.focus)}`, JSON.stringify({ note: def.note ?? null, code }), reviewedAt],
+      );
+    } else if (!decided) {
+      // Pengajuan baru: peninjau mendapat notifikasi seperti alur nyata.
+      for (const reviewer of [ctx.adminId, ...USERS.filter((u) => u.role === 'liaison').map((u) => ctx.userIds[u.key])]) {
+        await notify(conn, {
+          userId: reviewer, type: 'moderasi', title: 'Pengajuan sertifikasi baru',
+          body: `${talent.name} mengajukan sertifikasi bidang ${focusLabel(def.focus)} dengan ${def.projects.length} proyek bukti.`,
+          refType: 'certification', refId: requestId, read: false, at: createdAt,
+        });
+      }
+    }
+    stats.sertifikasi.dibuat += 1;
+  }
+}
+
+/**
  * Percakapan yang dialihkan ke AgenSUSI (U6), idempoten per id sesi. Urutan sama dengan alur nyata:
  * bagian AI (+ ask_logs) → tiket + pesan konfirmasi → klaim → pesan AgenSUSI/pengguna.
  */
@@ -554,6 +623,7 @@ async function main() {
     const ctx = { adminId, userIds, skillIds, communityIds };
     ctx.needIds = await seedNeeds(conn, ctx);
     await seedInvites(conn, ctx);
+    await seedCertifications(conn, ctx);
     await seedVisits(conn, ctx);
     await seedTopics(conn, ctx);
     await seedEscalations(conn, ctx);
@@ -576,7 +646,7 @@ async function main() {
 
   console.log(`[seed] ${env.db.name} selesai.`);
   for (const [name, c] of Object.entries(stats)) {
-    console.log(`  ${name.padEnd(10)} dibuat ${String(c.dibuat).padStart(2)} · sudah ada ${c.dilewati}`);
+    console.log(`  ${name.padEnd(11)} dibuat ${String(c.dibuat).padStart(2)} · sudah ada ${c.dilewati}`);
   }
   if (passwordsUpdated > 0) console.log(`  password diperbarui mengikuti .env: ${passwordsUpdated} akun`);
   if (kbUpdated > 0) console.log(`  entri KB disinkronkan dari kb.json (--sync-kb): ${kbUpdated}`);

@@ -3,6 +3,7 @@ import { api } from '../../lib/api';
 import { useToast } from '../../context/toastContext';
 import { TALENT_LEVEL } from '../../lib/statusMap';
 import { initialOf } from '../../lib/format';
+import CertifiedBadge from '../common/CertifiedBadge';
 import { SkeletonCard } from '../ui/Skeleton';
 import ErrorState from '../ui/ErrorState';
 import { MatchBadge, SkillMatchChips, WhyMatch, RecommendationNote } from '../recommendation/MatchBits';
@@ -72,7 +73,7 @@ export default function MatchingTalentsPanel({ need, query }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <h4 className="font-black leading-tight">{t.name}</h4>
                   <MatchBadge score={t.score} />
-                  {t.certified && <span className="rounded-full border border-[#0f766e] text-[#0f766e] px-2.5 py-0.5 font-mono text-[9px] font-black">✓ TERSERTIFIKASI SUSI</span>}
+                  {t.certified && <CertifiedBadge />}
                 </div>
                 <p className="font-mono text-[10px] opacity-60 mt-1">{TALENT_LEVEL[t.level] || 'Talenta Muda'} · {t.completed_projects} PROYEK SELESAI</p>
               </div>

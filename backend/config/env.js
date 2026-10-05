@@ -30,7 +30,7 @@ const POSITIVE_INT_KEYS = [
   'OPENROUTER_TIMEOUT_MS', 'CHATBOT_MAX_TOKENS', 'CHATBOT_CACHE_MAX',
   'CHATBOT_RATE_LIMIT_PER_MIN', 'CHATBOT_ANON_RATE_LIMIT_PER_MIN', 'CHATBOT_ANON_IP_RATE_LIMIT_PER_MIN',
   'CHATBOT_DAILY_LIMIT_USER', 'CHATBOT_DAILY_LIMIT_ANON', 'CHATBOT_DAILY_LIMIT_ANON_IP',
-  'CHATBOT_ESCALATION_THRESHOLD',
+  'CHATBOT_ESCALATION_THRESHOLD', 'CERT_MIN_PROJECTS',
 ];
 
 const SERVICE_HOURS_RE = /^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/;
@@ -217,5 +217,9 @@ export const env = Object.freeze({
     kbDirect: lower(process.env.CHATBOT_KB_DIRECT, 'true') !== 'false',
     // Isi chat (pesan & pertanyaan di ask_logs) dihapus setelah sekian hari. 0 = retensi dimatikan.
     retentionDays: isBlank(process.env.CHATBOT_RETENTION_DAYS) ? 90 : Number.parseInt(process.env.CHATBOT_RETENTION_DAYS, 10),
+  }),
+  // Sertifikasi talenta (U5): jumlah proyek COMPLETED minimal untuk mengajukan.
+  certification: Object.freeze({
+    minProjects: intOr(process.env.CERT_MIN_PROJECTS, 3),
   }),
 });

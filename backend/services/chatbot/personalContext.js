@@ -5,8 +5,10 @@
 import {
   cached, loadTalents, recommendNeeds, recommendTalents,
 } from '../recommendation/index.js';
+import { certificationEligibility } from '../certification.js';
 
-export const CERT_MIN_PROJECTS = 3;
+// Ambang dari env (U5: CERT_MIN_PROJECTS), dipakai juga template jawaban sertifikasi.
+export { CERT_MIN_PROJECTS } from '../certification.js';
 const LEVEL = { TALENTA_MUDA: 'Talenta Muda', TALENTA_TERPERCAYA: 'Talenta Terpercaya', TALENTA_AHLI: 'Talenta Ahli' };
 const CATEGORY = { PENCATATAN: 'Pencatatan & Data', WEBSITE: 'Website', APLIKASI: 'Aplikasi', LAINNYA: 'Lainnya' };
 const NEED_STATUS = { OPEN: 'terbuka', IN_PROGRESS: 'sedang dikerjakan', COMPLETED: 'selesai', CLOSED: 'ditutup' };
@@ -31,24 +33,18 @@ export async function skillDemand(db, limit = 8) {
   return rows.map((r) => ({ name: r.name, demand: Number(r.demand) }));
 }
 
-/** Status sertifikasi (tabel `certificates` datang di U5; sebelum itu belum ada sertifikat). */
-async function certificationStatus(db, talentId, completed) {
-  const [[{ present }]] = await db.query(
-    `SELECT COUNT(*) AS present FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'certificates'`,
-  );
-  let certified = false;
-  let pending = false;
-  if (present) {
-    const [[cert]] = await db.query(
-      `SELECT COUNT(*) AS n FROM certificates WHERE talent_id = ? AND revoked_at IS NULL`, [talentId],
-    );
-    certified = Number(cert.n) > 0;
-    const [[req]] = await db.query(
-      `SELECT COUNT(*) AS n FROM certification_requests WHERE talent_id = ? AND status = 'PENDING'`, [talentId],
-    );
-    pending = Number(req.n) > 0;
-  }
-  return { certified, pending, completed, minProjects: CERT_MIN_PROJECTS, eligible: completed >= CERT_MIN_PROJECTS && !certified && !pending };
+/** Status sertifikasi dari data kelayakan asli (U5: sama dengan GET /certifications/eligibility). */
+async function certificationStatus(db, talentId) {
+  const e = await certificationEligibility(db, talentId);
+  return {
+    certified: e.certificates.length > 0,
+    certifiedAreas: e.certificates.map((c) => c.focus_label),
+    pending: Boolean(e.pending_request),
+    pendingArea: e.pending_request?.focus_label ?? null,
+    completed: e.completed,
+    minProjects: e.min_projects,
+    eligible: e.eligible,
+  };
 }
 
 async function talentContext(db, user) {
@@ -63,7 +59,7 @@ async function talentContext(db, user) {
   const demand = await skillDemand(db);
   const owned = new Set((talent?.skills ?? []).map((s) => s.toLowerCase()));
   const gaps = demand.filter((d) => !owned.has(d.name.toLowerCase())).slice(0, 3);
-  const cert = await certificationStatus(db, user.id, talent?.completed_projects ?? 0);
+  const cert = await certificationStatus(db, user.id);
 
   return {
     role: 'talent',
@@ -105,7 +101,7 @@ async function ownerContext(db, user) {
       // Hanya kolom yang memang boleh dilihat pemilik pada pelamar (lihat recommendTalents).
       talents = (await recommendTalents(db, n)).items.slice(0, TOP_TALENTS_PER_NEED).map((t) => ({
         id: t.talent_id, name: clip(t.name, 40), level: t.level, score: t.score, matched: t.matched_skills,
-        applied: t.applied, invited: t.invite_status === 'SENT',
+        applied: t.applied, invited: t.invite_status === 'SENT', certified: Boolean(t.certified),
       }));
     }
     items.push({ id: n.id, title: clip(n.title), status: n.status, waiting: Number(n.waiting) || 0, talents });
@@ -139,7 +135,7 @@ export function formatProfile(ctx) {
       `Lamaran menunggu keputusan: ${ctx.pendingApplications.length ? ctx.pendingApplications.map((t) => `"${t}"`).join(', ') : 'tidak ada'}`,
       `Bio profil: ${ctx.hasBio ? 'sudah diisi' : 'belum diisi'}`,
       `Keahlian yang paling banyak diminta kebutuhan terbuka di SUSI dan belum dimiliki: ${ctx.skillGaps.length ? ctx.skillGaps.map((g) => `${g.name} (${g.demand} kebutuhan)`).join(', ') : 'tidak ada'}`,
-      `Sertifikasi SUSI: ${c.certified ? 'sudah tersertifikasi' : c.pending ? 'pengajuan sedang ditinjau' : 'belum'}; syarat minimal ${c.minProjects} proyek selesai (punya ${c.completed})`,
+      `Sertifikasi SUSI: ${c.certified ? `sudah tersertifikasi (bidang ${c.certifiedAreas.join(', ')})` : 'belum'}${c.pending ? `; pengajuan bidang ${c.pendingArea} sedang ditinjau` : ''}; syarat minimal ${c.minProjects} proyek selesai (punya ${c.completed})`,
     ].join('\n');
   }
   if (ctx.role === 'requester' || ctx.role === 'liaison') {

@@ -52,6 +52,12 @@ export const USERS = [
     bio: 'Mahasiswa tingkat akhir DKV, fokus desain identitas visual UMKM.', extra_info: 'Mahasiswa DKV',
     skills: ['Figma', 'Canva', 'Desain Poster', 'Branding'],
   },
+  {
+    // U5: talenta tersertifikasi (bidang Desain) yang sedang mengajukan bidang kedua.
+    key: 'dewi', role: 'talent', name: 'Dewi Anggraini', email: 'dewi@talenta.test', phone: '081300000008',
+    bio: 'Desainer grafis lepas, tiga tahun membantu UMKM dan komunitas membuat materi promosi.', extra_info: 'Desainer lepas',
+    skills: ['Figma', 'Canva', 'Desain Poster', 'Branding', 'HTML & CSS'],
+  },
 ];
 
 // Pusat sektor: lng 107.6191, lat -6.9175 (lihat kolom generated `sector`).
@@ -418,6 +424,95 @@ export const NEEDS = [
     notifications: [
       { user: 'nabila', type: 'verifikasi', title: 'Proyek diverifikasi, reputasi +1', body: 'Komunitas mengonfirmasi proyek Anda', ref: 'project', daysAgo: 104, read: true },
     ],
+  },
+  // ===== U5: riwayat proyek selesai untuk sertifikasi =====
+  // Dewi: 3 proyek selesai (tersertifikasi bidang Desain). Fajar: proyek selesai kedua (2 dari 3, belum layak).
+  {
+    key: 'n21', owner: 'ujang', community: 'kebun', category: 'LAINNYA', createdDaysAgo: 95,
+    title: 'Kebun warga belum punya logo dan papan nama',
+    summary: 'Pengunjung dan donatur sulit mengenali kebun warga Buahbatu.',
+    description: 'Kebun warga sering dikira lahan kosong. Kami butuh logo sederhana dan desain papan nama yang bisa dicetak murah.',
+    skills: ['Branding', 'Desain Poster'], moderation: 'APPROVED', status: 'COMPLETED',
+    applications: [
+      { talent: 'dewi', status: 'DITERIMA', daysAgo: 93, decidedDaysAgo: 92, message: 'Saya bisa buatkan logo dan papan nama yang cocok dicetak di banner atau papan kayu.' },
+    ],
+    project: {
+      talent: 'dewi', status: 'COMPLETED', progress: 100, deadlineInDays: -75,
+      scope: 'Membuat logo kebun warga dan desain papan nama siap cetak.',
+      done_definition: 'Selesai bila logo dan berkas papan nama siap cetak diterima pengurus.',
+      timeline: { created: 92, agreedByCommunity: 92, agreedByTalent: 91, started: 91, done: 80, verified: 79 },
+      deliveries: [{ daysAgo: 80, link_url: 'https://example.com/demo/logo-kebun-buahbatu' }],
+      testimonial: { from: 'ujang', daysAgo: 79, text: 'Logonya sederhana tapi gampang diingat warga. Papan namanya sudah terpasang di depan kebun.' },
+    },
+  },
+  {
+    key: 'n22', owner: 'siti', community: 'cibaduyut', category: 'LAINNYA', createdDaysAgo: 75,
+    title: 'Poster promosi sepatu dibuat seadanya dan kurang menarik',
+    summary: 'Poster promosi bazar dibuat di aplikasi chat dan hasilnya pecah saat dicetak.',
+    description: 'Anggota paguyuban membuat poster sendiri-sendiri sehingga tampilannya tidak seragam. Kami butuh templat poster yang bisa diubah sendiri di Canva.',
+    skills: ['Canva', 'Desain Poster'], moderation: 'APPROVED', status: 'COMPLETED',
+    applications: [
+      { talent: 'dewi', status: 'DITERIMA', daysAgo: 73, decidedDaysAgo: 72, message: 'Saya buatkan templat Canva yang bisa diganti foto dan harganya oleh anggota.' },
+    ],
+    project: {
+      talent: 'dewi', status: 'COMPLETED', progress: 100, deadlineInDays: -55,
+      scope: 'Membuat tiga templat poster promosi di Canva beserta panduan singkat mengubahnya.',
+      done_definition: 'Selesai bila tiga templat bisa diubah anggota tanpa bantuan.',
+      timeline: { created: 72, agreedByCommunity: 72, agreedByTalent: 71, started: 71, done: 58, verified: 57 },
+      deliveries: [{ daysAgo: 58, link_url: 'https://example.com/demo/templat-poster-cibaduyut' }],
+      testimonial: { from: 'siti', daysAgo: 57, text: 'Sekarang semua anggota bisa bikin poster sendiri dan tampilannya seragam. Dewi sabar mengajari kami.' },
+    },
+  },
+  {
+    key: 'n23', owner: 'deden', community: 'karta', category: 'WEBSITE', createdDaysAgo: 55,
+    title: 'Kegiatan Karang Taruna tidak punya halaman informasi',
+    summary: 'Informasi kegiatan hanya tersebar di grup WhatsApp dan cepat tenggelam.',
+    description: 'Warga sering bertanya jadwal kegiatan yang sebenarnya sudah diumumkan. Kami butuh satu halaman sederhana berisi agenda dan foto kegiatan.',
+    skills: ['HTML & CSS', 'Figma'], moderation: 'APPROVED', status: 'COMPLETED',
+    applications: [
+      { talent: 'dewi', status: 'DITERIMA', daysAgo: 53, decidedDaysAgo: 52, message: 'Saya bisa desain dan buatkan halaman agenda satu halaman yang mudah diperbarui.' },
+    ],
+    project: {
+      talent: 'dewi', status: 'COMPLETED', progress: 100, deadlineInDays: -35,
+      scope: 'Mendesain dan membuat halaman agenda kegiatan Karang Taruna.',
+      done_definition: 'Selesai bila halaman tayang dan pengurus bisa menambah agenda baru.',
+      timeline: { created: 52, agreedByCommunity: 52, agreedByTalent: 51, started: 51, done: 38, verified: 37 },
+      deliveries: [{ daysAgo: 38, link_url: 'https://example.com/demo/agenda-karta-rw08' }],
+      testimonial: { from: 'deden', daysAgo: 37, text: 'Halaman agendanya rapi dan warga jadi jarang bertanya ulang. Desainnya juga enak dilihat.' },
+    },
+  },
+  {
+    key: 'n24', owner: 'budi', community: 'irma', category: 'PENCATATAN', createdDaysAgo: 45,
+    title: 'Daftar donatur kajian rutin masih ditulis di buku',
+    summary: 'Bendahara remaja masjid kesulitan merekap donasi per bulan.',
+    description: 'Donasi kajian dicatat di buku tulis. Bendahara butuh formulir isian dan rekap otomatis per bulan.',
+    skills: ['Google Forms', 'Google Sheets'], moderation: 'APPROVED', status: 'COMPLETED',
+    applications: [
+      { talent: 'fajar', status: 'DITERIMA', daysAgo: 43, decidedDaysAgo: 42, message: 'Saya buatkan formulir donasi dan rekap bulanan otomatis di Google Sheets.' },
+    ],
+    project: {
+      talent: 'fajar', status: 'COMPLETED', progress: 100, deadlineInDays: -25,
+      scope: 'Membuat formulir pencatatan donasi dan rekap bulanan otomatis.',
+      done_definition: 'Selesai bila bendahara bisa mencatat donasi dan melihat rekap per bulan.',
+      timeline: { created: 42, agreedByCommunity: 42, agreedByTalent: 41, started: 41, done: 28, verified: 27 },
+      deliveries: [{ daysAgo: 28, link_url: 'https://example.com/demo/rekap-donasi-irma' }],
+      testimonial: { from: 'budi', daysAgo: 27, text: 'Rekap donasinya langsung dipakai bendahara tiap bulan. Fajar cepat merespons pertanyaan.' },
+    },
+  },
+];
+
+// U5: sertifikasi talenta. Dewi sudah tersertifikasi bidang Desain dan sedang mengajukan bidang Website
+// (PENDING, menunggu admin/AgenSUSI). Nabila (3 proyek selesai) sengaja tanpa pengajuan: layak mengajukan.
+export const CERTIFICATIONS = [
+  {
+    talent: 'dewi', focus: 'DESAIN', status: 'APPROVED', projects: ['n21', 'n22', 'n23'], daysAgo: 30,
+    reviewer: 'budi', reviewedDaysAgo: 28,
+    pitch: 'Tiga proyek terakhir saya untuk komunitas berupa identitas visual dan materi promosi: logo kebun warga, templat poster UMKM, dan desain halaman agenda.',
+    note: 'Bukti lengkap: testimoni ketiga komunitas positif dan hasil kerja sudah dipakai.',
+  },
+  {
+    talent: 'dewi', focus: 'WEBSITE', status: 'PENDING', projects: ['n23', 'n21', 'n22'], daysAgo: 1,
+    pitch: 'Halaman agenda Karang Taruna saya desain dan bangun sendiri, dan saya ingin lebih banyak membantu komunitas membuat halaman informasi sederhana.',
   },
 ];
 

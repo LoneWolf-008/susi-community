@@ -28,6 +28,7 @@ import skillsRoutes from './routes/skills.js';
 import publicRoutes from './routes/public.js';
 import chatbotRoutes from './routes/chatbot.js';
 import recommendationsRoutes from './routes/recommendations.js';
+import { talentRouter as certificationRoutes, reviewRouter as certificationReviewRoutes } from './routes/certifications.js';
 
 // Folder unggahan dibuat saat boot agar multer tidak gagal di instalasi baru.
 fs.mkdirSync(env.deliveriesDir, { recursive: true });
@@ -73,7 +74,10 @@ app.use('/api/discussions', discussionsRoutes);
 app.use('/api/liaison/escalations', escalationRoutes);
 app.use('/api/liaison', liaisonRoutes);
 app.use('/api/talent', talentRoutes);
+// Peninjauan sertifikasi (U5) untuk admin & AgenSUSI: sebelum /api/admin yang khusus admin.
+app.use('/api/admin/certifications', certificationReviewRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/certifications', certificationRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/settings', settingsRoutes);

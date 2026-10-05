@@ -3,6 +3,7 @@ import { success, fail } from '../utils/response.js';
 import { parsePagination, paged } from '../utils/pagination.js';
 import { findOrCreateSkill } from '../utils/skillNormalize.js';
 import { invalidateRecommendations } from '../services/recommendation/index.js';
+import { focusLabel } from '../services/certification.js';
 
 export const getProfile = async (req, res, next) => {
   try {
@@ -32,11 +33,19 @@ export const getProfile = async (req, res, next) => {
       [req.user.id]
     );
 
+    // U5: sertifikat aktif (badge "Tersertifikasi SUSI").
+    const [certificates] = await pool.query(
+      `SELECT code, focus_area, issued_at FROM certificates WHERE talent_id = ? AND revoked_at IS NULL ORDER BY issued_at DESC`,
+      [req.user.id]
+    );
+
     return success(res, {
       user: users[0],
       profile: profiles[0] || { reputation_points: 0, level: 'TALENTA_MUDA', next_level_target: 20 },
       skills,
       projects,
+      certified: certificates.length > 0,
+      certificates: certificates.map((c) => ({ ...c, focus_label: focusLabel(c.focus_area) })),
     });
   } catch (err) {
     next(err);

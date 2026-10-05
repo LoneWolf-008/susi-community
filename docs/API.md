@@ -25,6 +25,7 @@ Peran: `requester` (komunitas), `talent`, `liaison` (AgenSUSI), `admin`. "Login"
 | GET | `/public/catalog` | Kebutuhan terbuka, field terbatas (tanpa deskripsi lengkap/alamat/koordinat/nama komunitas). Filter `category, sector, search` |
 | GET | `/public/communities` | Titik peta: koordinat dibulatkan ±100 m (null bila pembuat mematikan `show_location`), `needs_open`, `projects_completed`, plus `sectors[]` |
 | POST | `/public/visit` | Catat kunjungan landing (sekali per sesi; 10/15 menit per IP) |
+| GET | `/public/certificates/:code` | Verifikasi sertifikat talenta (U5): `{ code, name, focus_area, focus_label, issued_at, project_count, status: VALID\|REVOKED, revoked_at, issuer }`. Tanpa email, telepon, atau data pribadi lain. Kode tidak dikenal / format salah → 404 |
 | GET | `/health` | Cek server |
 
 ## Auth
@@ -122,7 +123,7 @@ keanggotaan ACTIVE (atau liaison/admin).
 
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
-| GET/PATCH | `/talent/profile` | talent | GET: `user, profile (reputation_points, level, next_level_target), skills[], projects[]` (+ `community_name, community_verified_at`). PATCH: `bio?, phone?, extra_info?, skill_ids?[], skills?[] (nama)`. Nama keahlian bebas dibakukan (`reactjs`/`React.js` → `React`, `js` → `JavaScript`) dan memakai keahlian yang sudah ada bila kuncinya sama |
+| GET/PATCH | `/talent/profile` | talent | GET: `user, profile (reputation_points, level, next_level_target), skills[], projects[]` (+ `community_name, community_verified_at`), `certified`, `certificates[] {code, focus_area, focus_label, issued_at}` (aktif saja). PATCH: `bio?, phone?, extra_info?, skill_ids?[], skills?[] (nama)`. Nama keahlian bebas dibakukan (`reactjs`/`React.js` → `React`, `js` → `JavaScript`) dan memakai keahlian yang sudah ada bila kuncinya sama |
 | GET | `/talent/top` | login | Peringkat reputasi |
 | GET | `/talent/:id/testimonials` | login | Testimoni publik (disetujui & `is_public`) |
 | GET | `/testimonials/mine` | login | Testimoni yang saya terima |
@@ -131,6 +132,25 @@ keanggotaan ACTIVE (atau liaison/admin).
 | GET | `/notifications/unread-count` | login | `{ count }`. Dasbor mem-polling tiap 30 detik (berhenti saat tab peramban tidak aktif) |
 | PATCH | `/notifications/:id/read` · `/notifications/read-all` · DELETE `/notifications/:id` | login | |
 | GET/PATCH | `/settings` | login | `notif_email, notif_whatsapp, notif_talenta, notif_diskusi, show_location, allows_ai_chat, allows_chat_history_storage, show_in_recommendations` (boolean). `notif_talenta`/`notif_diskusi` = 0 → notifikasi bertipe `talenta`/`diskusi` tidak dibuat; `show_location` = 0 → titik & sektor komunitas yang didaftarkan pengguna itu disembunyikan di peta publik (komunitasnya tetap terdaftar); `allows_ai_chat` & `allows_chat_history_storage` → privasi Tanya SUSI (lihat bagian Chatbot); `show_in_recommendations` = 0 → talenta tidak muncul di rekomendasi pemilik kebutuhan dan tidak bisa diundang (tetap bisa melamar). Email & WhatsApp belum punya kanal pengiriman |
+
+## Sertifikasi talenta (U5)
+
+Syarat: proyek `COMPLETED` ≥ `CERT_MIN_PROJECTS` (env, bawaan 3), tidak ada pengajuan `PENDING`, dan
+bidang yang diajukan belum punya sertifikat aktif. Bidang (`focus_area`): `PENCATATAN`, `WEBSITE`,
+`APLIKASI`, `DESAIN`, `UMUM`.
+
+| Method | Path | Peran | Keterangan |
+|---|---|---|---|
+| GET | `/certifications/eligibility` | talent | `{ eligible, reasons[], completed, min_projects, pending_request \| null, certificates[], available_focus_areas[] {code, label}, completed_projects[] {id, title, category, community_name, community_verified_at} }` |
+| POST | `/certifications` | talent | `{ focus_area, pitch (30–1500), project_ids[] }`. Proyek bukti wajib proyek selesai milik sendiri (milik orang lain → 400), minimal `min_projects`, maks. 10. Belum layak → 400 dengan alasan; ada pengajuan `PENDING` → 409; bidang sudah bersertifikat → 409. Membuat item `moderation_items` (`TALENTA`) dan notifikasi `moderasi` ke admin & AgenSUSI aktif → 201 |
+| GET | `/certifications/mine` | talent | Riwayat pengajuan (≤ 20): `focus_label, pitch, status, review_note, projects[], certificate {code, issued_at, revoked_at, status: VALID\|REVOKED} \| null` |
+| GET | `/admin/certifications` | admin, liaison | `?status=PENDING` (default) `\|APPROVED\|REJECTED\|all`, `page/limit`. Item: `talent {name, level, reputation_points, completed_projects, skills[]}`, `focus_label, pitch, status, review_note, reviewer, projects[] {title, community_name, verified_at, testimonial {text, from_name} \| null, delivery {link_url, file_name} \| null}, certificate`. Juga `counts {pending, approved, rejected}`, `min_projects` |
+| PATCH | `/admin/certifications/:id` | admin, liaison | `{ decision: APPROVED\|REJECTED, note? }` (catatan wajib saat menolak). Disetujui → sertifikat terbit dengan kode acak `SUSI-XXXX-XXXX` (tidak berurutan) dan notifikasi `verifikasi` ke talenta. Item moderasi ikut diputus; tercatat di audit log (`APPROVE_CERTIFICATION`/`REJECT_CERTIFICATION`). Sudah diputus → 409 |
+| PATCH | `/admin/certifications/:id/revoke` | admin | `{ reason (5–500) }`. Sertifikat dari pengajuan ini dicabut (`revoked_at`); verifikasi publik menampilkan `REVOKED`. Audit `REVOKE_CERTIFICATE`, notifikasi ke talenta. Sudah dicabut → 409 |
+
+Pengajuan juga bisa diputus dari antrean moderasi admin (`PATCH /admin/moderation/:id` untuk item
+`TALENTA`) dengan hasil yang sama. Sertifikat aktif memberi bonus kecil (+2) di skor rekomendasi R1
+dan badge "Tersertifikasi SUSI" di kartu pelamar & rekomendasi.
 
 ## Liaison (AgenSUSI)
 
@@ -268,7 +288,7 @@ oleh chatbot.
 | Method | Path | Keterangan |
 |---|---|---|
 | GET | `/admin/stats` | `v_platform_stats` lengkap + `moderation {pending, approved, rejected}`, `users_by_role` (akun aktif), `weekly_visits[6]` (kunjungan situs per minggu, terlama → minggu ini) |
-| GET | `/admin/moderation` | Filter `item_type, decision`. Tiap item membawa `detail`: isi kebutuhan (`description, category, community_name, created_by_name, …`) atau testimoni (`text, from_name, to_name, project_title`) |
+| GET | `/admin/moderation` | Filter `item_type, decision`. Tiap item membawa `detail`: isi kebutuhan (`description, category, community_name, created_by_name, …`), testimoni (`text, from_name, to_name, project_title`), atau pengajuan sertifikasi `TALENTA` (`talent_name, focus_label, pitch, evidence_projects, completed_projects`) |
 | PATCH | `/admin/moderation/:id` | `decision: APPROVED\|REJECTED, reject_reason (wajib saat REJECTED: SPAM\|DUPLIKAT\|SALAH KATEGORI\|TIDAK LAYAK), checklist_layak?, checklist_kategori?`. Hanya saat `PENDING` |
 | PATCH | `/admin/testimonials/:id/takedown` | `reason?` |
 | GET | `/admin/disputes` · `/admin/disputes/:id` | Filter `status`. Memuat `requester_name, talent_name`; detail juga `scope, done_definition, deadline, events[], messages[]` |
