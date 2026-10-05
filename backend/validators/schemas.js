@@ -355,6 +355,8 @@ export const settingsSchema = z.object({
   // Tanya SUSI (T15): izinkan AI (LLM) & simpan riwayat chat.
   allows_ai_chat: flag('Izinkan AI di Tanya SUSI').optional(),
   allows_chat_history_storage: flag('Simpan riwayat chat').optional(),
+  // R3: Tanya SUSI boleh membaca profil & rekomendasi untuk jawaban pribadi.
+  allows_ai_personalization: flag('Personalisasi Tanya SUSI').optional(),
   // R1: talenta tampil di rekomendasi untuk pemilik kebutuhan.
   show_in_recommendations: flag('Tampil di rekomendasi').optional(),
 }).refine(atLeastOneField, 'Tidak ada pengaturan yang diubah');

@@ -20,6 +20,15 @@ function answerFor(messages) {
   // Pertanyaan data pribadi: ulangi baris pertama <user_data> agar test bisa memeriksa isinya.
   const userData = /<user_data>\n([\s\S]*?)\n<\/user_data>/.exec(system)?.[1];
   if (userData && userData !== '(tidak ada)') return `[mock] Data Anda: ${userData.split('\n').slice(0, 3).join(' | ')}`;
+  // R3: penjelasan rekomendasi / narasi karier → ulangi rekomendasi pertama & keahlian dari profil.
+  const recommendations = /<recommendations>\n([\s\S]*?)\n<\/recommendations>/.exec(system)?.[1];
+  const profile = /<user_profile>\n([\s\S]*?)\n<\/user_profile>/.exec(system)?.[1];
+  if (recommendations || profile) {
+    const lines = (profile || '').split('\n');
+    const skills = lines.find((l) => l.startsWith('Keahlian:')) || '';
+    const demand = lines.find((l) => l.startsWith('Keahlian yang paling banyak diminta')) || '';
+    return `[mock] Rekomendasi: ${(recommendations || '(tidak ada)').split('\n')[0]} | ${skills} | ${demand}`.slice(0, 400);
+  }
   const entry = /<entry[^>]*title="([^"]*)"[^>]*>\s*([\s\S]*?)\s*<\/entry>/.exec(system);
   if (!entry) return '[mock] Maaf, saya belum menemukan informasinya. Anda bisa minta bantuan AgenSUSI.';
   const firstSentence = entry[2].split(/(?<=[.!?])\s/)[0].slice(0, 200);

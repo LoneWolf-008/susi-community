@@ -308,6 +308,15 @@
       "source": "API.md §Komunitas & mading; TASKS T10; tab Mading dasbor Komunitas & Talenta; TASKS-SUSI-FASE2 U1 (masa pajang & hapus)"
     },
     {
+      "slug": "rekomendasi",
+      "title": "Rekomendasi talenta dan kebutuhan",
+      "category": "fitur",
+      "audience": "all",
+      "keywords": ["rekomendasi", "paling cocok", "kecocokan", "skor cocok", "undang melamar", "undangan", "tampil di rekomendasi", "rekomendasi untuk anda", "talenta yang cocok"],
+      "reply": "SUSI menampilkan rekomendasi yang dihitung dari aturan terukur: kecocokan keahlian, kategori proyek yang pernah dikerjakan, komunitas, wilayah, reputasi, dan beban kerja. Talenta melihatnya di bagian Rekomendasi untuk Anda dan urutan Paling cocok di katalog. Komunitas melihat talenta yang cocok di detail kebutuhannya dan bisa mengundang hingga 5 talenta untuk melamar. Rekomendasi hanya mengurutkan pilihan: talenta tetap memutuskan melamar dan komunitas tetap memilih. Talenta bisa mematikan Tampilkan saya di rekomendasi di Pengaturan → Privasi.",
+      "source": "docs/PRD-addendum-rekomendasi.md; TASKS-SUSI-FASE2 R1–R2"
+    },
+    {
       "slug": "notifikasi",
       "title": "Notifikasi",
       "category": "fitur",

@@ -1,6 +1,6 @@
 // Saran pertanyaan cepat per peran untuk widget Tanya SUSI (T14). Setiap saran harus terjawab KB
-// untuk audiens perannya, atau berupa pertanyaan data pribadi untuk pengguna yang masuk — diuji di
-// tests/unit/suggestions.test.js agar tombol saran tidak pernah berujung "belum tahu".
+// untuk audiens perannya, atau berupa pertanyaan data pribadi / intent personal (R3) untuk pengguna
+// yang masuk — diuji di tests/unit/suggestions.test.js agar tombol saran tidak berujung "belum tahu".
 // Saran `public` juga dipakai landing & navigasi frontend (frontend/src/data/askSuggestions.js).
 export const SUGGESTIONS = Object.freeze({
   public: [
@@ -10,21 +10,21 @@ export const SUGGESTIONS = Object.freeze({
     'Komunitas saya belum terbiasa pakai website, bisa dibantu?',
   ],
   requester: [
+    'Talenta mana yang cocok untuk kebutuhan saya?',
     'Bagaimana cara mengajukan kebutuhan?',
     'Status kebutuhan saya?',
-    'Bagaimana cara memilih talenta?',
     'Apa itu verifikasi dua arah?',
   ],
   talent: [
+    'Proyek apa yang cocok untuk saya?',
+    'Skill apa yang perlu saya pelajari?',
     'Bagaimana cara melamar proyek?',
     'Status lamaran saya?',
-    'Berapa poin reputasi saya?',
-    'Bagaimana cara mengirim hasil pekerjaan?',
   ],
   liaison: [
+    'Talenta mana yang cocok untuk kebutuhan saya?',
     'Bagaimana mencatat kebutuhan atas nama komunitas?',
     'Bagaimana mencatat kunjungan lapangan?',
-    'Apa itu pemilik proksi?',
     'Status kebutuhan saya?',
   ],
   admin: [

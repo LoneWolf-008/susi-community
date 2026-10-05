@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SUGGESTIONS, suggestionsFor } from '../../services/chatbot/suggestions.js';
 import { rankEntries, selectRelevant, isConfident, audiencesFor } from '../../services/chatbot/kb.js';
-import { classifyIntent } from '../../services/chatbot/intent.js';
+import { classifyIntent, PERSONAL_INTENTS } from '../../services/chatbot/intent.js';
 import { queryTerms, fieldTokens } from '../../services/chatbot/text.js';
 import { readKbFile } from '../../utils/kbSeed.js';
 
@@ -32,10 +32,11 @@ describe('Saran pertanyaan per peran (T14.4)', () => {
   });
 
   it.each(Object.entries(SUGGESTIONS).flatMap(([role, list]) => list.map((q) => [role, q])))(
-    '[%s] "%s" terjawab langsung dari KB atau berupa data pribadi',
+    '[%s] "%s" terjawab langsung dari KB, berupa data pribadi, atau intent personal (R3)',
     async (role, question) => {
       const user = ROLES[role];
-      if (user && classifyIntent(question).intent === 'status_data') return;
+      const { intent } = classifyIntent(question);
+      if (user && (intent === 'status_data' || PERSONAL_INTENTS.includes(intent))) return;
       const rows = await kbFor(user);
       const found = selectRelevant(rankEntries(question, candidates(question, rows)));
       expect(found.length, 'ada entri relevan').toBeGreaterThan(0);
