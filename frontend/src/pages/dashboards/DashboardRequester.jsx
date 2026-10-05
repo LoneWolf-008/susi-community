@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import DashShell from '../../components/common/DashShell';
-import AiAgent from '../../components/common/AiAgent';
+import ChatWidget from '../../components/chat/ChatWidget';
 import MadingBoard from '../../components/mading/MadingBoard';
 import SettingsPanel from '../../components/settings/SettingsPanel';
 import NeedDetail from '../../components/owner/NeedDetail';
@@ -81,7 +81,7 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
         {tab === 'profile' && <ProfileTab user={user} cards={cards} onEdit={() => onTab('setting')} />}
         {tab === 'setting' && <SettingsPanel onLogout={onLogout} />}
       </div>
-      <AiAgent role="komunitas" />
+      <ChatWidget variant="floating" />
     </DashShell>
   );
 }

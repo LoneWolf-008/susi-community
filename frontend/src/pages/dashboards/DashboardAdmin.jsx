@@ -12,6 +12,7 @@ import SengketaTab from './admin/SengketaTab';
 import PenggunaTab from './admin/PenggunaTab';
 import LiaisonTab from './admin/LiaisonTab';
 import AuditTab from './admin/AuditTab';
+import TanyaSusiTab from './admin/TanyaSusiTab';
 
 const NAV = [
   { id: 'ringkasan', n: '01', l: 'Ringkasan' },
@@ -19,8 +20,9 @@ const NAV = [
   { id: 'sengketa', n: '03', l: 'Sengketa' },
   { id: 'pengguna', n: '04', l: 'Pengguna' },
   { id: 'liaison', n: '05', l: 'AgenSUSI' },
-  { id: 'audit', n: '06', l: 'Log Audit' },
-  { id: 'setting', n: '07', l: 'Pengaturan' },
+  { id: 'tanya', n: '06', l: 'Tanya SUSI' },
+  { id: 'audit', n: '07', l: 'Log Audit' },
+  { id: 'setting', n: '08', l: 'Pengaturan' },
 ];
 
 export default function DashboardAdmin({ user, onLogout, navigateTo }) {
@@ -52,6 +54,7 @@ export default function DashboardAdmin({ user, onLogout, navigateTo }) {
         {tab === 'sengketa' && <SengketaTab statsQ={statsQ} onChanged={refreshStats} />}
         {tab === 'pengguna' && <PenggunaTab currentUserId={user?.id} onChanged={refreshStats} />}
         {tab === 'liaison' && <LiaisonTab onChanged={refreshStats} />}
+        {tab === 'tanya' && <TanyaSusiTab onChanged={refreshStats} />}
         {tab === 'audit' && <AuditTab />}
         {tab === 'setting' && <SettingsPanel onLogout={onLogout} />}
       </div>

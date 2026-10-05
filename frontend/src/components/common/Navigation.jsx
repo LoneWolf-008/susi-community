@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ROLE_LABELS } from '../../context/authContext';
+import { PUBLIC_SUGGESTIONS } from '../../data/askSuggestions';
 
 export default function Navigation({ currentPage, navigateTo, goToSection, menuOpen, setMenuOpen, user, onLogout, onAsk, theme = 'dark' }) {
 
@@ -87,12 +88,7 @@ export default function Navigation({ currentPage, navigateTo, goToSection, menuO
     { l: 'Tentang Kami', fn: () => navigateTo('tentang') },
     { l: user ? 'Dashboard' : 'Masuk / Daftar', fn: () => navigateTo('dashboard') },
   ];
-  const SUGGEST = [
-    'Cari tahu apakah kami cocok untuk Anda.',
-    'Apa yang bisa kami bantu bangun?',
-    'Tunjukkan proyek di sektor saya...',
-    'Siapa saja tim di balik SUSI?',
-  ];
+  const SUGGEST = PUBLIC_SUGGESTIONS;
 
   return (
     <>

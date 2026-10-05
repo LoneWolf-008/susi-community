@@ -39,6 +39,38 @@ export const DISPUTE_STATUS = {
   SELESAI: { label: 'SELESAI', tone: 'success' },
 };
 
+// Tiket eskalasi Tanya SUSI ke AgenSUSI (T13).
+export const ESCALATION_STATUS = {
+  pending: { label: 'MENUNGGU', tone: 'warning' },
+  assigned: { label: 'DITANGANI', tone: 'info' },
+  resolved: { label: 'SELESAI', tone: 'success' },
+  closed: { label: 'DITUTUP', tone: 'muted' },
+};
+
+export const ESCALATION_REASON = {
+  explicit_request: 'Minta AgenSUSI',
+  sensitive: 'Topik sensitif',
+  complaint: 'Keluhan',
+  repeated: 'Pertanyaan berulang',
+  unanswered: 'Tidak terjawab',
+  long_unresolved: 'Percakapan panjang',
+  user_request: 'Permintaan pengguna',
+};
+
+export const KB_STATUS = {
+  active: { label: 'AKTIF', tone: 'success' },
+  draft: { label: 'DRAFT', tone: 'warning' },
+  archived: { label: 'ARSIP', tone: 'muted' },
+};
+
+export const KB_AUDIENCE = {
+  all: 'Semua',
+  public: 'Pengunjung',
+  requester: 'Komunitas',
+  talent: 'Talenta',
+  liaison: 'AgenSUSI',
+};
+
 export const VISIT_STATUS = {
   DIRENCANAKAN: { label: 'DIRENCANAKAN', tone: 'info' },
   BERLANGSUNG: { label: 'BERLANGSUNG', tone: 'warning' },
@@ -80,3 +112,5 @@ export const moderationStatus = (status) => MODERATION_STATUS[status] || FALLBAC
 export const applicationStatus = (status) => APPLICATION_STATUS[status] || FALLBACK(status);
 export const disputeStatus = (status) => DISPUTE_STATUS[status] || FALLBACK(status);
 export const visitStatus = (status) => VISIT_STATUS[status] || FALLBACK(status);
+export const escalationStatus = (status) => ESCALATION_STATUS[status] || FALLBACK(status);
+export const kbStatus = (status) => KB_STATUS[status] || FALLBACK(status);

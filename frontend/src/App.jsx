@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Route, Routes, useLocation } from 'react-router';
 import Navigation from './components/common/Navigation';
 import Footer from './components/common/Footer';
-import AskSusiPanel from './components/common/AskSusiPanel';
+import ChatWidget from './components/chat/ChatWidget';
 import ProtectedRoute, { GuestOnly } from './components/routing/ProtectedRoute';
 import HomePage from './pages/HomePage';
 import AuthPage from './pages/AuthPage';
@@ -78,7 +78,7 @@ export default function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
-      <AskSusiPanel open={ask.open} seedQ={ask.q} seedN={ask.n} onClose={closeAsk} />
+      <ChatWidget variant="overlay" open={ask.open} seed={ask} onClose={closeAsk} />
 
       {!isStandalone && <Footer navigateTo={navigateTo} goToSection={goToSection} />}
     </div>

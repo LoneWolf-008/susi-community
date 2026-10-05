@@ -11,6 +11,14 @@ export const AUDIT_ACTION = {
   UPDATE_STATUS: { label: 'Mengubah status akun', color: 'bg-[#b45309]' },
   CREATE_LIAISON: { label: 'Membuat akun AgenSUSI', color: 'bg-[#0e7490]' },
   TAKEDOWN: { label: 'Menurunkan testimoni', color: 'bg-[#e62b2b]' },
+  CLAIM_ESCALATION: { label: 'Mengklaim eskalasi', color: 'bg-[#0e7490]' },
+  RESOLVE_ESCALATION: { label: 'Menyelesaikan eskalasi', color: 'bg-[#c9ecd9]' },
+  CLOSE_ESCALATION: { label: 'Menutup eskalasi', color: 'bg-[#6b7280]' },
+  CREATE_KB: { label: 'Membuat entri KB', color: 'bg-[#12283c]' },
+  UPDATE_KB: { label: 'Mengubah entri KB', color: 'bg-[#12283c]' },
+  APPROVE_KB: { label: 'Menyetujui entri KB', color: 'bg-[#15803d]' },
+  ARCHIVE_KB: { label: 'Mengarsipkan entri KB', color: 'bg-[#6b7280]' },
+  UNPUBLISH_KB: { label: 'Menjadikan draft KB', color: 'bg-[#b45309]' },
 };
 
 export const AUDIT_ENTITY = {
@@ -20,6 +28,8 @@ export const AUDIT_ENTITY = {
   disputes: 'Sengketa',
   testimonials: 'Testimoni',
   users: 'Pengguna',
+  escalations: 'Eskalasi Tanya SUSI',
+  kb_entries: 'Basis pengetahuan',
 };
 
 export const auditAction = (action) => AUDIT_ACTION[action] || { label: action, color: 'bg-[#9CA3AF]' };
