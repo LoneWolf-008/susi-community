@@ -23,3 +23,6 @@ export function toPoint(row) {
 
 /** Bulatkan seperti kolom DECIMAL(9,6) agar nilai yang dikirim sama dengan yang tersimpan. */
 export const roundPoint = ({ lat, lng }) => ({ lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 });
+
+/** Id marker komunitas di CommunityMap (dipakai daftar untuk membuka popup). */
+export const communityMarkerId = (id) => `c-${id}`;

@@ -4,7 +4,7 @@ import { useApi } from '../../../hooks/useApi';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { geocode, sectorOf } from '../../../lib/geocode';
 import { NEED_CATEGORY } from '../../../lib/statusMap';
-import GoogleMapsEmbed from '../../../components/common/GoogleMapsEmbed';
+import LocationPicker from '../../../components/map/LocationPicker';
 import { visitName, visitPoint } from './visits';
 
 const TYPES = ['PKK', 'RT/RW', 'KARANG TARUNA', 'UMKM', 'PEMUDA', 'HOBI', 'KELUARGA', 'LAINNYA'];
@@ -203,9 +203,7 @@ export default function IntakeTab({ visit, onSaved, onAgain, onOpenNeeds }) {
             <span className="label-mono !text-[#e62b2b] !opacity-100">C · LOKASI</span>
             <div className="my-4"><button type="button" onClick={grabGps} className="w-full btn-pill btn-navy !py-3 text-[10px]">📡 Gunakan GPS saya</button></div>
             {locMsg && <p role="status" className="font-mono text-[10px] font-bold mb-3">{locMsg}</p>}
-            <div className="relative z-0 rounded-xl border border-[#12283c]/15 h-[280px] mb-4 overflow-hidden">
-              <GoogleMapsEmbed lat={point?.lat} lng={point?.lng} query={address || 'Bandung, Indonesia'} zoom={point ? 16 : 12} title="Peta lokasi kebutuhan" />
-            </div>
+            <div className="mb-4"><LocationPicker point={point} onChange={setCoords} label="Peta lokasi kebutuhan" className="h-[260px] sm:h-[300px]" /></div>
             <p className="chip-mono border-0 bg-[#12283c] text-[#f2efe6] inline-block mb-4">{point ? `${point.lat.toFixed(4)}, ${point.lng.toFixed(4)} · ${sectorOf(point)}` : 'BELUM ADA TITIK'}</p>
             <label className="field-label" htmlFor="intake-address">Alamat / patokan</label>
             <div className="flex gap-2">

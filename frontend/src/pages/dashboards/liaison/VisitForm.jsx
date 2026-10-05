@@ -3,6 +3,7 @@ import { api } from '../../../lib/api';
 import { useApi } from '../../../hooks/useApi';
 import { useToast } from '../../../context/toastContext';
 import { geocode, sectorOf } from '../../../lib/geocode';
+import LocationPicker from '../../../components/map/LocationPicker';
 import { toDateInput } from '../../../lib/format';
 import { todayInput } from './visits';
 
@@ -105,6 +106,9 @@ export default function VisitForm({ visit, onSaved, onCancel }) {
             <button type="button" onClick={search} disabled={!form.address.trim()} className="btn-pill btn-ghost-dark !py-2 !px-5 text-[10px] shrink-0">Cari</button>
           </div>
           {message && <p role="status" className="font-mono text-[10px] mt-2">{message}</p>}
+          <div className="mt-3">
+            <LocationPicker point={coords} onChange={(p) => { setCoords(p); setMessage(`Titik dipilih di peta · ${sectorOf(p)}`); }} label="Peta titik kunjungan" />
+          </div>
         </div>
         <div>
           <label className="field-label" htmlFor="visit-contact">Narahubung (opsional)</label>

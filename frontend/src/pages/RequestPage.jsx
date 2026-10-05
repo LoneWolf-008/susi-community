@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import GoogleMapsEmbed from '../components/common/GoogleMapsEmbed';
+import LocationPicker from '../components/map/LocationPicker';
 import { geocode, sectorOf } from '../lib/geocode';
 import { api } from '../lib/api';
 import { useApi } from '../hooks/useApi';
@@ -199,11 +199,9 @@ export default function RequestPage({ user, navigateTo }) {
                   <input id="need-addr" value={addr} onChange={(e) => { setAddr(e.target.value); setCoords(null); setLocationMessage(''); }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); searchAddress(); } }} className="input-line" placeholder="Ketik alamat: Mis. Jl. Ambon No.11, Bandung" />
                   <button type="button" onClick={searchAddress} disabled={searching || !addr.trim()} className="btn-pill btn-navy !px-6 !py-3 text-[10px] shrink-0">{searching ? 'MENCARI...' : 'Cari →'}</button>
                 </div>
-                <div className="rounded-xl overflow-hidden border border-[#12283c]/15 h-[380px] md:h-[440px] relative z-0">
-                  <GoogleMapsEmbed lat={point?.lat} lng={point?.lng} query="Bandung, Indonesia" zoom={point ? 16 : 12} title="Peta lokasi kebutuhan" />
-                </div>
-                <p className="font-mono text-[10px] opacity-50 mt-3 leading-relaxed">
-                  {coords ? 'TITIK DARI ALAMAT YANG DICARI.' : communityPoint ? 'TITIK MENGIKUTI LOKASI KOMUNITAS. CARI ALAMAT UNTUK MENGGANTINYA.' : 'LOKASI MEMBANTU TALENTA DI SEKITAR ANDA MENEMUKAN KEBUTUHAN INI.'}
+                <LocationPicker point={point} onChange={setCoords} label="Peta lokasi kebutuhan" className="h-[300px] md:h-[440px]" />
+                <p className="font-mono text-[10px] opacity-50 mt-2 leading-relaxed">
+                  {coords ? 'TITIK DARI ALAMAT ATAU PETA.' : communityPoint ? 'TITIK MENGIKUTI LOKASI KOMUNITAS. CARI ALAMAT ATAU GESER PENANDA UNTUK MENGGANTINYA.' : 'LOKASI MEMBANTU TALENTA DI SEKITAR ANDA MENEMUKAN KEBUTUHAN INI.'}
                 </p>
                 {locationMessage && <p role="status" className="font-mono text-[10px] mt-2">{locationMessage}</p>}
               </div>
