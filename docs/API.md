@@ -42,9 +42,9 @@ Peran: `requester` (komunitas), `talent`, `liaison` (AgenSUSI), `admin`. "Login"
 
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
-| GET | `/needs/catalog` | login | `APPROVED + OPEN`. Filter `category, sector, source, skill (id/nama), search`. Item memuat `skills[]` dan `my_application_status` (status lamaran pengguna ini, atau `null`). `sort=match` (talenta berkeahlian): urut skor kecocokan; tiap item memuat `match { score, matched_skills, missing_skills, reasons, confidence }` dan respons memuat `sort: 'match'` |
+| GET | `/needs/catalog` | login | `APPROVED + OPEN`. Filter `category, sector, source, skill (id/nama), search`. Item memuat `skills[]`, `my_application_status` (status lamaran pengguna ini, atau `null`), dan `my_invite_status` (`SENT`/`ACCEPTED`/`null`, undangan untuk pengguna ini). `sort=match` (talenta berkeahlian): urut skor kecocokan; tiap item memuat `match { score, matched_skills, missing_skills, reasons, confidence }` dan respons memuat `sort: 'match'` |
 | GET | `/needs/mine` | requester, liaison | Milik sendiri (liaison: kebutuhan Assisted yang ia catat). Memuat `applicants, applicants_waiting, project_id, project_status, skills[]` |
-| GET | `/needs/:id` | login | Belum `APPROVED` hanya untuk pemilik/admin. Pemilik/admin juga menerima `project_id, project_status` (proyek terbaru, bisa `CANCELLED`). Semua menerima `my_application_status` |
+| GET | `/needs/:id` | login | Belum `APPROVED` hanya untuk pemilik/admin. Pemilik/admin juga menerima `project_id, project_status` (proyek terbaru, bisa `CANCELLED`). Semua menerima `my_application_status` dan `my_invite_status` |
 | POST | `/needs` | requester, liaison | `title, description, category?, summary?, address?, lat?, lng?, community_id?, skill_ids?[]`. Requester harus anggota komunitas. Masuk antrean moderasi (`PENDING`) |
 | PATCH | `/needs/:id` | pemilik | Hanya saat `PENDING`/`REJECTED`; dari `REJECTED` kembali `PENDING` |
 | POST | `/needs/:id/withdraw` | pemilik | `reason?`. Tutup lunak (`CLOSED`); 409 bila sudah ada proyek aktif |
