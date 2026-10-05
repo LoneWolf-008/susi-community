@@ -170,6 +170,8 @@ fallback SPA untuk Vercel/Netlify.
 | `CHATBOT_DAILY_LIMIT_USER` | | `100` | Pesan chatbot per hari per akun |
 | `CHATBOT_DAILY_LIMIT_ANON`, `CHATBOT_DAILY_LIMIT_ANON_IP` | | `20`, `300` | Anonim per hari: per sesi chat, dan plafon per IP (naikkan untuk demo dengan satu Wi-Fi) |
 | `CHATBOT_ALLOWED_DOMAINS` | | kosong | Domain tambahan yang boleh muncul sebagai tautan di jawaban (host `FRONTEND_URL` & `wa.me` selalu boleh) |
+| `CHATBOT_ESCALATION_THRESHOLD` | | `50` | Skor sinyal minimal untuk menyarankan "Hubungi AgenSUSI" |
+| `CHATBOT_SERVICE_HOURS`, `CHATBOT_SERVICE_TZ` | | kosong, `Asia/Jakarta` | Jam layanan AgenSUSI `HH:MM-HH:MM` (kosong = setiap saat); di luar jam itu tiket tetap dibuat |
 | `MIGRATIONS_DIR` | | `db/migrations` | Hanya untuk pengujian runner migrasi |
 | `TEST_DB_NAME` | | `susi_community_test` | Database untuk `npm test` (harus berakhiran `_test`) |
 
