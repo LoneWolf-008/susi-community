@@ -196,6 +196,12 @@ export default function AuthPage() {
                   <input id="auth-extra" value={extra} onChange={(e) => { setExtra(e.target.value); clearField('extra'); }} className="input-line" placeholder={activeRole.ph} maxLength={150} />
                   {fieldError('extra')}
                 </div>
+                {role === 'talent' && (
+                  <p className="form-anim rounded-lg bg-[#12283c]/5 p-3 text-xs leading-relaxed text-[#12283c]/75">
+                    Profil ringkas Anda (nama, level, keahlian, proyek selesai) akan muncul di rekomendasi untuk komunitas yang
+                    kebutuhannya cocok, dan mereka bisa mengundang Anda melamar. Bisa dimatikan kapan saja di Pengaturan → Privasi.
+                  </p>
+                )}
               </>
             )}
             {error && <p role="alert" className="form-anim font-mono text-[10px] font-bold text-[#e62b2b]">⚠ {error}</p>}

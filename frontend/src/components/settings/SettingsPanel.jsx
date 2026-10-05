@@ -24,6 +24,13 @@ const NOTIF_TOGGLES = [
   { key: 'notif_whatsapp', label: 'WhatsApp', sub: 'Notifikasi penting via WhatsApp (segera hadir)' },
 ];
 
+// R2: talenta tampil di rekomendasi untuk pemilik kebutuhan (bawaan aktif, diberitahukan saat daftar).
+const RECOMMENDATION_TOGGLE = {
+  key: 'show_in_recommendations',
+  label: 'Tampilkan saya di rekomendasi',
+  sub: 'Komunitas yang kebutuhannya cocok dengan keahlian Anda melihat profil ringkas (nama, level, keahlian, jumlah proyek selesai) dan bisa mengundang Anda melamar. Bila mati, Anda tetap bisa melamar seperti biasa',
+};
+
 const CHAT_TOGGLES = [
   {
     key: 'allows_ai_chat',
@@ -179,7 +186,10 @@ export default function SettingsPanel({ onLogout }) {
             <>
               <div className="dash-item card-light p-7 space-y-3">
                 <h3 className="text-xl font-black mb-2">Kontrol Data</h3>
-                {toggles([{ key: 'show_location', label: 'Tampilkan lokasi komunitas di peta publik', sub: 'Titik ditampilkan perkiraan (±100 m), alamat lengkap tidak pernah ditampilkan' }])}
+                {toggles([
+                  ...(user?.role === 'talent' ? [RECOMMENDATION_TOGGLE] : []),
+                  { key: 'show_location', label: 'Tampilkan lokasi komunitas di peta publik', sub: 'Titik ditampilkan perkiraan (±100 m), alamat lengkap tidak pernah ditampilkan' },
+                ])}
               </div>
               <div className="dash-item card-light p-7 space-y-3">
                 <h3 className="text-xl font-black mb-2">Tanya SUSI</h3>

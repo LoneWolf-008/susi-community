@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { useApi } from '../../../hooks/useApi';
 import { useToast } from '../../../context/toastContext';
@@ -16,13 +16,24 @@ const APPLIED_COPY = {
   DITOLAK: { title: 'Belum terpilih kali ini', body: 'Komunitas memilih pelamar lain. Terus lengkapi profil dan coba kebutuhan lain.' },
 };
 
-/** Detail kebutuhan dari katalog + form lamaran (POST /applications/needs/:id). */
-export default function NeedView({ needId, liveKey = 0, onBack, onApplied, onOpenHistory, onOpenProjects }) {
+/**
+ * Detail kebutuhan dari katalog + form lamaran (POST /applications/needs/:id).
+ * `focusApply`: dibuka dari tombol "Lamar" rekomendasi → gulir & fokus ke form lamaran.
+ */
+export default function NeedView({ needId, liveKey = 0, focusApply = false, onBack, onApplied, onOpenHistory, onOpenProjects }) {
   const toast = useToast();
   const { data: need, loading, error, refetch } = useApi((signal) => api.get(`/needs/${needId}`, { signal }), [needId, liveKey]);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [formError, setFormError] = useState('');
+  const loaded = Boolean(need);
+
+  useEffect(() => {
+    if (!focusApply || !loaded) return;
+    const field = document.getElementById('apply-message');
+    field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    field?.focus({ preventScroll: true });
+  }, [focusApply, loaded]);
 
   const apply = async (e) => {
     e.preventDefault();
@@ -64,7 +75,10 @@ export default function NeedView({ needId, liveKey = 0, onBack, onApplied, onOpe
           </div>
           <span className="font-mono text-[9px] opacity-50">DIAJUKAN {timeAgo(need.created_at).toUpperCase()}</span>
         </div>
-        <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-[0.95] mb-6">{need.title}</h1>
+        <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-[0.95] mb-6 break-words">{need.title}</h1>
+        {need.my_invite_status === 'SENT' && !applied && (
+          <p className="mb-6 rounded-xl bg-[#e62b2b] text-white px-4 py-3 text-sm font-bold">✉ Anda diundang melamar oleh pemilik kebutuhan ini. Lamar bila Anda tertarik — keputusan tetap di tangan Anda.</p>
+        )}
         <p className="label-mono !text-[#e62b2b] !opacity-100 mb-3">MASALAH YANG DIALAMI KOMUNITAS</p>
         <p className="text-sm md:text-base leading-relaxed text-[#12283c]/80 max-w-3xl mb-6 whitespace-pre-line">{need.description}</p>
         {need.skills?.length > 0 && <div className="flex flex-wrap gap-2">{need.skills.map((s) => <span key={s.id} className="chip-mono">{s.name}</span>)}</div>}

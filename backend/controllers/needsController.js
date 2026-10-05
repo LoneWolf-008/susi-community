@@ -83,7 +83,8 @@ export const getCatalog = async (req, res, next) => {
               n.lat, n.lng, n.sector, n.source, n.created_at, n.community_id,
               c.name AS community_name, c.type AS community_type, c.leader_name, c.members_count,
               (SELECT COUNT(*) FROM applications a WHERE a.need_id = n.id) AS applicants,
-              (SELECT a.status FROM applications a WHERE a.need_id = n.id AND a.talent_id = ?) AS my_application_status
+              (SELECT a.status FROM applications a WHERE a.need_id = n.id AND a.talent_id = ?) AS my_application_status,
+              (SELECT i.status FROM need_invites i WHERE i.need_id = n.id AND i.talent_id = ?) AS my_invite_status
        FROM needs n
        LEFT JOIN communities c ON c.id = n.community_id
        ${where}
@@ -94,7 +95,7 @@ export const getCatalog = async (req, res, next) => {
     if (req.query.sort === 'match' && req.user.role === 'talent') {
       const talent = (await loadTalents(pool, [req.user.id])).get(Number(req.user.id));
       if (talent && talent.skills.length > 0) {
-        const [all] = await pool.query(`${select} LIMIT ${CATALOG_MATCH_LIMIT}`, [req.user.id, ...params]);
+        const [all] = await pool.query(`${select} LIMIT ${CATALOG_MATCH_LIMIT}`, [req.user.id, req.user.id, ...params]);
         const scored = (await attachSkills(all))
           .map((n) => {
             const m = scoreMatch(talent, { ...n, skills: n.skills.map((s) => s.name) });
@@ -108,7 +109,7 @@ export const getCatalog = async (req, res, next) => {
       }
     }
 
-    const [rows] = await pool.query(`${select} LIMIT ? OFFSET ?`, [req.user.id, ...params, pg.limit, pg.offset]);
+    const [rows] = await pool.query(`${select} LIMIT ? OFFSET ?`, [req.user.id, req.user.id, ...params, pg.limit, pg.offset]);
 
     const [[{ total }]] = await pool.query(
       `SELECT COUNT(*) AS total FROM needs n ${where}`,
@@ -155,12 +156,13 @@ export const getNeedById = async (req, res, next) => {
               u.name AS requester_name,
               (SELECT p.id FROM projects p WHERE p.need_id = n.id ORDER BY p.id DESC LIMIT 1) AS project_id,
               (SELECT p.status FROM projects p WHERE p.need_id = n.id ORDER BY p.id DESC LIMIT 1) AS project_status,
-              (SELECT a.status FROM applications a WHERE a.need_id = n.id AND a.talent_id = ?) AS my_application_status
+              (SELECT a.status FROM applications a WHERE a.need_id = n.id AND a.talent_id = ?) AS my_application_status,
+              (SELECT i.status FROM need_invites i WHERE i.need_id = n.id AND i.talent_id = ?) AS my_invite_status
        FROM needs n
        LEFT JOIN communities c ON c.id = n.community_id
        LEFT JOIN users u ON u.id = n.requester_id
        WHERE n.id = ?`,
-      [req.user.id, req.params.id]
+      [req.user.id, req.user.id, req.params.id]
     );
     const need = rows[0];
     if (!need) return fail(res, 'Kebutuhan tidak ditemukan', 404);

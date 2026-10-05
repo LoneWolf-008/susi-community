@@ -12,6 +12,7 @@ import { SkeletonCard } from '../ui/Skeleton';
 import ErrorState from '../ui/ErrorState';
 import VerifyModal from '../modals/VerifyModal';
 import ApplicantsPanel from './ApplicantsPanel';
+import MatchingTalentsPanel from './MatchingTalentsPanel';
 import DeliveriesList from '../project/DeliveriesList';
 import ProjectTimeline from '../project/ProjectTimeline';
 import DisputePanel, { OpenDisputeForm } from '../project/DisputePanel';
@@ -102,6 +103,13 @@ export default function NeedDetail({ needId, liveKey = 0, onBack, onChanged }) {
   const needQ = useApi((signal) => api.get(`/needs/${needId}`, { signal }), [needId, version, liveKey]);
   const projectId = needQ.data?.project_id ?? null;
   const projQ = useApi((signal) => api.get(`/projects/${projectId}`, { signal }), [projectId, version, liveKey], { enabled: Boolean(projectId) });
+  // R2: skor kecocokan pelamar & talenta lain (satu permintaan untuk kedua panel).
+  const matchable = needQ.data?.moderation_status === 'APPROVED' && needQ.data?.status === 'OPEN';
+  const recQ = useApi(
+    (signal) => api.get('/recommendations/talents', { signal, query: { need_id: needId } }),
+    [needId, version, liveKey],
+    { enabled: Boolean(matchable) },
+  );
 
   const refresh = () => {
     setPanel(null);
@@ -199,7 +207,10 @@ export default function NeedDetail({ needId, liveKey = 0, onBack, onChanged }) {
               </div>
             )}
             {need.moderation_status === 'APPROVED' && need.status === 'OPEN' && (
-              <ApplicantsPanel need={need} onChanged={refresh} />
+              <>
+                <ApplicantsPanel need={need} matches={recQ.data?.items} onChanged={refresh} />
+                <MatchingTalentsPanel need={need} query={recQ} />
+              </>
             )}
             {need.status === 'CLOSED' && (
               <div className="dash-item card-light p-7"><h3 className="text-xl font-black mb-2">Kebutuhan ditutup</h3><p className="text-sm text-[#12283c]/70">Kebutuhan ini sudah ditarik dan tidak tampil di katalog.</p></div>

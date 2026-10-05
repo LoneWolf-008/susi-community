@@ -29,6 +29,7 @@ const NAV = [
 export default function DashboardTalent({ user, onLogout, navigateTo }) {
   const [tab, setTab] = useState('jelajahi');
   const [needId, setNeedId] = useState(null); // detail kebutuhan dari katalog/histori
+  const [focusApply, setFocusApply] = useState(false); // dibuka dari tombol "Lamar" rekomendasi
   const [projectId, setProjectId] = useState(null); // detail proyek
   const [catalogVersion, setCatalogVersion] = useState(0);
   const [liveKey, setLiveKey] = useState(0);
@@ -60,7 +61,7 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
     // Daftar proyek berubah karena aksi komunitas (memilih, verifikasi): muat ulang saat dibuka.
     if (id === 'projek') projectsQ.refetch();
   };
-  const openNeed = (id) => { setTab('jelajahi'); setProjectId(null); setNeedId(id); };
+  const openNeed = (id) => { setTab('jelajahi'); setProjectId(null); setNeedId(id); setFocusApply(false); };
   const openProject = (id) => { setTab('projek'); setNeedId(null); setProjectId(id); };
   const openNotification = (n) => {
     if (n.ref_type === 'project') openProject(n.ref_id);
@@ -80,6 +81,7 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
               <NeedView
                 needId={needId}
                 liveKey={liveKey}
+                focusApply={focusApply}
                 onBack={() => setNeedId(null)}
                 onApplied={() => { setCatalogVersion((v) => v + 1); reload(); }}
                 onOpenHistory={() => onTab('histori')}
@@ -88,7 +90,13 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
             )}
             {/* Katalog tetap terpasang saat detail dibuka agar pencarian, filter, dan halaman tidak hilang. */}
             <div hidden={Boolean(needId)}>
-              <CatalogTab first={firstName(user?.name, 'Talenta')} stats={stats} version={catalogVersion} onOpen={(need) => setNeedId(need.id)} />
+              <CatalogTab
+                first={firstName(user?.name, 'Talenta')}
+                stats={stats}
+                version={catalogVersion}
+                onOpen={(need, opts) => { setNeedId(need.id); setFocusApply(Boolean(opts?.apply)); }}
+                onCompleteProfile={() => onTab('profil')}
+              />
             </div>
           </>
         )}
