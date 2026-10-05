@@ -66,7 +66,7 @@ function RevokeForm({ item, onDone, onCancel }) {
   return (
     <div className="rounded-xl border-2 border-[#e62b2b] p-4 space-y-3">
       <label className="label-mono !text-[#e62b2b] !opacity-100 block" htmlFor={`revoke-${item.id}`}>ALASAN PENCABUTAN (DIKIRIM KE TALENTA)</label>
-      <textarea id={`revoke-${item.id}`} value={reason} onChange={(e) => setReason(e.target.value.slice(0, 500))} rows={2} className="input-line text-base sm:text-sm resize-none" placeholder="Mis. bukti proyek ternyata tidak sesuai." />
+      <textarea id={`revoke-${item.id}`} value={reason} onChange={(e) => setReason(e.target.value.slice(0, 500))} rows={2} className="input-line !text-base sm:!text-sm resize-none" placeholder="Mis. bukti proyek ternyata tidak sesuai." />
       <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={onCancel} disabled={busy} className="btn-pill btn-ghost-dark min-h-[44px] !py-2 text-[10px]">Batal</button>
         <button type="button" onClick={submit} disabled={busy || reason.trim().length < 5} className="btn-pill btn-red min-h-[44px] !py-2 text-[10px] disabled:opacity-40">{busy ? '…' : 'Cabut sertifikat'}</button>
@@ -125,7 +125,7 @@ function RequestItem({ item, open, onToggle, onDone, canRevoke }) {
             <div className="space-y-3">
               <div>
                 <label className="field-label" htmlFor={`cert-note-${item.id}`}>Catatan untuk talenta (wajib saat menolak)</label>
-                <textarea id={`cert-note-${item.id}`} value={note} onChange={(e) => setNote(e.target.value.slice(0, 1000))} rows={2} className="input-line text-base sm:text-sm resize-none" placeholder="Mis. bukti sudah lengkap, atau apa yang perlu dilengkapi." />
+                <textarea id={`cert-note-${item.id}`} value={note} onChange={(e) => setNote(e.target.value.slice(0, 1000))} rows={2} className="input-line !text-base sm:!text-sm resize-none" placeholder="Mis. bukti sudah lengkap, atau apa yang perlu dilengkapi." />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => decide('REJECTED')} disabled={busy || note.trim().length === 0} className="btn-pill btn-ghost-dark min-h-[44px] hover:!bg-[#e62b2b] hover:!text-white hover:!border-[#e62b2b] disabled:opacity-40">Tolak</button>

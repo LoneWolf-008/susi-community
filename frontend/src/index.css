@@ -77,3 +77,16 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @keyframes rotSlow { to { transform: rotate(360deg); } }
 .rot-slow { animation: rotSlow 14s linear infinite; }
+/* Sertifikat talenta (U5): satu lembar A4 lanskap tanpa margin; elemen layar (.no-print) disembunyikan. */
+@media print {
+  @page { size: A4 landscape; margin: 0; }
+  html, body { background: #fff !important; }
+  #root > div { min-height: 0 !important; background: #fff !important; }
+  .noise-overlay, .no-print { display: none !important; }
+  .certificate-page { padding: 0 !important; min-height: 0 !important; background: #fff !important; }
+  .certificate-sheet {
+    width: 297mm !important; height: 210mm !important; max-width: none !important; aspect-ratio: auto !important;
+    margin: 0 !important; box-shadow: none !important; break-inside: avoid; break-after: avoid;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+}

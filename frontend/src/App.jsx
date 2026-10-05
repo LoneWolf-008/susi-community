@@ -12,12 +12,14 @@ import RequestPage from './pages/RequestPage';
 import NotFoundPage from './pages/NotFoundPage';
 import DashboardPage from './pages/dashboards/DashboardPage';
 import RuangAgenPage from './pages/RuangAgenPage';
+import CertificatePage from './pages/CertificatePage';
+import VerifyCertificatePage from './pages/VerifyCertificatePage';
 import { RUANG_AGEN_ROLES } from './lib/chatNavigation';
 import { useAuth } from './context/authContext';
 import { useGoToSection, useNavigateTo, useTransitionNavigate } from './context/transitionContext';
 
 // Halaman tanpa navigasi & footer publik.
-const STANDALONE_PATHS = ['/masuk', '/admin', '/dashboard', '/ajukan'];
+const STANDALONE_PATHS = ['/masuk', '/admin', '/dashboard', '/ajukan', '/sertifikat'];
 
 export default function App() {
   const [ask, setAsk] = useState({ open: false, q: null, n: 0 });
@@ -59,6 +61,9 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomePage navigateTo={navigateTo} onAsk={openAsk} />} />
         <Route path="/tentang" element={<TentangPage />} />
+        {/* U5: sertifikat talenta — publik, tanpa login. */}
+        <Route path="/verifikasi/:code" element={<VerifyCertificatePage />} />
+        <Route path="/sertifikat/:code" element={<CertificatePage />} />
         <Route path="/masuk" element={<GuestOnly><AuthPage /></GuestOnly>} />
         <Route path="/admin" element={<AdminLoginPage />} />
         <Route

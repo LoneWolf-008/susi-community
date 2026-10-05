@@ -60,7 +60,7 @@ function RequestForm({ eligibility, onCancel, onSent }) {
       </fieldset>
       <div>
         <label className="field-label" htmlFor="cert-pitch">Mengapa Anda layak di bidang ini? (min. {PITCH_MIN} karakter)</label>
-        <textarea id="cert-pitch" value={pitch} onChange={(e) => setPitch(e.target.value.slice(0, PITCH_MAX))} rows={4} className="input-line text-base sm:text-sm resize-none" placeholder="Ceritakan proyek yang paling menunjukkan kemampuan Anda dan dampaknya bagi komunitas." />
+        <textarea id="cert-pitch" value={pitch} onChange={(e) => setPitch(e.target.value.slice(0, PITCH_MAX))} rows={4} className="input-line !text-base sm:!text-sm resize-none" placeholder="Ceritakan proyek yang paling menunjukkan kemampuan Anda dan dampaknya bagi komunitas." />
         <p className="font-mono text-[9px] opacity-50 mt-1">{pitch.trim().length}/{PITCH_MAX}</p>
       </div>
       <fieldset>
