@@ -18,7 +18,7 @@ import mysql from 'mysql2/promise';
 import { recomputeReputation } from './reputation.js';
 import { readKbFile, upsertKbEntries } from './kbSeed.js';
 import { syncKbIndex } from '../services/chatbot/kb.js';
-import { SKILLS, USERS, COMMUNITIES, NEEDS, VISITS, TOPICS } from '../db/seeds/demo.js';
+import { SKILLS, USERS, COMMUNITIES, NEEDS, VISITS, TOPICS, INVITES } from '../db/seeds/demo.js';
 
 const BCRYPT_ROUNDS = 12; // sama dengan authController.register
 const MIN_PASSWORD = 10;
@@ -393,6 +393,26 @@ async function seedTopics(conn, ctx) {
   }
 }
 
+/** Undangan melamar (R1), idempoten per pasangan kebutuhan–talenta; notifikasi hanya saat baru dibuat. */
+async function seedInvites(conn, ctx) {
+  for (const inv of INVITES) {
+    const needId = ctx.needIds[inv.need];
+    const talentId = ctx.userIds[inv.talent];
+    const at = daysAgo(inv.daysAgo);
+    const [res] = await conn.query(
+      `INSERT IGNORE INTO need_invites (need_id, talent_id, invited_by, created_at) VALUES (?, ?, ?, ?)`,
+      [needId, talentId, ctx.userIds[inv.by], at],
+    );
+    if (!res.affectedRows) continue;
+    const def = NEEDS.find((n) => n.key === inv.need);
+    await notify(conn, {
+      userId: talentId, type: 'talenta', title: 'Undangan melamar',
+      body: `Anda diundang melamar "${def.title}". Lamar bila Anda tertarik.`.slice(0, 255),
+      refType: 'need', refId: needId, read: false, at,
+    });
+  }
+}
+
 async function seedKnowledgeBase(conn) {
   const sync = process.argv.includes('--sync-kb');
   const { created, updated, skipped } = await upsertKbEntries(conn, await readKbFile(), { sync });
@@ -452,6 +472,7 @@ async function main() {
     const communityIds = await seedCommunities(conn, userIds);
     const ctx = { adminId, userIds, skillIds, communityIds };
     ctx.needIds = await seedNeeds(conn, ctx);
+    await seedInvites(conn, ctx);
     await seedVisits(conn, ctx);
     await seedTopics(conn, ctx);
     await seedKnowledgeBase(conn);
