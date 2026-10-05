@@ -258,7 +258,7 @@
       "title": "Sengketa proyek",
       "category": "sengketa",
       "audience": "all",
-      "keywords": ["sengketa", "dispute", "konflik", "tidak sepakat", "bermasalah", "keberatan", "mediasi", "laporkan masalah", "komplain proyek", "tidak puas"],
+      "keywords": ["sengketa", "dispute", "konflik", "tidak sepakat", "bermasalah", "keberatan", "mediasi", "laporkan masalah", "lapor", "penipuan", "komplain proyek", "tidak puas"],
       "reply": "Bila komunitas dan talenta tidak sepakat soal hasil atau jalannya proyek, salah satu pihak bisa mengajukan sengketa dari halaman proyek (saat proyek dikerjakan, menunggu verifikasi, atau revisi) dengan ringkasan masalahnya. Admin SUSI memediasi: kedua pihak bisa menulis pernyataan dan admin dapat mengirim pesan. Hasilnya, admin menandai proyek selesai atau memberi perpanjangan waktu 7 hari.",
       "source": "API.md §Proyek (dispute) & §Admin (resolve: MARK_COMPLETE | EXTEND_7_DAYS); dasbor admin Sengketa"
     },

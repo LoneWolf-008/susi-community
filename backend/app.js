@@ -17,6 +17,7 @@ import applicationsRoutes from './routes/applications.js';
 import communitiesRoutes from './routes/communities.js';
 import discussionsRoutes from './routes/discussions.js';
 import liaisonRoutes from './routes/liaison.js';
+import escalationRoutes from './routes/escalations.js';
 import talentRoutes from './routes/talent.js';
 import adminRoutes from './routes/admin.js';
 import notificationsRoutes from './routes/notifications.js';
@@ -67,6 +68,8 @@ app.use('/api/projects', projectsRoutes);
 app.use('/api/applications', applicationsRoutes);
 app.use('/api/communities', communitiesRoutes);
 app.use('/api/discussions', discussionsRoutes);
+// Antrean eskalasi (liaison + admin) harus dipasang sebelum router /api/liaison yang khusus liaison.
+app.use('/api/liaison/escalations', escalationRoutes);
 app.use('/api/liaison', liaisonRoutes);
 app.use('/api/talent', talentRoutes);
 app.use('/api/admin', adminRoutes);

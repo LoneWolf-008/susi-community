@@ -1,6 +1,7 @@
 // Skema validasi body untuk semua endpoint POST/PATCH (T3.6). Pesan berbahasa Indonesia
 // dan selalu menyebut nama kolom agar bisa langsung ditampilkan di form.
 import { z } from 'zod';
+import { isValidContact } from '../utils/contact.js';
 
 // ===== Pembangun kolom =====
 
@@ -341,9 +342,37 @@ export const chatMessageSchema = z.object({
   message: text('Pesan', 500),
 });
 
+const chatSessionId = z.string({ error: 'Sesi chat wajib diisi' }).regex(UUID_RE, 'Sesi chat tidak valid');
+
 // 👍 = 1, 👎 = -1. session_id wajib: bagi pengguna anonim, memegang id sesi = bukti kepemilikan.
 export const chatFeedbackSchema = z.object({
-  session_id: z.string({ error: 'Sesi chat wajib diisi' }).regex(UUID_RE, 'Sesi chat tidak valid'),
+  session_id: chatSessionId,
   message_id: id('Pesan'),
   value: z.union([z.literal(1), z.literal(-1)], { error: 'Nilai umpan balik harus 1 (membantu) atau -1 (tidak membantu)' }),
+});
+
+// Kontak balik untuk eskalasi: email atau nomor WhatsApp (wajib bagi anonim, dicek di controller).
+export const escalateSchema = z.object({
+  session_id: chatSessionId,
+  contact: emptyToNull(z.union([
+    z.string().trim().max(150, 'Kontak maksimal 150 karakter')
+      .refine(isValidContact, 'Kontak harus email atau nomor WhatsApp yang valid'),
+    z.null(),
+  ])).optional(),
+});
+
+export const escalationReplySchema = z.object({ message: text('Balasan', 2000) });
+
+// resolved = masalah selesai; closed = ditutup tanpa penyelesaian (spam, duplikat, salah sasaran).
+export const resolveEscalationSchema = z.object({
+  outcome: enumOf('Hasil', ['resolved', 'closed']).optional(),
+  resolution: text('Catatan penyelesaian', 2000, 10),
+  save_as_kb: flag('Simpan sebagai draft KB').optional(),
+  kb_title: optText('Judul draft KB', 200),
+  kb_keywords: z.array(text('Kata kunci', 60), { error: 'Kata kunci harus berupa daftar' })
+    .max(15, 'Kata kunci maksimal 15 item').optional(),
+}).superRefine((body, ctx) => {
+  if (body.save_as_kb && body.outcome === 'closed') {
+    ctx.addIssue({ code: 'custom', path: ['save_as_kb'], message: 'Tiket yang ditutup tanpa penyelesaian tidak bisa disimpan sebagai KB' });
+  }
 });

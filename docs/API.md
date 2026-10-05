@@ -112,7 +112,7 @@ Status: `AGREEMENT → IN_PROGRESS → AWAITING_VERIFICATION → COMPLETED`, den
 
 | Method | Path | Keterangan |
 |---|---|---|
-| GET | `/liaison/summary` | `targets {visits_month, intake_month}`, `month {visits, intake}` (bulan berjalan), `needs {total, pending, open, in_progress, completed}`, `weekly_visits[4]` (kunjungan terdata per minggu, terlama → minggu ini) |
+| GET | `/liaison/summary` | `targets {visits_month, intake_month}`, `month {visits, intake}` (bulan berjalan), `needs {total, pending, open, in_progress, completed}`, `weekly_visits[4]` (kunjungan terdata per minggu, terlama → minggu ini), `escalations {pending, mine, stale}` (antrean chatbot; `mine` = diklaim saya, `stale` = pending > 24 jam) |
 | GET | `/liaison/visits` | Filter `status` (`DIRENCANAKAN`, `BERLANGSUNG`, `TERDATA`) dan `date` (`YYYY-MM-DD`, agenda satu hari) |
 | GET | `/liaison/visits/:id` | |
 | POST | `/liaison/visits` | `community_name, scheduled_date (YYYY-MM-DD), scheduled_time? (HH:MM), community_id?, address?, lat?, lng?, note?, contact_person?` |
@@ -122,6 +122,22 @@ Status: `AGREEMENT → IN_PROGRESS → AWAITING_VERIFICATION → COMPLETED`, den
 
 Aksi pemilik proksi (lihat pelamar, pilih, verifikasi, revisi, tarik) memakai endpoint kebutuhan,
 lamaran, dan proyek di atas.
+
+### Antrean eskalasi chatbot (liaison & admin)
+
+| Method | Path | Keterangan |
+|---|---|---|
+| GET | `/liaison/escalations` | `?status=open` (default: pending + assigned) `\|pending\|assigned\|resolved\|closed\|all`, `mine=true`, `page/limit`. Item: `id, session_id, status, priority (normal\|high), score, reasons[], summary, summary_source (llm\|rule), contact, user {id, name, role} \| null, assigned_to {id, name} \| null, stale, resolution, kb_entry_id, created_at, assigned_at, resolved_at, last_active_at`. Juga `counts {pending, assigned, mine, stale}`. Tiket terbuka: prioritas tinggi lalu terlama dulu |
+| GET | `/liaison/escalations/:id` | Detail + `messages[]` transkrip sesi (≤ 100 terakhir; pesan pengguna sudah disamarkan PII-nya) |
+| PATCH | `/liaison/escalations/:id/claim` | `pending → assigned` ke pemanggil. Sudah diklaim orang lain → 409; klaim ulang oleh pemiliknya → 200 |
+| POST | `/liaison/escalations/:id/reply` | `message` (≤ 2000) → pesan `role: 'agent'` di sesi pengguna (dibaca lewat polling sesi); pengguna terdaftar diberi notifikasi. Harus sudah diklaim (pending → 409), oleh pemanggil (lainnya → 403; admin boleh) |
+| PATCH | `/liaison/escalations/:id/resolve` | `resolution` (10–2000), `outcome?: resolved\|closed`, `save_as_kb?`, `kb_title?`, `kb_keywords?[]`. `save_as_kb` → entri `kb_entries` berstatus **draft** (`source = Eskalasi #id`) untuk ditinjau admin; tidak dipakai chatbot sebelum disetujui. Admin boleh menutup tiket pending tanpa klaim |
+
+Saat tiket dibuat, semua liaison aktif menerima notifikasi `type = 'eskalasi'`
+(`ref_type = 'escalation'`). Ringkasan tiket ≤ 80 kata dibuat LLM dari transkrip bersamaran (PII
+disamarkan lagi); bila LLM gagal, tanpa key, atau anggaran habis, ringkasan disusun dari aturan.
+Biayanya ikut dihitung ke anggaran harian chatbot. `contact` hanya terlihat oleh liaison/admin dan
+tidak pernah dikirim ke LLM.
 
 ## Chatbot "Tanya SUSI"
 
@@ -133,7 +149,8 @@ Login opsional: tanpa header `Authorization` = anonim. Header yang dikirim tetap
 | POST | `/chatbot/message` | semua (anonim boleh) | `{ session_id?, message }` (1–500 karakter). Tanpa `session_id` = percakapan baru. → `{ session_id, user_message_id, message: { id, role, content }, intent, source, sources: [{ id, title }], escalation_suggested }`. Sesi berisi ≥ 200 pesan → 409 |
 | POST | `/chatbot/stream` | semua (anonim boleh) | Body sama dengan `/message`; jawaban lewat SSE (lihat di bawah). Galat sebelum stream dimulai (validasi, sesi, 409, 429) tetap JSON biasa |
 | POST | `/chatbot/feedback` | pemilik sesi (anonim: pemegang `session_id`) | `{ session_id, message_id, value: 1\|-1 }` (👍/👎 untuk jawaban asisten) → `ask_logs.feedback`; boleh diubah. Pesan bukan jawaban/beda sesi/sesi orang lain → 404 |
-| GET | `/chatbot/session/:id` | pemilik sesi | `?after=<messageId>` untuk polling. → `{ session, messages: [{ id, role: 'user'\|'assistant'\|'agent', content, created_at }] }` |
+| POST | `/chatbot/escalate` | pemilik sesi (anonim: pemegang `session_id`) | Tombol "Hubungi AgenSUSI". `{ session_id, contact? }`; `contact` (email/WhatsApp) **wajib untuk anonim**. → 201 `{ escalation: { id, status, priority, created_at }, already_open: false, available, message }` (`message` = konfirmasi yang juga tersimpan di sesi). Sesi yang sudah punya tiket terbuka → 200 `{ escalation, already_open: true, message: null }`. `available = false` bila tidak ada liaison aktif atau di luar jam layanan: tiket tetap dibuat, tampilkan WhatsApp resmi. Pengguna masuk yang mengeskalasi sesi anonim mengklaimnya. Sesi tanpa tanya-jawab → 400. Dihitung kuota chatbot |
+| GET | `/chatbot/session/:id` | pemilik sesi | `?after=<messageId>` untuk polling. → `{ session, messages: [{ id, role: 'user'\|'assistant'\|'agent', content, created_at }], escalation: { id, status, created_at } \| null }` (tiket terakhir sesi; balasan AgenSUSI = `role: 'agent'`) |
 | GET | `/chatbot/health` | admin | `{ provider, model, fallback_models, configured, status: 'ok'\|'error'\|'not_configured', credits? }` — memeriksa key lewat `GET /api/v1/key` OpenRouter tanpa memanggil model; key/label tidak pernah dikembalikan |
 
 Akses sesi: sesi milik pengguna hanya untuk pemiliknya (selain itu 404). Sesi anonim dibuka dengan
@@ -145,7 +162,11 @@ diklaim menjadi miliknya dan tidak bisa lagi dibuka secara anonim.
 `source`: `kb` (entri KB langsung, tanpa LLM), `llm`, `cache` (jawaban LLM yang sama sebelumnya),
 `data` (ringkasan data akun tanpa LLM), `rule` (jawaban tetap: sapaan, penolakan, di luar topik,
 ajakan masuk), `fallback` ("belum tahu"). `escalation_suggested = true` → tampilkan tombol
-"Hubungi AgenSUSI" (permintaan eksplisit, jawaban tidak ditemukan, atau LLM gagal).
+"Hubungi AgenSUSI". Disarankan bila pipeline tidak bisa membantu (jawaban tidak ditemukan, LLM gagal,
+pesan kasar) atau skor sinyal percakapan ≥ `CHATBOT_ESCALATION_THRESHOLD` (50). Bobot sinyal:
+permintaan eksplisit 100 · topik sensitif (sengketa, penipuan, data pribadi) 50 · keluhan 40 ·
+pertanyaan sama > 2× 35 · dua "belum tahu" berturut-turut 30 · > 5 giliran tanpa 👍 30. Tidak
+disarankan lagi selama sesi punya tiket terbuka. Tiket tidak pernah dibuat otomatis.
 
 **Streaming.** Event SSE (`fetch` + `ReadableStream`; `EventSource` hanya mendukung GET):
 

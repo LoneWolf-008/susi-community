@@ -22,3 +22,10 @@ export const REPLIES = {
 
 // Ditambahkan ke jawaban KB saat anggaran LLM harian habis (mode hemat), bukan pesan galat.
 export const BUDGET_NOTE = 'Catatan: Tanya SUSI sedang dalam mode hemat, jadi jawaban ini diambil langsung dari panduan SUSI.';
+
+/** Pesan di sesi setelah tiket eskalasi dibuat (T13). */
+export function escalationCreatedReply({ id, available, anonymous }) {
+  const where = anonymous ? 'di percakapan ini atau lewat kontak yang Anda berikan' : 'di percakapan ini';
+  if (available) return `Permintaan Anda sudah diteruskan ke AgenSUSI (tiket #${id}). Balasan mereka akan muncul ${where}.`;
+  return `Permintaan Anda sudah tercatat (tiket #${id}), tetapi saat ini belum ada AgenSUSI yang bertugas. Mereka akan membalas ${where} secepatnya. Untuk bantuan cepat, hubungi WhatsApp resmi SUSI di halaman Tentang Kami.`;
+}

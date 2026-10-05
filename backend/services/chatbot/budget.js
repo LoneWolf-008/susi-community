@@ -7,10 +7,14 @@ export function isBudgetExceeded(spentUsd, budgetUsd) {
   return Number(spentUsd) >= Number(budgetUsd);
 }
 
-/** Total biaya LLM yang tercatat di ask_logs sejak pukul 00.00 (zona waktu sesi MySQL). */
+/**
+ * Total biaya LLM sejak pukul 00.00 (zona waktu sesi MySQL): jawaban chat (ask_logs) ditambah
+ * ringkasan tiket eskalasi (escalations.summary_cost_usd, T13).
+ */
 export async function spentTodayUsd(db) {
   const [[{ spent }]] = await db.query(
-    `SELECT COALESCE(SUM(cost_usd), 0) AS spent FROM ask_logs WHERE created_at >= CURDATE()`,
+    `SELECT (SELECT COALESCE(SUM(cost_usd), 0) FROM ask_logs WHERE created_at >= CURDATE())
+          + (SELECT COALESCE(SUM(summary_cost_usd), 0) FROM escalations WHERE created_at >= CURDATE()) AS spent`,
   );
   return Number(spent);
 }

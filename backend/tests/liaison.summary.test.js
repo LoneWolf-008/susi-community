@@ -34,6 +34,7 @@ describe('Ringkasan liaison GET /liaison/summary (T8)', () => {
       month: { visits: 2, intake: 2 },
       needs: { total: 2, pending: 1, open: 0, in_progress: 1, completed: 0 },
       weekly_visits: [0, 0, 0, 2],
+      escalations: { pending: 0, mine: 0, stale: 0 },
     });
   });
 
