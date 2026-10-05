@@ -164,9 +164,10 @@ describe('Bug kecil (T2.8)', () => {
       expect(ok.status).toBe(201);
     });
 
-    it('bergabung ke komunitas yang tidak ada → 404', async () => {
-      const res = await api().post('/api/communities/999999/join').set(stranger.auth);
+    it('bergabung ke komunitas yang tidak ada → 404 (gabung khusus talenta sejak U1: peran lain 403)', async () => {
+      const res = await api().post('/api/communities/999999/join').set(talent.auth);
       expect(res.status).toBe(404);
+      expect((await api().post('/api/communities/999999/join').set(stranger.auth)).status).toBe(403);
     });
 
     it('keluar saat members_count 0 tidak memicu error unsigned', async () => {

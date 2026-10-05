@@ -5,6 +5,7 @@ import { useToast } from '../../../context/toastContext';
 import { geocode, sectorOf } from '../../../lib/geocode';
 import { initialOf } from '../../../lib/format';
 import GoogleMapsEmbed from '../../../components/common/GoogleMapsEmbed';
+import JoinRequestsPanel from '../../../components/community/JoinRequestsPanel';
 import { SkeletonCard } from '../../../components/ui/Skeleton';
 import ErrorState from '../../../components/ui/ErrorState';
 import EmptyState from '../../../components/ui/EmptyState';
@@ -87,13 +88,15 @@ function NewCommunityForm({ onCreated, onCancel }) {
   );
 }
 
-/** `canJoin=false` untuk liaison: daftar & pendaftaran komunitas tanpa aksi gabung/keluar. */
-export default function CommunitiesTab({ onOpenMading, canJoin = true }) {
-  const toast = useToast();
+/**
+ * Komunitas & peta untuk peran Komunitas dan AgenSUSI. Bergabung kini khusus talenta lewat
+ * persetujuan (U1), jadi di sini tidak ada aksi gabung/keluar; pengurus memutuskan permintaan
+ * bergabung di panel atas. `showMine=false` untuk liaison (tidak menjadi anggota komunitas).
+ */
+export default function CommunitiesTab({ onOpenMading, showMine = true, liveKey = 0 }) {
   const [onlyMine, setOnlyMine] = useState(false);
   const [creating, setCreating] = useState(false);
   const [focus, setFocus] = useState(null);
-  const [busyId, setBusyId] = useState(null);
   const { data, loading, error, refetch } = useApi(
     (signal) => api.get('/communities', { signal, query: { limit: 50, mine: onlyMine ? 'true' : undefined } }),
     [onlyMine],
@@ -101,20 +104,6 @@ export default function CommunitiesTab({ onOpenMading, canJoin = true }) {
   const items = data?.items || [];
   const focused = focus && items.find((c) => c.id === focus);
   const point = focused && focused.lat != null ? { lat: Number(focused.lat), lng: Number(focused.lng) } : null;
-
-  const toggleMembership = async (c) => {
-    setBusyId(c.id);
-    try {
-      if (c.is_member) await api.delete(`/communities/${c.id}/leave`);
-      else await api.post(`/communities/${c.id}/join`);
-      toast.success(c.is_member ? `Keluar dari ${c.name}` : `Bergabung dengan ${c.name}`);
-      refetch();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setBusyId(null);
-    }
-  };
 
   return (
     <>
@@ -124,11 +113,12 @@ export default function CommunitiesTab({ onOpenMading, canJoin = true }) {
           <p className="label-mono mt-2">{data ? `${data.total} KOMUNITAS ${onlyMine ? 'DIIKUTI' : 'TERDAFTAR'}` : 'MEMUAT…'}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {canJoin && <button type="button" onClick={() => setOnlyMine((v) => !v)} className={`btn-pill !py-3 text-[10px] ${onlyMine ? 'btn-navy' : 'btn-ghost-dark'}`}>{onlyMine ? 'Tampilkan semua' : 'Komunitasku'}</button>}
+          {showMine && <button type="button" onClick={() => setOnlyMine((v) => !v)} className={`btn-pill !py-3 text-[10px] ${onlyMine ? 'btn-navy' : 'btn-ghost-dark'}`}>{onlyMine ? 'Tampilkan semua' : 'Komunitasku'}</button>}
           <button type="button" onClick={() => setCreating((v) => !v)} className={`btn-pill !py-3 text-[10px] ${creating ? 'btn-navy' : 'btn-red'}`}>{creating ? '✕ Batal' : '+ Daftarkan Komunitas'}</button>
         </div>
       </div>
 
+      <JoinRequestsPanel liveKey={liveKey} onChanged={refetch} />
       {creating && <NewCommunityForm onCancel={() => setCreating(false)} onCreated={(c) => { setCreating(false); setFocus(c.id); refetch(); }} />}
       {error && <ErrorState error={error} onRetry={refetch} />}
 
@@ -151,11 +141,7 @@ export default function CommunitiesTab({ onOpenMading, canJoin = true }) {
                   <span className="block font-mono text-[9px] opacity-60">{c.type} · {c.members_count} ANGGOTA{c.sector ? ` · ${c.sector}` : ''}</span>
                 </span>
               </button>
-              {canJoin && (
-                <button type="button" onClick={() => toggleMembership(c)} disabled={busyId === c.id} className={`chip-mono shrink-0 ${c.is_member ? 'text-[#12283c]' : 'border-0 bg-[#12283c] text-[#f2efe6]'}`}>
-                  {busyId === c.id ? '…' : c.is_member ? 'KELUAR' : 'GABUNG'}
-                </button>
-              )}
+              {c.membership_role === 'PENGURUS' && c.is_member && <span className="chip-mono shrink-0 text-[#12283c]">PENGURUS</span>}
             </div>
           ))}
         </div>

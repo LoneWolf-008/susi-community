@@ -3,18 +3,24 @@ import gsap from 'gsap';
 import { api } from '../../lib/api';
 import { useApi } from '../../hooks/useApi';
 import { useToast } from '../../context/toastContext';
-import { timeAgo, initialOf } from '../../lib/format';
+import { timeAgo, timeLeft, formatDateTime, initialOf } from '../../lib/format';
 import { SkeletonLines } from '../ui/Skeleton';
 import ErrorState from '../ui/ErrorState';
 import EmptyState from '../ui/EmptyState';
 
 // Papan mading lintas komunitas (GET/POST /discussions, balasan, simpan posisi catatan).
 // Hanya penulis yang bisa menggeser catatannya; posisi disimpan saat dilepas.
+// U1: topik punya masa pajang (bawaan 7 hari) yang bisa diperpanjang penulisnya; topik dihapus oleh
+// penulis, pengurus komunitas terkait, atau admin; balasan oleh penulisnya.
 
 const NOTE_COLORS = ['#c9ecd9', '#f4d4d4', '#d8e2ec', '#fdfcf7'];
 const CATEGORIES = ['DISKUSI', 'TANYA', 'INFO'];
+const DURATIONS = [1, 3, 7, 14, 30];
 const CANVAS_W = 1600;
 const CANVAS_H = 1000;
+const HOUR_MS = 60 * 60 * 1000;
+// Sisa < 24 jam: penanda waktu diberi warna peringatan.
+const endingSoon = (expiresAt) => expiresAt && new Date(expiresAt).getTime() - Date.now() < 24 * HOUR_MS;
 
 // Dipanggil hanya dari handler kirim topik (bukan saat render).
 function randomPlacement() {
@@ -26,12 +32,77 @@ function randomPlacement() {
   };
 }
 
+/** Masa pajang topik: info, perpanjang (penulis), dan hapus (penulis/pengurus/admin) dengan konfirmasi. */
+function TopicActions({ topic, onChanged, onDeleted }) {
+  const toast = useToast();
+  const [panel, setPanel] = useState(null); // 'extend' | 'delete'
+  const [busy, setBusy] = useState(false);
+
+  const run = async (request, message, after) => {
+    setBusy(true);
+    try {
+      await request();
+      toast.success(message);
+      setPanel(null);
+      after();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const extend = (days) => run(() => api.patch(`/discussions/${topic.id}/extend`, { duration_days: days }), `Masa pajang ditambah ${days} hari`, onChanged);
+  const remove = () => run(() => api.delete(`/discussions/${topic.id}`), 'Topik dihapus dari mading', onDeleted);
+
+  const expiry = topic.expires_at === null
+    ? 'DIPAJANG TANPA BATAS WAKTU'
+    : topic.expired
+      ? 'MASA PAJANG HABIS · TIDAK TAMPIL DI PAPAN'
+      : `DIPAJANG SAMPAI ${formatDateTime(topic.expires_at).toUpperCase()} · ${timeLeft(topic.expires_at).toUpperCase()}`;
+
+  return (
+    <div className="dash-item card-light p-5 mb-6">
+      <p className={`font-mono text-[10px] font-bold ${topic.expired || endingSoon(topic.expires_at) ? 'text-[#e62b2b]' : 'opacity-70'}`}>⏳ {expiry}</p>
+      {(topic.can_extend || topic.can_delete) && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {topic.can_extend && topic.expires_at !== null && (
+            <button type="button" onClick={() => setPanel(panel === 'extend' ? null : 'extend')} aria-expanded={panel === 'extend'} className="btn-pill btn-ghost-dark !py-2 !px-4 min-h-[44px] text-[11px]">Perpanjang</button>
+          )}
+          {topic.can_delete && (
+            <button type="button" onClick={() => setPanel(panel === 'delete' ? null : 'delete')} aria-expanded={panel === 'delete'} className="btn-pill btn-ghost-dark !py-2 !px-4 min-h-[44px] text-[11px] !text-[#e62b2b] !border-[#e62b2b]/50">Hapus topik</button>
+          )}
+        </div>
+      )}
+      {panel === 'extend' && (
+        <div className="mt-3" role="group" aria-label="Tambah masa pajang">
+          <p className="text-xs mb-2">Tambah masa pajang:</p>
+          <div className="flex flex-wrap gap-2">
+            {DURATIONS.map((d) => (
+              <button type="button" key={d} onClick={() => extend(d)} disabled={busy} className="rounded-full border border-[#12283c]/25 px-4 min-h-[44px] text-xs font-bold hover:bg-[#12283c] hover:text-[#f2efe6] disabled:opacity-50">+{d} hari</button>
+            ))}
+          </div>
+        </div>
+      )}
+      {panel === 'delete' && (
+        <div className="mt-3 rounded-xl bg-[#e62b2b]/10 border border-[#e62b2b]/30 p-4">
+          <p className="text-sm">Hapus topik ini dari mading? Topik dan balasannya tidak tampil lagi.</p>
+          <div className="flex gap-2 mt-3">
+            <button type="button" onClick={() => setPanel(null)} disabled={busy} className="btn-pill btn-ghost-dark !py-2 !px-4 min-h-[44px] text-[11px] flex-1 sm:flex-none">Batal</button>
+            <button type="button" onClick={remove} disabled={busy} className="btn-pill btn-red !py-2 !px-4 min-h-[44px] text-[11px] flex-1 sm:flex-none">{busy ? '…' : 'Ya, hapus'}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TopicDetail({ topicId, onBack, communities }) {
   const toast = useToast();
   const { data: topic, loading, error, refetch } = useApi((signal) => api.get(`/discussions/${topicId}`, { signal }), [topicId]);
   const [reply, setReply] = useState('');
   const [communityId, setCommunityId] = useState('');
   const [sending, setSending] = useState(false);
+  const [confirmReply, setConfirmReply] = useState(null);
 
   const send = async () => {
     if (!reply.trim() || sending) return;
@@ -47,6 +118,17 @@ function TopicDetail({ topicId, onBack, communities }) {
     }
   };
 
+  const deleteReply = async (id) => {
+    try {
+      await api.delete(`/discussions/replies/${id}`);
+      toast.success('Balasan dihapus');
+      setConfirmReply(null);
+      refetch();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   return (
     <>
       <div className="dash-item mb-6"><button type="button" onClick={onBack} className="btn-pill btn-ghost-dark !py-3 !px-5 text-[10px]">← KEMBALI KE MADING</button></div>
@@ -59,11 +141,12 @@ function TopicDetail({ topicId, onBack, communities }) {
               <span className="chip-mono border-0 bg-[#12283c] text-[#f2efe6]">{topic.category}</span>
               <span className="font-mono text-[9px] opacity-60">{timeAgo(topic.created_at)}</span>
             </div>
-            <h1 className="text-2xl md:text-4xl font-black tracking-tight leading-tight mb-3 whitespace-pre-line">{topic.text}</h1>
+            <h1 className="text-2xl md:text-4xl font-black tracking-tight leading-tight mb-3 whitespace-pre-line break-words">{topic.text}</h1>
             <p className="font-mono text-[10px] opacity-60">
               DITEMPEL OLEH {topic.author_name?.toUpperCase()}{topic.community_name ? ` · ${topic.community_name.toUpperCase()}` : ''}
             </p>
           </div>
+          <TopicActions topic={topic} onChanged={refetch} onDeleted={onBack} />
           <h3 className="text-xl font-black mb-4">{topic.replies.length} BALASAN</h3>
           <div className="space-y-4 mb-6">
             {topic.replies.map((r) => (
@@ -75,6 +158,15 @@ function TopicDetail({ topicId, onBack, communities }) {
                     <span className="font-mono text-[9px] opacity-50">{r.community_name ? `· ${r.community_name} ` : ''}· {timeAgo(r.created_at)}</span>
                   </p>
                   <p className="text-sm leading-relaxed mt-1 whitespace-pre-line break-words">{r.text}</p>
+                  {r.can_delete && (confirmReply === r.id ? (
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs">Hapus balasan ini?</span>
+                      <button type="button" onClick={() => setConfirmReply(null)} className="rounded-full border border-[#12283c]/25 px-3 min-h-[44px] text-[11px] font-bold">Batal</button>
+                      <button type="button" onClick={() => deleteReply(r.id)} className="rounded-full bg-[#e62b2b] text-white px-3 min-h-[44px] text-[11px] font-bold">Ya, hapus</button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setConfirmReply(r.id)} className="mt-1 min-h-[44px] font-mono text-[10px] font-bold text-[#e62b2b] underline underline-offset-2">HAPUS</button>
+                  ))}
                 </div>
               </div>
             ))}
@@ -108,6 +200,7 @@ function NewTopicForm({ onBack, onCreated, communities }) {
   const toast = useToast();
   const [text, setText] = useState('');
   const [category, setCategory] = useState('DISKUSI');
+  const [duration, setDuration] = useState(7);
   const [communityId, setCommunityId] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -116,7 +209,7 @@ function NewTopicForm({ onBack, onCreated, communities }) {
     setSending(true);
     try {
       const created = await api.post('/discussions', {
-        text: text.trim(), category, community_id: communityId || null, ...randomPlacement(),
+        text: text.trim(), category, duration_days: duration, community_id: communityId || null, ...randomPlacement(),
       });
       toast.success('Topik ditempel ke mading');
       onCreated(created);
@@ -140,6 +233,15 @@ function NewTopicForm({ onBack, onCreated, communities }) {
         </div>
         <label className="field-label" htmlFor="mading-new">Isi Topik</label>
         <textarea id="mading-new" value={text} onChange={(e) => setText(e.target.value.slice(0, 1000))} className="input-line h-28 resize-none" placeholder="Contoh: butuh ide buat acara 17-an..." />
+        <p className="field-label mt-5" id="mading-duration-label">Lama dipajang</p>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="mading-duration-label">
+          {DURATIONS.map((d) => (
+            <button type="button" key={d} role="radio" aria-checked={duration === d} onClick={() => setDuration(d)} className={`rounded-full px-4 min-h-[44px] text-xs font-bold transition-colors ${duration === d ? 'bg-[#12283c] text-[#f2efe6]' : 'border border-[#12283c]/25 hover:border-[#12283c]'}`}>
+              {d} hari
+            </button>
+          ))}
+        </div>
+        <p className="font-mono text-[10px] opacity-60 mt-2">Setelah itu topik hilang dari papan. Anda bisa memperpanjangnya dari halaman topik.</p>
         {communities.length > 0 && (
           <div className="mt-5">
             <label className="field-label" htmlFor="mading-new-comm">Tempel atas nama (opsional)</label>
@@ -300,6 +402,9 @@ export default function MadingBoard({ user }) {
                   <span className="font-mono text-[8px] opacity-50">{timeAgo(t.created_at)}</span>
                 </div>
                 <p className="text-xs font-bold leading-relaxed mb-3 line-clamp-5">{t.text}</p>
+                {t.expires_at && (
+                  <p className={`font-mono text-[8px] font-bold mb-1 ${endingSoon(t.expires_at) ? 'text-[#e62b2b]' : 'opacity-50'}`}>⏳ {timeLeft(t.expires_at)}</p>
+                )}
                 <div className="flex items-center justify-between font-mono text-[9px] opacity-60">
                   <span className="truncate">{t.author_name}{t.community_name ? ` · ${t.community_name}` : ''}</span>
                   <span className="shrink-0">💬 {t.replies_count}</span>

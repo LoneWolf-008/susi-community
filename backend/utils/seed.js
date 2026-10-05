@@ -48,7 +48,7 @@ function readSeedConfig() {
 
 const counter = () => ({ dibuat: 0, dilewati: 0 });
 const stats = {
-  pengguna: counter(), skill: counter(), komunitas: counter(), kebutuhan: counter(),
+  pengguna: counter(), skill: counter(), komunitas: counter(), anggota: counter(), kebutuhan: counter(),
   kunjungan: counter(), topik: counter(), kb: counter(),
 };
 let passwordsUpdated = 0;
@@ -103,28 +103,56 @@ async function seedCommunities(conn, userIds) {
     if (rows[0]) {
       ids[def.key] = rows[0].id;
       stats.komunitas.dilewati += 1;
-      continue;
-    }
-    const creator = USERS.find((u) => u.key === def.createdBy);
-    const [res] = await conn.query(
-      `INSERT INTO communities
-         (name, type, description, leader_name, leader_role, members_count, established_at,
-          whatsapp, address, lat, lng, source, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [def.name, def.type, def.description, def.leader_name, def.leader_role, def.members_count,
-        def.established_at, def.whatsapp, def.address, def.lat, def.lng,
-        creator.role === 'liaison' ? 'AGENSUSI' : 'MANDIRI', userIds[def.createdBy]],
-    );
-    ids[def.key] = res.insertId;
-    for (const member of def.members) {
-      await conn.query(
-        `INSERT IGNORE INTO community_members (community_id, user_id, role_in) VALUES (?, ?, ?)`,
-        [res.insertId, userIds[member.user], member.role_in],
+    } else {
+      const creator = USERS.find((u) => u.key === def.createdBy);
+      const [res] = await conn.query(
+        `INSERT INTO communities
+           (name, type, description, leader_name, leader_role, members_count, established_at,
+            whatsapp, address, lat, lng, source, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [def.name, def.type, def.description, def.leader_name, def.leader_role, def.members_count,
+          def.established_at, def.whatsapp, def.address, def.lat, def.lng,
+          creator.role === 'liaison' ? 'AGENSUSI' : 'MANDIRI', userIds[def.createdBy]],
       );
+      ids[def.key] = res.insertId;
+      stats.komunitas.dibuat += 1;
     }
-    stats.komunitas.dibuat += 1;
+    // Keanggotaan diisi juga untuk komunitas yang sudah ada (INSERT IGNORE per pasangan
+    // komunitas–pengguna), agar DB lama ikut mendapat contoh permintaan gabung U1.
+    await seedMembers(conn, def, ids[def.key], userIds);
   }
   return ids;
+}
+
+/**
+ * Anggota komunitas: pengurus (ACTIVE) dan talenta yang bergabung lewat persetujuan (U1).
+ * Permintaan PENDING yang baru dibuat ikut memberi notifikasi ke pemutusnya: pengurus, atau
+ * liaison pembuat bila komunitas belum punya pengurus berakun.
+ */
+async function seedMembers(conn, def, communityId, userIds) {
+  const managers = def.members.filter((m) => m.role_in === 'PENGURUS').map((m) => m.user);
+  const deciders = managers.length > 0 ? managers : [def.createdBy];
+  for (const m of def.members) {
+    const at = m.daysAgo === undefined ? now : daysAgo(m.daysAgo);
+    const status = m.status ?? 'ACTIVE';
+    const [res] = await conn.query(
+      `INSERT IGNORE INTO community_members
+         (community_id, user_id, role_in, status, message, decided_by, decided_at, joined_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [communityId, userIds[m.user], m.role_in, status, m.message ?? null,
+        m.decidedBy ? userIds[m.decidedBy] : null, m.decidedBy ? at : null, at],
+    );
+    stats.anggota[res.affectedRows ? 'dibuat' : 'dilewati'] += 1;
+    if (!res.affectedRows || status !== 'PENDING') continue;
+    const talent = USERS.find((u) => u.key === m.user);
+    for (const decider of deciders) {
+      await notify(conn, {
+        userId: userIds[decider], type: 'komunitas', title: 'Permintaan bergabung',
+        body: `${talent.name} ingin bergabung dengan ${def.name}: "${m.message}"`.slice(0, 255),
+        refType: 'community', refId: communityId, read: false, at,
+      });
+    }
+  }
 }
 
 const notify = (conn, { userId, type, title, body, refType, refId, read, at }) =>
@@ -346,11 +374,13 @@ async function seedTopics(conn, ctx) {
       stats.topik.dilewati += 1;
       continue;
     }
+    const expiresAt = def.expiresInHours == null ? null : new Date(now.getTime() + def.expiresInHours * 60 * 60 * 1000);
     const [res] = await conn.query(
-      `INSERT INTO discussion_topics (author_id, community_id, category, text, pos_x, pos_y, rotation, color, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO discussion_topics
+         (author_id, community_id, category, text, pos_x, pos_y, rotation, color, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [authorId, def.community ? ctx.communityIds[def.community] : null, def.category, def.text,
-        def.pos_x, def.pos_y, def.rotation, def.color, daysAgo(def.daysAgo)],
+        def.pos_x, def.pos_y, def.rotation, def.color, daysAgo(def.daysAgo), expiresAt],
     );
     for (const reply of def.replies) {
       await conn.query(

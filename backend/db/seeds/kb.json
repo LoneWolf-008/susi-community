@@ -105,9 +105,9 @@
       "title": "Mendaftarkan komunitas",
       "category": "komunitas",
       "audience": "all",
-      "keywords": ["daftarkan komunitas", "komunitas baru", "tambah komunitas", "buat komunitas", "gabung komunitas", "anggota komunitas", "pengurus", "keluar komunitas"],
-      "reply": "Komunitas didaftarkan dari menu Komunitas & Peta: isi nama, jenis, deskripsi, pengurus, dan lokasi bila mau. Pengguna Komunitas yang mendaftarkannya otomatis tercatat sebagai pengurus, dan pengguna lain bisa bergabung sebagai anggota. Kebutuhan bisa diajukan atas nama komunitas tempat Anda terdaftar; tanpa komunitas pun kebutuhan tetap bisa dikirim.",
-      "source": "PRD §8–9 (entitas Komunitas); Proposal U6; API.md §Komunitas; formulir Ajukan Kebutuhan"
+      "keywords": ["daftarkan komunitas", "komunitas baru", "tambah komunitas", "buat komunitas", "gabung komunitas", "anggota komunitas", "pengurus", "keluar komunitas", "permintaan bergabung", "setujui anggota"],
+      "reply": "Komunitas didaftarkan dari menu Komunitas & Peta: isi nama, jenis, deskripsi, pengurus, dan lokasi bila mau. Pengguna Komunitas yang mendaftarkannya otomatis tercatat sebagai pengurus. Talenta bisa mengajukan gabung dari tab Komunitas di dasbornya; pengurus menyetujui atau menolak lewat panel Permintaan bergabung (komunitas yang dicatat AgenSUSI diputuskan AgenSUSI-nya). Hanya anggota yang sudah disetujui yang bisa menulis di mading atas nama komunitas. Kebutuhan bisa diajukan atas nama komunitas tempat Anda terdaftar; tanpa komunitas pun kebutuhan tetap bisa dikirim.",
+      "source": "PRD §8–9 (entitas Komunitas); Proposal U6; API.md §Komunitas; formulir Ajukan Kebutuhan; TASKS-SUSI-FASE2 U1 (gabung lewat persetujuan pengurus)"
     },
     {
       "slug": "apa-itu-agensusi",
@@ -303,9 +303,9 @@
       "title": "Mading komunitas",
       "category": "fitur",
       "audience": "all",
-      "keywords": ["mading", "diskusi", "forum", "topik", "papan diskusi", "tempel topik", "balas topik", "tanya komunitas lain"],
-      "reply": "Mading adalah papan diskusi antarkomunitas di dasbor Komunitas dan Talenta. Anda bisa menempel topik baru (kategori diskusi, tanya, atau info), membaca, dan membalas topik pengguna lain; penulis topik mendapat notifikasi saat ada balasan. Papan bisa digeser untuk menjelajah, dan catatan yang Anda tempel bisa dipindahkan.",
-      "source": "API.md §Komunitas & mading; TASKS T10; tab Mading dasbor Komunitas & Talenta"
+      "keywords": ["mading", "diskusi", "forum", "topik", "papan diskusi", "tempel topik", "balas topik", "tanya komunitas lain", "hapus topik", "perpanjang topik", "lama dipajang"],
+      "reply": "Mading adalah papan diskusi antarkomunitas di dasbor Komunitas dan Talenta. Anda bisa menempel topik baru (kategori diskusi, tanya, atau info) dan memilih lama dipajang: 1, 3, 7, 14, atau 30 hari (bawaan 7). Topik yang masa pajangnya habis hilang dari papan, dan penulisnya bisa memperpanjang. Siapa pun bisa membaca dan membalas; penulis topik mendapat notifikasi saat ada balasan. Topik bisa dihapus oleh penulisnya, pengurus komunitas terkait, atau admin; balasan bisa dihapus penulisnya. Menulis atas nama komunitas hanya untuk anggota yang sudah disetujui.",
+      "source": "API.md §Komunitas & mading; TASKS T10; tab Mading dasbor Komunitas & Talenta; TASKS-SUSI-FASE2 U1 (masa pajang & hapus)"
     },
     {
       "slug": "notifikasi",

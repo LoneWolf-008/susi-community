@@ -14,6 +14,7 @@ export const NOTIF_META = {
   kunjungan: { color: '#0e7490', label: 'KUNJUNGAN' },
   intake: { color: '#0e7490', label: 'INTAKE' },
   eskalasi: { color: '#e62b2b', label: 'ESKALASI' },
+  komunitas: { color: '#0f766e', label: 'KOMUNITAS' },
 };
 
 /** Bentuk item untuk DashShell: { id, title, sub, read, color, label, raw }. */
