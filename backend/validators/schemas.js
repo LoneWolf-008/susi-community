@@ -2,6 +2,7 @@
 // dan selalu menyebut nama kolom agar bisa langsung ditampilkan di form.
 import { z } from 'zod';
 import { isValidContact } from '../utils/contact.js';
+import { FOCUS_AREAS, CERT_MAX_EVIDENCE } from '../services/certification.js';
 
 // ===== Pembangun kolom =====
 
@@ -453,3 +454,23 @@ export const resolveEscalationSchema = z.object({
     ctx.addIssue({ code: 'custom', path: ['save_as_kb'], message: 'Tiket yang ditutup tanpa penyelesaian tidak bisa disimpan sebagai KB' });
   }
 });
+
+// ===== Sertifikasi talenta (U5) =====
+
+export const certificationRequestSchema = z.object({
+  focus_area: enumOf('Bidang', Object.keys(FOCUS_AREAS)),
+  pitch: text('Alasan pengajuan', 1500, 30),
+  // Jumlah minimal (CERT_MIN_PROJECTS) dan kepemilikan proyek dicek di controller.
+  project_ids: idList('Proyek bukti', CERT_MAX_EVIDENCE).pipe(z.array(z.number()).min(1, 'Pilih proyek bukti')),
+});
+
+export const certificationDecisionSchema = z.object({
+  decision: enumOf('Keputusan', ['APPROVED', 'REJECTED']),
+  note: optText('Catatan', 1000),
+}).superRefine((body, ctx) => {
+  if (body.decision === 'REJECTED' && !body.note) {
+    ctx.addIssue({ code: 'custom', path: ['note'], message: 'Catatan wajib diisi saat menolak, agar talenta tahu yang perlu diperbaiki' });
+  }
+});
+
+export const certificateRevokeSchema = z.object({ reason: text('Alasan pencabutan', 500, 5) });

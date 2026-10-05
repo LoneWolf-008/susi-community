@@ -46,12 +46,8 @@ const groupBy = (rows, key, pick) => {
   return map;
 };
 
-/** Talenta yang sudah tersertifikasi. Tabel sertifikat datang di U5; sebelum itu selalu kosong. */
+/** Talenta dengan sertifikat SUSI aktif (U5): bonus kecil di skor dan badge di kartu. */
 async function certifiedIds(db, ids) {
-  const [[{ present }]] = await db.query(
-    `SELECT COUNT(*) AS present FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'certificates'`,
-  );
-  if (!present) return new Set();
   const [rows] = await db.query(
     `SELECT DISTINCT talent_id FROM certificates WHERE talent_id IN (?) AND revoked_at IS NULL`, [ids],
   );

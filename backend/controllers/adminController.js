@@ -6,6 +6,8 @@ import { HttpError } from '../utils/httpError.js';
 import { getNeedOwnerId } from '../utils/ownership.js';
 import { notify, addProjectEvent, audit } from '../utils/activity.js';
 import { completeProject } from '../services/projectService.js';
+import { decideCertificationRequest, focusLabel } from '../services/certification.js';
+import { invalidateRecommendations } from '../services/recommendation/index.js';
 
 const REJECT_REASONS = ['SPAM', 'DUPLIKAT', 'SALAH KATEGORI', 'TIDAK LAYAK'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -77,6 +79,19 @@ async function attachModerationDetails(rows) {
     );
     testimonials.forEach((t) => details.set(`TESTIMONI:${t.id}`, t));
   }
+  // U5: pengajuan sertifikasi talenta (ref_id = certification_requests.id).
+  const certIds = idsOf('TALENTA');
+  if (certIds.length > 0) {
+    const [requests] = await pool.query(
+      `SELECT r.id, r.focus_area, r.pitch, r.status, u.name AS talent_name,
+              (SELECT COUNT(*) FROM certification_request_projects rp WHERE rp.request_id = r.id) AS evidence_projects,
+              (SELECT COUNT(*) FROM projects p WHERE p.talent_id = r.talent_id AND p.status = 'COMPLETED') AS completed_projects
+       FROM certification_requests r JOIN users u ON u.id = r.talent_id
+       WHERE r.id IN (?)`,
+      [certIds]
+    );
+    requests.forEach((r) => details.set(`TALENTA:${r.id}`, { ...r, focus_label: focusLabel(r.focus_area) }));
+  }
   return rows.map((r) => ({ ...r, detail: details.get(`${r.item_type}:${r.ref_id}`) || null }));
 }
 
@@ -140,6 +155,18 @@ export const decideModeration = async (req, res, next) => {
       return fail(res, `Alasan penolakan wajib salah satu dari: ${REJECT_REASONS.join(', ')}`, 400);
     }
     const reason = decision === 'REJECTED' ? reject_reason : null;
+
+    // U5: pengajuan sertifikasi diputus lewat logika yang sama dengan /admin/certifications
+    // (sertifikat terbit, notifikasi, audit, dan item moderasi ikut diperbarui).
+    if (item.item_type === 'TALENTA') {
+      await decideCertificationRequest(conn, {
+        requestId: item.ref_id, decision, reviewer: req.user,
+        note: reason ? `Ditolak lewat antrean moderasi (${reason}).` : null,
+      });
+      await conn.commit();
+      if (decision === 'APPROVED') invalidateRecommendations();
+      return success(res, null, `Item ${decision.toLowerCase()}`);
+    }
 
     await conn.query(
       `UPDATE moderation_items SET

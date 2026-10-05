@@ -58,12 +58,13 @@ function ownerRecommendations(ctx) {
   }
   const lines = withTalents.flatMap((n) => [
     `**${n.title}**`,
-    ...n.talents.map((t) => `- ${t.name} (${levelLabel(t.level)}) — ${t.score}% cocok${t.matched.length ? `, keahlian: ${t.matched.join(', ')}` : ''}${t.applied ? ' · sudah melamar' : ''}`),
+    ...n.talents.map((t) => `- ${t.name} (${levelLabel(t.level)}${t.certified ? ', Tersertifikasi SUSI' : ''}) — ${t.score}% cocok${t.matched.length ? `, keahlian: ${t.matched.join(', ')}` : ''}${t.applied ? ' · sudah melamar' : ''}`),
   ]);
   return {
     reply: ['Talenta yang cocok untuk kebutuhan terbuka Anda:', ...lines, '', `Undang lewat kartu atau dari detail kebutuhan. ${DECISION_NOTE}`].join('\n'),
     cards: withTalents.flatMap((n) => n.talents.map((t) => ({
       type: 'talent', id: t.id, score: t.score, title: t.name, need_id: n.id, need_title: n.title, applied: t.applied, invited: t.invited,
+      certified: t.certified,
     }))),
   };
 }
@@ -101,13 +102,14 @@ function careerReply(ctx) {
 
 function certificationReply(ctx) {
   if (!ctx || ctx.role !== 'talent') return { reply: CERT_RULE, cards: [] };
+  // U5: dari data kelayakan asli (sama dengan Profil → Sertifikasi).
   const c = ctx.certification;
-  let status;
-  if (c.certified) status = 'Anda sudah tersertifikasi SUSI.';
-  else if (c.pending) status = 'Pengajuan sertifikasi Anda sedang ditinjau.';
-  else if (c.eligible) status = `Anda sudah menyelesaikan ${c.completed} proyek, jadi sudah memenuhi syarat jumlah proyek.`;
-  else status = `Anda baru menyelesaikan ${c.completed} dari ${c.minProjects} proyek; selesaikan ${c.minProjects - c.completed} proyek lagi untuk memenuhi syarat.`;
-  return { reply: `${CERT_RULE} ${status}`, cards: [] };
+  const status = [];
+  if (c.certified) status.push(`Anda sudah tersertifikasi SUSI untuk bidang ${c.certifiedAreas.join(', ')}.`);
+  if (c.pending) status.push(`Pengajuan sertifikasi bidang ${c.pendingArea} sedang ditinjau admin atau AgenSUSI.`);
+  else if (c.eligible) status.push(`Anda sudah menyelesaikan ${c.completed} proyek, jadi sudah bisa mengajukan${c.certified ? ' untuk bidang lain' : ''} lewat Profil → Sertifikasi.`);
+  else if (c.completed < c.minProjects) status.push(`Anda baru menyelesaikan ${c.completed} dari ${c.minProjects} proyek; selesaikan ${c.minProjects - c.completed} proyek lagi untuk memenuhi syarat.`);
+  return { reply: [CERT_RULE, ...status].join(' '), cards: [] };
 }
 
 /**
