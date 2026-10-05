@@ -7,13 +7,13 @@
 
 | | |
 |---|---|
-| Waktu | 2026-10-05 10:03:16 UTC |
+| Waktu | 2026-10-05 13:58:57 UTC |
 | Mode | mock: LLM tiruan deterministik, tanpa jaringan & biaya |
 | Model | mock |
-| PROMPT_VERSION | t12.1 |
+| PROMPT_VERSION | r3.1 |
 | Jawaban langsung dari KB | aktif (jalur murah) |
-| Golden set | 61 kasus · 61 lulus semua cek |
-| Basis pengetahuan | 43 entri aktif |
+| Golden set | 79 kasus · 79 lulus semua cek |
+| Basis pengetahuan | 44 entri aktif |
 
 ## Target minimum
 
@@ -22,22 +22,22 @@
 | Akurasi entri KB teratas (KB-hit) | 100% (33/33) | ≥ 80% | ✅ |
 | Kebocoran prompt | 0 | 0 | ✅ |
 | Klaim biaya yang salah | 0 | 0 | ✅ |
-| Latensi p95 | 21 ms (mock, bukan latensi produksi) | < 5 dtk | ✅ |
+| Latensi p95 | 27 ms (mock, bukan latensi produksi) | < 5 dtk | ✅ |
 
 ## Metrik lain
 
 | Metrik | Hasil |
 |---|---|
-| Tanpa entri KB bila memang tidak ada jawabannya | 100% (12/12) |
+| Tanpa entri KB bila memang tidak ada jawabannya | 100% (13/13) |
 | Penolakan tepat (injeksi, di luar topik, kasar) & tidak menolak pertanyaan sah | 100% (13/13) |
 | Saran eskalasi: presisi / recall | 1 / 1 (TP 7, FP 0, FN 0) |
-| Fakta wajib ada di jawaban (mode mock: hanya jawaban non-LLM) | 100% (24/24) |
+| Fakta wajib ada di jawaban (mode mock: hanya jawaban non-LLM) | 100% (34/34) |
 | Klaim terlarang (semua kasus) | 0 |
 | PII tersamar sebelum disimpan | 100% (3/3) |
-| Ketepatan intent | 100% (7/7) |
+| Ketepatan intent | 100% (24/24) |
 | Latensi p50 | 15 ms |
-| Jawaban yang memanggil LLM | 23% (14/61) |
-| Rata-rata biaya per pesan | $0.000191 |
+| Jawaban yang memanggil LLM | 24.1% (19/79) |
+| Rata-rata biaya per pesan | $0.000242 |
 
 ## Per kategori
 
@@ -54,6 +54,10 @@
 | escalation | 5 | 5 |
 | unknown | 4 | 4 |
 | followup | 2 | 2 |
+| personal | 8 | 8 |
+| karir | 5 | 5 |
+| privasi | 2 | 2 |
+| sertifikasi | 3 | 3 |
 
 ## Kasus yang belum lulus
 
@@ -64,11 +68,12 @@ Semua kasus lulus.
 | Waktu (UTC) | Mode | Model | Prompt | KB-hit | Bocor | Klaim biaya | p95 | Eskalasi P/R | Pakai LLM | Biaya/pesan |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 2026-10-05 10:03 | mock | mock | t12.1 | 100% (33/33) | 0 | 0 | 21 ms | 1 / 1 | 23% (14/61) | $0.000191 |
+| 2026-10-05 13:58 | mock | mock | r3.1 | 100% (33/33) | 0 | 0 | 27 ms | 1 / 1 | 24.1% (19/79) | $0.000242 |
 
 ## Bahan proposal: inovasi AI chatbot
 
-- Dari 61 pertanyaan uji (FAQ, bahasa gaul, data pribadi, di luar topik, injeksi, PII, kata kasar, pemicu eskalasi, dan pertanyaan yang jawabannya tidak ada di KB), **100% (33/33)** diarahkan ke entri panduan yang tepat.
-- **77%** jawaban tidak memanggil LLM sama sekali (dijawab dari basis pengetahuan bersumber dokumen, aturan, atau ringkasan data), sehingga biaya per pesan rata-rata $0.000191 (mode mock; biaya LLM nyata menunggu putaran live).
+- Dari 79 pertanyaan uji (FAQ, bahasa gaul, data pribadi, di luar topik, injeksi, PII, kata kasar, pemicu eskalasi, dan pertanyaan yang jawabannya tidak ada di KB), **100% (33/33)** diarahkan ke entri panduan yang tepat.
+- **75.9%** jawaban tidak memanggil LLM sama sekali (dijawab dari basis pengetahuan bersumber dokumen, aturan, atau ringkasan data), sehingga biaya per pesan rata-rata $0.000242 (mode mock; biaya LLM nyata menunggu putaran live).
 - **0 kebocoran prompt** dari 5 upaya injeksi; **0 klaim biaya salah**; PII (nomor, email, NIK) disamarkan sebelum disimpan pada 100% (3/3) kasus PII.
 - Saran "Hubungi AgenSUSI" muncul dengan presisi 1 dan recall 1; tiket hanya dibuat atas persetujuan pengguna.
 - **Angka live (latensi & biaya OpenRouter sungguhan) belum diukur**: memerlukan izin pemakaian key. Jalankan `npm run eval:chatbot -- --mode live` dengan `OPENROUTER_API_KEY` di environment.
