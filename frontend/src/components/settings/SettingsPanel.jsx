@@ -2,6 +2,7 @@ import { useState } from 'react';
 import SetToggle from '../common/SetToggle';
 import { api } from '../../lib/api';
 import { useApi } from '../../hooks/useApi';
+import { chatHistoryDeleted } from '../../hooks/useChat';
 import { useAuth } from '../../context/authContext';
 import { useToast } from '../../context/toastContext';
 import { contactHref } from '../../data/contact';
@@ -22,6 +23,58 @@ const NOTIF_TOGGLES = [
   { key: 'notif_email', label: 'Email', sub: 'Ringkasan lewat email (segera hadir)' },
   { key: 'notif_whatsapp', label: 'WhatsApp', sub: 'Notifikasi penting via WhatsApp (segera hadir)' },
 ];
+
+const CHAT_TOGGLES = [
+  {
+    key: 'allows_ai_chat',
+    label: 'Izinkan AI menjawab pertanyaan saya',
+    sub: 'Bila mati, Tanya SUSI menjawab dari basis pengetahuan SUSI saja dan pesan Anda tidak dikirim ke penyedia AI',
+  },
+  {
+    key: 'allows_chat_history_storage',
+    label: 'Simpan riwayat chat Tanya SUSI',
+    sub: 'Bila mati, isi percakapan tidak disimpan di server dan hilang saat halaman ditutup. Riwayat yang disimpan terhapus otomatis setelah 90 hari',
+  },
+];
+
+/** Hapus seluruh riwayat Tanya SUSI milik akun ini (DELETE /chatbot/history), dengan konfirmasi. */
+function DeleteChatHistory({ user }) {
+  const toast = useToast();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const remove = async () => {
+    setBusy(true);
+    try {
+      const { deleted } = await api.delete('/chatbot/history');
+      chatHistoryDeleted(user);
+      toast.success(deleted > 0 ? `${deleted} percakapan Tanya SUSI dihapus` : 'Tidak ada riwayat Tanya SUSI yang tersimpan');
+      setConfirming(false);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="pt-3">
+      <p className="text-sm font-bold">Hapus riwayat Tanya SUSI</p>
+      <p className="text-xs text-[#12283c]/60 mt-1 mb-3">
+        Semua percakapan Anda dengan Tanya SUSI dihapus dari server, termasuk permintaan bantuan ke AgenSUSI yang masih terbuka.
+        Catatan biaya & kualitas tetap ada tanpa isi pertanyaan dan tanpa tautan ke akun Anda.
+      </p>
+      {confirming ? (
+        <div className="flex gap-3">
+          <button type="button" onClick={() => setConfirming(false)} disabled={busy} className="btn-pill btn-ghost-dark !py-3 flex-1 text-xs">Batal</button>
+          <button type="button" onClick={remove} disabled={busy} className="btn-pill btn-red !py-3 flex-1 text-xs">{busy ? '…' : 'Ya, hapus'}</button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setConfirming(true)} className="btn-pill btn-ghost-dark w-full !py-3 text-xs">Hapus riwayat chat</button>
+      )}
+    </div>
+  );
+}
 
 function ProfileForm({ user }) {
   const { updateUser } = useAuth();
@@ -123,10 +176,17 @@ export default function SettingsPanel({ onLogout }) {
             </div>
           )}
           {tab === 'privasi' && (
-            <div className="dash-item card-light p-7 space-y-3">
-              <h3 className="text-xl font-black mb-2">Kontrol Data</h3>
-              {toggles([{ key: 'show_location', label: 'Tampilkan lokasi komunitas di peta publik', sub: 'Titik ditampilkan perkiraan (±100 m), alamat lengkap tidak pernah ditampilkan' }])}
-            </div>
+            <>
+              <div className="dash-item card-light p-7 space-y-3">
+                <h3 className="text-xl font-black mb-2">Kontrol Data</h3>
+                {toggles([{ key: 'show_location', label: 'Tampilkan lokasi komunitas di peta publik', sub: 'Titik ditampilkan perkiraan (±100 m), alamat lengkap tidak pernah ditampilkan' }])}
+              </div>
+              <div className="dash-item card-light p-7 space-y-3">
+                <h3 className="text-xl font-black mb-2">Tanya SUSI</h3>
+                {toggles(CHAT_TOGGLES)}
+                <DeleteChatHistory user={user} />
+              </div>
+            </>
           )}
           {tab === 'akun' && (
             <>

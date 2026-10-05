@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Send, Square, RotateCcw, X, Sparkles, ThumbsUp, ThumbsDown, Headset } from 'lucide-react';
+import { Send, Square, RotateCcw, X, Sparkles, ThumbsUp, ThumbsDown, Headset, Trash2 } from 'lucide-react';
 import MarkdownLite from './MarkdownLite';
 import { MAX_LENGTH } from '../../hooks/useChat';
 import { useToast } from '../../context/toastContext';
@@ -196,6 +196,40 @@ function EscalationBanner({ t, escalation, available }) {
   );
 }
 
+/** Konfirmasi hapus percakapan dari server (T15): pesan & tiket bantuannya ikut terhapus. */
+function DeleteConversation({ t, chat, onDone }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const ticketOpen = ['pending', 'assigned'].includes(chat.escalation?.status);
+
+  const confirm = async () => {
+    setBusy(true);
+    try {
+      await chat.remove();
+      toast.success('Percakapan dihapus dari server');
+      onDone();
+    } catch (err) {
+      toast.error(err.message);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={`mx-4 mt-3 rounded-xl px-3 py-2.5 text-[11px] shrink-0 ${t.alert}`} role="group" aria-label="Konfirmasi hapus percakapan">
+      <p>
+        Hapus percakapan ini dari server SUSI?
+        {ticketOpen ? ' Permintaan bantuan ke AgenSUSI yang masih terbuka ikut dibatalkan.' : ''}
+      </p>
+      <div className="mt-2 flex gap-2">
+        <button type="button" onClick={onDone} disabled={busy} className={`rounded-full px-3 py-1 font-mono text-[10px] font-bold tracking-widest ${t.action}`}>BATAL</button>
+        <button type="button" onClick={confirm} disabled={busy} className="rounded-full bg-[#e62b2b] text-white px-3 py-1 font-mono text-[10px] font-bold tracking-widest disabled:opacity-60">
+          {busy ? 'MENGHAPUS…' : 'YA, HAPUS'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * @param {{ chat: ReturnType<import('../../hooks/useChat').useChat>, suggestions: string[], dark?: boolean,
  *   anonymous: boolean, onClose: () => void, titleId: string, inputRef: object, compactHeader?: boolean }} props
@@ -203,6 +237,7 @@ function EscalationBanner({ t, escalation, available }) {
 export default function ChatPanel({ chat, suggestions, dark = false, anonymous, onClose, titleId, inputRef, compactHeader = false }) {
   const t = dark ? THEMES.dark : THEMES.light;
   const [input, setInput] = useState('');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const logRef = useRef(null);
 
   // Ikuti pesan terbaru (termasuk potongan stream yang masuk).
@@ -237,10 +272,18 @@ export default function ChatPanel({ chat, suggestions, dark = false, anonymous, 
             <RotateCcw className="w-4 h-4" aria-hidden="true" />
           </button>
         )}
+        {chat.hasSession && chat.messages.length > 0 && (
+          <button type="button" onClick={() => setConfirmingDelete(true)} disabled={chat.busy} aria-label="Hapus percakapan dari server" aria-expanded={confirmingDelete} title="Hapus percakapan" className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors disabled:opacity-40 ${t.action}`}>
+            <Trash2 className="w-4 h-4" aria-hidden="true" />
+          </button>
+        )}
         <button type="button" onClick={onClose} aria-label="Tutup Tanya SUSI" className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:!bg-[#e62b2b] hover:!text-white ${t.action}`}>
           <X className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
+      {confirmingDelete && chat.hasSession && (
+        <DeleteConversation t={t} chat={chat} onDone={() => { setConfirmingDelete(false); inputRef.current?.focus(); }} />
+      )}
 
       <div ref={logRef} className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5 py-4 space-y-4" role="log" aria-label="Percakapan dengan Tanya SUSI" aria-busy={chat.busy}>
         {!chat.restoring && (
@@ -300,6 +343,7 @@ export default function ChatPanel({ chat, suggestions, dark = false, anonymous, 
         </div>
         <p className={`mt-1.5 text-[10px] leading-snug ${t.muted}`}>
           {input.length > MAX_LENGTH - 100 ? `${input.length}/${MAX_LENGTH} karakter · ` : ''}
+          {chat.stored === false ? 'Riwayat chat tidak disimpan (Pengaturan → Privasi). ' : ''}
           Jangan bagikan data pribadi. Untuk hal penting, minta bantuan AgenSUSI.
         </p>
       </form>
