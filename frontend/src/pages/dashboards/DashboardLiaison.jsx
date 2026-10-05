@@ -64,6 +64,7 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
   const openNotification = (n) => {
     if (n.ref_type === 'visit') { onTab('kunjungan'); return; }
     if (n.ref_type === 'escalation') { onTab('eskalasi'); setEscalationFocus(n.ref_id); return; }
+    if (n.ref_type === 'community') { onTab('komunitas'); return; } // permintaan bergabung (U1)
     const needId = n.ref_type === 'need' ? n.ref_id
       : n.ref_type === 'project' ? cards.find((c) => Number(c.project?.id) === Number(n.ref_id))?.need.id
         : null;
@@ -112,7 +113,7 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
             onCreate={() => startIntake()}
           />
         ))}
-        {tab === 'komunitas' && <CommunitiesTab canJoin={false} />}
+        {tab === 'komunitas' && <CommunitiesTab liveKey={liveKey} showMine={false} />}
         {tab === 'laporan' && (
           <LaporanTab summaryQ={summaryQ} cards={cards} loading={needsQ.loading || projectsQ.loading} error={needsQ.error || projectsQ.error} onRetry={reload} />
         )}

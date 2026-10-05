@@ -14,14 +14,16 @@ import HistoryTab from './talent/HistoryTab';
 import ProjectsTab from './talent/ProjectsTab';
 import ProjectView from './talent/ProjectView';
 import ProfileTab from './talent/ProfileTab';
+import KomunitasTab from './talent/KomunitasTab';
 
 const NAV = [
   { id: 'jelajahi', n: '01', l: 'Lihat Proyek' },
   { id: 'histori', n: '02', l: 'Histori' },
   { id: 'projek', n: '03', l: 'Proyek Saya' },
-  { id: 'mading', n: '04', l: 'Mading' },
-  { id: 'profil', n: '05', l: 'Profil' },
-  { id: 'setting', n: '06', l: 'Pengaturan' },
+  { id: 'komunitas', n: '04', l: 'Komunitas' },
+  { id: 'mading', n: '05', l: 'Mading' },
+  { id: 'profil', n: '06', l: 'Profil' },
+  { id: 'setting', n: '07', l: 'Pengaturan' },
 ];
 
 export default function DashboardTalent({ user, onLogout, navigateTo }) {
@@ -64,6 +66,7 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
     if (n.ref_type === 'project') openProject(n.ref_id);
     else if (n.ref_type === 'need') openNeed(n.ref_id);
     else if (n.ref_type === 'topic') onTab('mading');
+    else if (n.ref_type === 'community') onTab('komunitas'); // keputusan permintaan gabung (U1)
     else if (n.ref_type === 'application') onTab('histori');
     else onTab('projek');
   };
@@ -95,6 +98,7 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
         ) : (
           <ProjectsTab query={projectsQ} onOpen={setProjectId} onBrowse={() => onTab('jelajahi')} />
         ))}
+        {tab === 'komunitas' && <KomunitasTab liveKey={liveKey} />}
         {tab === 'mading' && <MadingBoard user={user} />}
         {tab === 'profil' && <ProfileTab onEdit={() => onTab('setting')} />}
         {tab === 'setting' && <SettingsPanel onLogout={onLogout} />}

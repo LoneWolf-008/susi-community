@@ -31,6 +31,17 @@ export function timeAgo(value, now = Date.now()) {
   return formatDate(d);
 }
 
+/** Sisa waktu sampai `value`: "berakhir 2 hari lagi", "berakhir 5 jam lagi"; null bila tanpa batas. */
+export function timeLeft(value, now = Date.now()) {
+  const d = toDate(value);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  const hours = (d.getTime() - now) / 3_600_000;
+  if (hours <= 0) return 'sudah berakhir';
+  if (hours < 1) return 'berakhir < 1 jam lagi';
+  if (hours < 24) return `berakhir ${Math.ceil(hours)} jam lagi`;
+  return `berakhir ${Math.ceil(hours / 24)} hari lagi`;
+}
+
 /** Nilai untuk <input type="date">: "YYYY-MM-DD" (zona waktu lokal). */
 export function toDateInput(value) {
   const d = toDate(value);

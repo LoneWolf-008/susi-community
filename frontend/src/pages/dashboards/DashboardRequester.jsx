@@ -52,6 +52,7 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
   // Klik notifikasi → buka kebutuhan terkait (lewat kebutuhan atau proyeknya) atau mading.
   const openNotification = (n) => {
     if (n.ref_type === 'topic') { onTab('komunitas'); return; }
+    if (n.ref_type === 'community') { onTab('map'); return; } // permintaan bergabung (U1)
     const needId = n.ref_type === 'need' ? n.ref_id
       : n.ref_type === 'project' ? cards.find((c) => Number(c.project?.id) === Number(n.ref_id))?.need.id
         : null;
@@ -77,7 +78,7 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
           />
         ))}
         {tab === 'komunitas' && <MadingBoard user={user} />}
-        {tab === 'map' && <CommunitiesTab onOpenMading={() => onTab('komunitas')} />}
+        {tab === 'map' && <CommunitiesTab liveKey={liveKey} onOpenMading={() => onTab('komunitas')} />}
         {tab === 'profile' && <ProfileTab user={user} cards={cards} onEdit={() => onTab('setting')} />}
         {tab === 'setting' && <SettingsPanel onLogout={onLogout} />}
       </div>
