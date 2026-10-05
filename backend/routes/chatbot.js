@@ -4,7 +4,7 @@ import { authenticate, optionalAuth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/role.js';
 import { validate } from '../middleware/validate.js';
 import { chatbotLimiters } from '../middleware/rateLimit.js';
-import { chatMessageSchema, chatFeedbackSchema } from '../validators/schemas.js';
+import { chatMessageSchema, chatFeedbackSchema, escalateSchema } from '../validators/schemas.js';
 
 const router = Router();
 
@@ -13,6 +13,8 @@ const router = Router();
 router.post('/message', optionalAuth, chatbotLimiters, validate(chatMessageSchema), ctrl.postMessage);
 router.post('/stream', optionalAuth, chatbotLimiters, validate(chatMessageSchema), ctrl.streamMessage);
 router.post('/feedback', optionalAuth, validate(chatFeedbackSchema), ctrl.postFeedback);
+// Eskalasi ke AgenSUSI (T13): dihitung kuota chatbot agar tiket tidak bisa dibanjiri.
+router.post('/escalate', optionalAuth, chatbotLimiters, validate(escalateSchema), ctrl.escalate);
 router.get('/session/:id', optionalAuth, ctrl.getSession);
 router.get('/health', authenticate, requireRole('admin'), ctrl.health);
 

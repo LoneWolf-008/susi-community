@@ -14,6 +14,9 @@ const TRIGGERS = {
 
 function answerFor(messages) {
   const system = messages.find((m) => m.role === 'system')?.content || '';
+  // Ringkasan eskalasi (T13): ulangi baris pertama percakapan agar test bisa memeriksa isinya.
+  const conversation = /<percakapan>\n([\s\S]*?)\n<\/percakapan>/.exec(messages.at(-1)?.content || '')?.[1];
+  if (conversation) return `[mock] Ringkasan: ${conversation.split('\n')[0].slice(0, 200)}`;
   // Pertanyaan data pribadi: ulangi baris pertama <user_data> agar test bisa memeriksa isinya.
   const userData = /<user_data>\n([\s\S]*?)\n<\/user_data>/.exec(system)?.[1];
   if (userData && userData !== '(tidak ada)') return `[mock] Data Anda: ${userData.split('\n').slice(0, 3).join(' | ')}`;

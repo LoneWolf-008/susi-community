@@ -2,13 +2,15 @@ import { pool } from '../config/db.js';
 import { success, created, fail } from '../utils/response.js';
 import { parsePagination, paged } from '../utils/pagination.js';
 import { HttpError } from '../utils/httpError.js';
+import { STALE_HOURS } from '../services/chatbot/escalation.js';
 
 const VISIT_STATUSES = ['DIRENCANAKAN', 'BERLANGSUNG', 'TERDATA'];
 const DEFAULT_TARGETS = { target_visits_month: 30, target_intake_month: 25 };
 const OWN_NEED = `n.requester_id IS NULL AND n.created_by = ?`;
 
 // Ringkasan kinerja liaison untuk beranda & laporan: target bulanan, capaian bulan ini,
-// status kebutuhan yang ia catat, dan kunjungan selesai per minggu (4 minggu terakhir).
+// status kebutuhan yang ia catat, kunjungan selesai per minggu (4 minggu terakhir), dan
+// antrean eskalasi chatbot.
 export const getSummary = async (req, res, next) => {
   try {
     const id = req.user.id;
@@ -40,6 +42,14 @@ export const getSummary = async (req, res, next) => {
       [id]
     );
     const byWeek = new Map(weekRows.map((r) => [Number(r.weeks_ago), Number(r.visits)]));
+    // Antrean eskalasi chatbot (T13): tiket pending dibagi bersama, basi = pending > 24 jam.
+    const [[escalations]] = await pool.query(
+      `SELECT COALESCE(SUM(status = 'pending'), 0) AS pending,
+              COALESCE(SUM(status = 'assigned' AND assigned_to = ?), 0) AS mine,
+              COALESCE(SUM(status = 'pending' AND created_at < NOW() - INTERVAL ${STALE_HOURS} HOUR), 0) AS stale
+       FROM escalations`,
+      [id]
+    );
 
     return success(res, {
       targets: {
@@ -50,6 +60,7 @@ export const getSummary = async (req, res, next) => {
       needs: Object.fromEntries(Object.entries(needs).map(([k, v]) => [k, Number(v)])),
       // Urut dari yang terlama: indeks 3 = minggu ini.
       weekly_visits: [3, 2, 1, 0].map((weeksAgo) => byWeek.get(weeksAgo) || 0),
+      escalations: Object.fromEntries(Object.entries(escalations).map(([k, v]) => [k, Number(v)])),
     });
   } catch (err) {
     next(err);

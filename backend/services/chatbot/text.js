@@ -82,6 +82,9 @@ const DOMAIN_GROUPS = {
   reputasi: ['poin', 'point', 'points', 'rep', 'skor', 'score'],
   testimoni: ['testi', 'testimonial', 'review', 'ulasan', 'rating'],
   sengketa: ['dispute', 'konflik', 'perselisihan', 'mediasi'],
+  // "laporan" (rekap) sengaja tidak termasuk: maknanya berbeda dari melapor.
+  lapor: ['melapor', 'melaporkan', 'laporkan', 'dilaporkan', 'pelaporan', 'adukan', 'mengadu', 'pengaduan', 'aduan'],
+  tipu: ['ditipu', 'menipu', 'penipu', 'penipuan', 'tertipu', 'scam'],
   profil: ['profile', 'biodata'],
   keahlian: ['skill', 'skills', 'skil', 'kemampuan', 'keterampilan'],
   peta: ['map', 'maps', 'gmaps'],

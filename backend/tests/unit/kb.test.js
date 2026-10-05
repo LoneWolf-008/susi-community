@@ -54,6 +54,8 @@ describe('Retrieval KB: skor & pemeringkatan ulang (T11–T12)', () => {
     ['cara upload hasil', 'kirim-hasil'],
     ['kok saya ga bisa login', 'tidak-bisa-masuk'],
     ['bisa bikin website buat toko saya?', 'contoh-masalah'],
+    ['saya ditipu talenta, bagaimana cara lapor sengketa?', 'sengketa'],
+    ['mau mengadukan talenta yang bermasalah', 'sengketa'],
   ])('"%s" → %s', (question, slug) => {
     expect(topSlug(question)).toBe(slug);
   });

@@ -30,7 +30,19 @@ const POSITIVE_INT_KEYS = [
   'OPENROUTER_TIMEOUT_MS', 'CHATBOT_MAX_TOKENS', 'CHATBOT_CACHE_MAX',
   'CHATBOT_RATE_LIMIT_PER_MIN', 'CHATBOT_ANON_RATE_LIMIT_PER_MIN', 'CHATBOT_ANON_IP_RATE_LIMIT_PER_MIN',
   'CHATBOT_DAILY_LIMIT_USER', 'CHATBOT_DAILY_LIMIT_ANON', 'CHATBOT_DAILY_LIMIT_ANON_IP',
+  'CHATBOT_ESCALATION_THRESHOLD',
 ];
+
+const SERVICE_HOURS_RE = /^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/;
+
+const isValidTimeZone = (tz) => {
+  try {
+    new Intl.DateTimeFormat('en-GB', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Validasi murni (tanpa efek samping) agar mudah diuji.
@@ -85,6 +97,12 @@ export function validateEnv(source) {
     if (!isBlank(source[key]) && !(Number(source[key]) >= 0)) {
       errors.push(`${key} harus angka ≥ 0`);
     }
+  }
+  if (!isBlank(source.CHATBOT_SERVICE_HOURS) && !SERVICE_HOURS_RE.test(String(source.CHATBOT_SERVICE_HOURS).trim())) {
+    errors.push('CHATBOT_SERVICE_HOURS harus format HH:MM-HH:MM (mis. 08:00-17:00)');
+  }
+  if (!isBlank(source.CHATBOT_SERVICE_TZ) && !isValidTimeZone(String(source.CHATBOT_SERVICE_TZ).trim())) {
+    errors.push('CHATBOT_SERVICE_TZ harus nama zona waktu IANA (mis. Asia/Jakarta)');
   }
 
   return errors;
@@ -184,5 +202,10 @@ export const env = Object.freeze({
     dailyLimitAnonIp: intOr(process.env.CHATBOT_DAILY_LIMIT_ANON_IP, 300),
     // Domain tambahan yang boleh muncul sebagai tautan di jawaban (selain host FRONTEND_URL & wa.me).
     allowedDomains: listOf(process.env.CHATBOT_ALLOWED_DOMAINS),
+    // Eskalasi ke AgenSUSI (T13): skor minimal untuk menyarankan tombol "Hubungi AgenSUSI", dan jam
+    // layanan (kosong = setiap saat). Di luar jam layanan tiket tetap dibuat.
+    escalationThreshold: intOr(process.env.CHATBOT_ESCALATION_THRESHOLD, 50),
+    serviceHours: isBlank(process.env.CHATBOT_SERVICE_HOURS) ? null : process.env.CHATBOT_SERVICE_HOURS.trim(),
+    serviceTimeZone: isBlank(process.env.CHATBOT_SERVICE_TZ) ? 'Asia/Jakarta' : process.env.CHATBOT_SERVICE_TZ.trim(),
   }),
 });
