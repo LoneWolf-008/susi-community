@@ -84,6 +84,8 @@ const responseBody = (turn, assistantMessageId, answer) => ({
   escalation_suggested: answer.escalationSuggested,
   // false = riwayat tidak disimpan (pilihan pengguna): FE tidak mengingat id sesi untuk dipulihkan.
   stored: turn.privacy.storeHistory,
+  // R3: kartu kebutuhan/talenta dari rekomendasi (tidak disimpan; hanya untuk giliran ini).
+  cards: answer.cards ?? [],
 });
 
 const pipelineContext = (req, turn, extra = {}) => ({
@@ -94,6 +96,7 @@ const pipelineContext = (req, turn, extra = {}) => ({
   guard: turn.guard,
   history: turn.history,
   aiAllowed: turn.privacy.aiAllowed,
+  personalize: turn.privacy.personalize,
   ...extra,
 });
 

@@ -69,5 +69,76 @@
       },
       "targetsMet": true
     }
+  },
+  {
+    "date": "2026-10-05T13:58:57.362Z",
+    "mode": "mock",
+    "model": "mock",
+    "promptVersion": "r3.1",
+    "kbDirect": true,
+    "kbEntries": 44,
+    "metrics": {
+      "mode": "mock",
+      "cases": 79,
+      "errors": 0,
+      "passedCases": 79,
+      "kbHit": {
+        "pass": 33,
+        "total": 33,
+        "rate": 1
+      },
+      "kbNone": {
+        "pass": 13,
+        "total": 13,
+        "rate": 1
+      },
+      "refusal": {
+        "pass": 13,
+        "total": 13,
+        "rate": 1
+      },
+      "intent": {
+        "pass": 24,
+        "total": 24,
+        "rate": 1
+      },
+      "escalation": {
+        "tp": 7,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1
+      },
+      "facts": {
+        "pass": 34,
+        "total": 34,
+        "rate": 1
+      },
+      "forbiddenClaims": 0,
+      "costClaims": 0,
+      "leaks": 0,
+      "pii": {
+        "pass": 3,
+        "total": 3,
+        "rate": 1
+      },
+      "latency": {
+        "p50": 15,
+        "p95": 27
+      },
+      "llmShare": {
+        "pass": 19,
+        "total": 79,
+        "rate": 0.24050632911392406
+      },
+      "avgCostUsd": 0.00024225316455696205,
+      "targets": {
+        "kbHit": true,
+        "leaks": true,
+        "costClaims": true,
+        "p95": true
+      },
+      "targetsMet": true
+    }
   }
 ]

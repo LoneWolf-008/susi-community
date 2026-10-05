@@ -38,6 +38,11 @@ const CHAT_TOGGLES = [
     sub: 'Bila mati, Tanya SUSI menjawab dari basis pengetahuan SUSI saja dan pesan Anda tidak dikirim ke penyedia AI',
   },
   {
+    key: 'allows_ai_personalization',
+    label: 'Personalisasi Tanya SUSI',
+    sub: 'Tanya SUSI membaca keahlian, proyek, dan rekomendasi Anda untuk jawaban pribadi (mis. "proyek apa yang cocok untuk saya?"). Bila mati, jawabannya umum',
+  },
+  {
     key: 'allows_chat_history_storage',
     label: 'Simpan riwayat chat Tanya SUSI',
     sub: 'Bila mati, isi percakapan tidak disimpan di server dan hilang saat halaman ditutup. Riwayat yang disimpan terhapus otomatis setelah 90 hari',

@@ -9,6 +9,7 @@ import { readKbFile, upsertKbEntries } from '../utils/kbSeed.js';
 import { syncKbIndex } from '../services/chatbot/kb.js';
 import { answerCache } from '../services/chatbot/cache.js';
 import { streamAnswer, FALLBACK_REPLY } from '../services/chatbot/pipeline.js';
+import { PROMPT_VERSION } from '../services/chatbot/prompts.js';
 import { precheck, MASK_EMAIL, MASK_NUMBER } from '../services/chatbot/guard.js';
 import { REPLIES, SMALLTALK_REPLIES, BUDGET_NOTE } from '../services/chatbot/replies.js';
 import { URL_REMOVED } from '../services/chatbot/outputFilter.js';
@@ -169,7 +170,7 @@ describe('Tanya SUSI: RAG, guardrail, optimasi biaya (T12)', () => {
         `SELECT model, cache_hit, cost_usd, prompt_version FROM ask_logs WHERE message_id IN (?, ?) ORDER BY id`,
         [first.body.data.message.id, second.body.data.message.id],
       );
-      expect(logs[0]).toMatchObject({ model: 'rekam-model', cache_hit: 0, prompt_version: 't12.1' });
+      expect(logs[0]).toMatchObject({ model: 'rekam-model', cache_hit: 0, prompt_version: PROMPT_VERSION });
       expect(Number(logs[0].cost_usd)).toBeCloseTo(0.0002, 8);
       expect(logs[1]).toEqual({ model: null, cache_hit: 1, cost_usd: null, prompt_version: null });
     });

@@ -7,12 +7,15 @@
 //  6. LLM (prompt sistem + <kb> + <user_data> + 6 giliran terakhir) bila key ada, anggaran cukup, dan
 //     pengguna tidak mematikan AI (T15); gagal/timeout → jawaban tanpa LLM + tawaran eskalasi.
 // Keluaran LLM selalu melewati filter (tautan di luar allowlist, kebocoran prompt).
+import crypto from 'node:crypto';
 import { env } from '../../config/env.js';
 import { LLMError } from '../llm/errors.js';
 import { estimateCostUsd } from '../llm/pricing.js';
 import { searchKb, audiencesFor, kbTitle, isConfident } from './kb.js';
 import { buildSystemPrompt, PROMPT_VERSION, LEAK_MARKERS } from './prompts.js';
-import { classifyIntent, isFollowUp, hasDomainTerms } from './intent.js';
+import { classifyIntent, isFollowUp, hasDomainTerms, PERSONAL_INTENTS } from './intent.js';
+import { planPersonal } from './personal.js';
+import { canonicalText } from './text.js';
 import { createOutputFilter, createStreamFilter, hostOf } from './outputFilter.js';
 import { answerCache, answerCacheKey } from './cache.js';
 import { isBudgetExceeded, spentTodayUsd } from './budget.js';
@@ -80,6 +83,8 @@ function makeAnswer(started, fields) {
     escalationSuggested: false,
     replace: false,
     aborted: false,
+    // R3: kartu terstruktur (kebutuhan/talenta dari rekomendasi) untuk ditampilkan FE dengan aksi.
+    cards: [],
     ...fields,
     latencyMs: Date.now() - started,
   };
@@ -104,8 +109,9 @@ function estimateUsage(model, messages, output) {
  * @param {object} [ctx.guard]     hasil precheck
  * @param {object[]} [ctx.history] pesan sesi sebelumnya (lama → baru)
  * @param {boolean} [ctx.aiAllowed] false = pengguna mematikan AI (T15): tidak ada pemanggilan LLM
+ * @param {boolean} [ctx.personalize] false = pengguna mematikan personalisasi (R3): jawaban umum
  */
-async function planAnswer({ db, llm, user, message, guard = {}, history = [], aiAllowed = true }) {
+async function planAnswer({ db, llm, user, message, guard = {}, history = [], aiAllowed = true, personalize = true }) {
   const started = Date.now();
   const final = (fields) => ({ kind: 'final', answer: makeAnswer(started, fields) });
 
@@ -122,6 +128,9 @@ async function planAnswer({ db, llm, user, message, guard = {}, history = [], ai
 
   if (intent === 'smalltalk') return final({ intent, reply: SMALLTALK_REPLIES[classified.smalltalk] || SMALLTALK_REPLIES.ack });
   if (intent === 'escalation_request') return final({ intent, reply: REPLIES.escalation, escalationSuggested: true });
+  if (PERSONAL_INTENTS.includes(intent)) {
+    return planPersonalAnswer({ db, llm, user, message, query, guard, history, aiAllowed, personalize, intent, started, final });
+  }
   // Data pribadi hanya untuk pengguna yang masuk; anonim tidak pernah sampai ke query data.
   if (intent === 'status_data' && !user) return final({ intent, reply: REPLIES.loginRequired });
 
@@ -190,6 +199,39 @@ async function planAnswer({ db, llm, user, message, guard = {}, history = [], ai
   };
 }
 
+/**
+ * Intent personal (R3): template dari data pribadi & rekomendasi R1 tanpa LLM; LLM hanya untuk
+ * penjelasan ("kenapa cocok?") dan narasi karier, dengan template sebagai cadangan. Narasi di-cache
+ * per hash(profil ringkas + rekomendasi) + pertanyaan baku. Konteks pribadi tidak pernah disimpan.
+ */
+async function planPersonalAnswer({ db, llm, user, message, query, guard, history, aiAllowed, personalize, intent, started, final }) {
+  const personal = await planPersonal({ db, user, intent, query, personalize });
+  const base = { intent: personal.intent, sources: [], kbEntryId: null, matched: true, cards: personal.cards };
+  const template = (fields = {}) => final({ ...base, reply: personal.reply, source: personal.source, ...fields });
+  if (!personal.llm || !aiAllowed || !llm.isConfigured()) return template();
+  if (isBudgetExceeded(await spentTodayUsd(db), env.chatbot.dailyBudgetUsd)) return template({ llmError: 'BudgetExceeded' });
+
+  const digest = crypto.createHash('sha256').update(`${personal.llm.profile}\n${personal.llm.recommendations}`).digest('hex').slice(0, 24);
+  const cacheKey = guard.piiMasked ? null : `personal|${personal.intent}|${digest}|${canonicalText(query)}`;
+  const cachedAnswer = cacheKey ? answerCache.get(cacheKey) : null;
+  if (cachedAnswer) return final({ ...base, reply: cachedAnswer.reply, source: 'cache', cacheHit: true });
+
+  const messages = [
+    { role: 'system', content: buildSystemPrompt({ role: user.role, personal: personal.llm }) },
+    ...toLlmMessages(truncateHistory(history)),
+    { role: 'user', content: message },
+  ];
+  return {
+    kind: 'llm',
+    started,
+    base,
+    cacheKey,
+    messages,
+    maxTokens: personal.llm.maxTokens,
+    fallback: (llmError) => template({ llmError }).answer,
+  };
+}
+
 /** Jawaban LLM yang sudah utuh → filter keluaran, cache, dan bentuk jawaban. */
 function finishLlm(plan, content, result, { prefiltered = false } = {}) {
   const filter = getOutputFilter();
@@ -207,7 +249,7 @@ export async function answerMessage(ctx) {
   const plan = await planAnswer(ctx);
   if (plan.kind === 'final') return plan.answer;
   try {
-    const result = await ctx.llm.complete({ messages: plan.messages, maxTokens: env.chatbot.maxTokens });
+    const result = await ctx.llm.complete({ messages: plan.messages, maxTokens: plan.maxTokens ?? env.chatbot.maxTokens });
     return finishLlm(plan, result.content, result);
   } catch (err) {
     if (!(err instanceof LLMError)) throw err; // bug di kode kita → biarkan jadi 500
@@ -236,7 +278,7 @@ export async function* streamAnswer(ctx) {
   let done = null;
   let blocked = false;
   try {
-    for await (const event of ctx.llm.stream({ messages: plan.messages, maxTokens: env.chatbot.maxTokens, signal: ctx.signal })) {
+    for await (const event of ctx.llm.stream({ messages: plan.messages, maxTokens: plan.maxTokens ?? env.chatbot.maxTokens, signal: ctx.signal })) {
       if (event.type === 'done') {
         done = event;
         continue;

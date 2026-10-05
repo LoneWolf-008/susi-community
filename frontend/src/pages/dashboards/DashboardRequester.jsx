@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { OPEN_OWNER_NEED_EVENT } from '../../lib/chatNavigation';
 import gsap from 'gsap';
 import DashShell from '../../components/common/DashShell';
 import ChatWidget from '../../components/chat/ChatWidget';
@@ -49,6 +50,13 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
     if (id === 'beranda' || id === 'profile') reload();
   };
   const openCard = ({ need }) => setSelected(need.id);
+  // Kartu talenta di Tanya SUSI (R3) → buka kebutuhan terkait.
+  const onOpenNeedFromChat = useEffectEvent((e) => { setTab('beranda'); setSelected(Number(e.detail?.id)); });
+  useEffect(() => {
+    const handler = (e) => onOpenNeedFromChat(e);
+    window.addEventListener(OPEN_OWNER_NEED_EVENT, handler);
+    return () => window.removeEventListener(OPEN_OWNER_NEED_EVENT, handler);
+  }, []);
   // Klik notifikasi → buka kebutuhan terkait (lewat kebutuhan atau proyeknya) atau mading.
   const openNotification = (n) => {
     if (n.ref_type === 'topic') { onTab('komunitas'); return; }

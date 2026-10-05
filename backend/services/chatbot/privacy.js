@@ -5,19 +5,21 @@
 // Pengunjung anonim memakai bawaan: sesinya hanya bisa dibuka pemegang id dan bisa dihapus kapan saja.
 
 export const NOT_STORED = '[tidak disimpan]';
-export const DEFAULT_PRIVACY = Object.freeze({ aiAllowed: true, storeHistory: true });
+// personalize (R3): boleh membaca profil/keahlian/rekomendasi pengguna untuk jawaban pribadi.
+export const DEFAULT_PRIVACY = Object.freeze({ aiAllowed: true, storeHistory: true, personalize: true });
 
 /** Pilihan privasi chat `user` (anonim/tanpa baris pengaturan → bawaan). */
 export async function chatPrivacy(db, user) {
   if (!user) return DEFAULT_PRIVACY;
   const [rows] = await db.query(
-    `SELECT allows_ai_chat, allows_chat_history_storage FROM user_settings WHERE user_id = ?`,
+    `SELECT allows_ai_chat, allows_chat_history_storage, allows_ai_personalization FROM user_settings WHERE user_id = ?`,
     [user.id],
   );
   if (!rows[0]) return DEFAULT_PRIVACY;
   return {
     aiAllowed: Number(rows[0].allows_ai_chat) === 1,
     storeHistory: Number(rows[0].allows_chat_history_storage) === 1,
+    personalize: Number(rows[0].allows_ai_personalization) === 1,
   };
 }
 

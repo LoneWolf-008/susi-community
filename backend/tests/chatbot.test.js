@@ -5,6 +5,7 @@ import { setLLMForTests } from '../services/llm/index.js';
 import { createOpenRouterClient } from '../services/llm/openrouter.js';
 import { LLMTimeout, LLMRateLimited, LLMUnavailable, LLMEmptyResponse } from '../services/llm/errors.js';
 import { FALLBACK_REPLY } from '../services/chatbot/pipeline.js';
+import { PROMPT_VERSION } from '../services/chatbot/prompts.js';
 import { answerCache } from '../services/chatbot/cache.js';
 import { searchKb, syncKbIndex } from '../services/chatbot/kb.js';
 
@@ -73,7 +74,7 @@ describe('Tanya SUSI: fondasi chatbot (T11, disesuaikan T12)', () => {
     const log = await one(`SELECT * FROM ask_logs WHERE message_id = ?`, [message.id]);
     expect(log).toMatchObject({
       user_id: null, session_id: sessionId, question: TWO_TOPICS, matched: 1, intent: 'howto',
-      kb_entry_id: kbDaftar, model: 'mock', prompt_version: 't12.1', cache_hit: 0, escalated: 0, llm_error: null,
+      kb_entry_id: kbDaftar, model: 'mock', prompt_version: PROMPT_VERSION, cache_hit: 0, escalated: 0, llm_error: null,
     });
     expect(log.tokens_in).toBeGreaterThan(0);
     expect(Number(log.cost_usd)).toBeGreaterThan(0);

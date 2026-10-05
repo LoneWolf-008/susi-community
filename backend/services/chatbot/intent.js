@@ -1,9 +1,50 @@
 // Intent berbasis kata kunci (T12.2.2), tanpa LLM. Urutan aturan = prioritas:
-// escalation_request → status_data → complaint → smalltalk → howto → faq.
+// escalation_request → intent personal (R3) → status_data → complaint → smalltalk → howto → faq.
 // `out_of_scope` diputuskan pipeline setelah retrieval (tidak ada entri KB & tidak ada istilah SUSI).
 import { intentText, queryTerms, isStopword, variantsOf, tokenize } from './text.js';
 
-export const INTENTS = ['faq', 'howto', 'status_data', 'complaint', 'escalation_request', 'smalltalk', 'out_of_scope'];
+// R3: jawaban pribadi berbasis profil & rekomendasi (services/chatbot/personal.js).
+export const PERSONAL_INTENTS = ['rekomendasi_proyek', 'rekomendasi_talenta', 'karir', 'sertifikasi'];
+export const INTENTS = ['faq', 'howto', 'status_data', 'complaint', 'escalation_request', 'smalltalk', 'out_of_scope', ...PERSONAL_INTENTS];
+
+// ===== Intent personal (R3) =====
+const MATCH_WORD = '(cocok|sesuai|pas|rekomendasi|rekomendasikan|direkomendasikan|sarankan|saranin|disarankan|terbaik)';
+const TALENT_WORD = '(talenta|talent|developer|programmer|freelancer|pelamar|kandidat)';
+const WORK_WORD = '(proyek|projek|project|kebutuhan|kerjaan|pekerjaan|lowongan|job|gawean)';
+const PERSONAL_RES = {
+  // "talenta mana yang cocok", "rekomendasi talenta", "siapa yang cocok mengerjakan kebutuhan saya"
+  rekomendasi_talenta: [
+    new RegExp(`\\b${TALENT_WORD}\\b(?:\\s+\\S+){0,4}?\\s+${MATCH_WORD}\\b`),
+    new RegExp(`\\b${MATCH_WORD}\\b(?:\\s+\\S+){0,3}?\\s+${TALENT_WORD}\\b`),
+    /\bsiapa\b(?:\s+\S+){0,3}?\s+(cocok|sesuai|pas)\b/,
+  ],
+  // "proyek apa yang cocok buat aku", "rekomendasi proyek", "kebutuhan yang sesuai skill saya"
+  rekomendasi_proyek: [
+    new RegExp(`\\b${WORK_WORD}\\b(?:\\s+\\S+){0,4}?\\s+${MATCH_WORD}\\b`),
+    new RegExp(`\\b${MATCH_WORD}\\b(?:\\s+\\S+){0,3}?\\s+${WORK_WORD}\\b`),
+  ],
+  // "skill apa yang perlu saya pelajari", "karier saya", "keahlian yang paling dicari"
+  karir: [
+    /\b(karier|karir|career|kariernya|karirnya|pengembangan diri|jenjang karier|jenjang karir)\b/,
+    /\b(skill|skil|keahlian|kemampuan)\s+(apa|yang)\b(?:\s+\S+){0,4}?\s+(pelajari|dipelajari|belajar|tingkatkan|ditingkatkan|kembangkan|dicari|dibutuhkan|diminta|laku|kurang)\b/,
+    /\b(belajar|pelajari|upgrade|tingkatkan)\s+(skill|keahlian|kemampuan)\b/,
+    // harapan kerja/penghasilan → dijawab tanpa janji (lihat NO_PROMISE di personal.js)
+    /\b(kerja tetap|pekerjaan tetap|jaminan kerja|dapat kerja|dapat pekerjaan|lapangan kerja|penyaluran kerja|disalurkan kerja)\b/,
+  ],
+  sertifikasi: [/\b(sertifikasi|sertifikat|tersertifikasi|certified|certificate|certification)\b/],
+};
+// "Bagaimana cara …" tentang fitur → panduan umum KB, bukan jawaban pribadi.
+const FEATURE_HOWTO_RE = /\bcara\b/;
+
+// Urutan cek: "talenta yang cocok untuk kebutuhan saya" juga memuat kata kebutuhan + cocok.
+const PERSONAL_ORDER = ['rekomendasi_talenta', 'rekomendasi_proyek', 'karir', 'sertifikasi'];
+
+/** Intent personal yang diminta, atau null. */
+export function personalIntent(text) {
+  const t = intentText(text);
+  if (FEATURE_HOWTO_RE.test(t) && !PERSONAL_RES.sertifikasi.some((re) => re.test(t))) return null;
+  return PERSONAL_ORDER.find((intent) => PERSONAL_RES[intent].some((re) => re.test(t))) ?? null;
+}
 
 // ===== Permintaan bicara dengan manusia =====
 const AGENT = '(agensusi|agen|liaison|admin|cs|operator|manusia|orang|petugas|staf|staff|tim)';
@@ -79,6 +120,8 @@ export function classifyIntent(text) {
   const result = (intent, extra = {}) => ({ intent, topics: [], negative, smalltalk: null, ...extra });
 
   if (ESCALATION_RES.some((re) => re.test(t))) return result('escalation_request');
+  const personal = personalIntent(text);
+  if (personal) return result(personal);
   const topics = dataTopics(text);
   if (topics) return result('status_data', { topics });
   if (negative) return result('complaint');

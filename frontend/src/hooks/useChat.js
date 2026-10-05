@@ -202,6 +202,7 @@ export function useChat({ enabled = true, active = enabled } = {}) {
                   source: data.source,
                   sources: data.sources,
                   intent: data.intent,
+                  cards: data.cards ?? [], // R3: kartu rekomendasi (tidak dipulihkan dari riwayat)
                   escalationSuggested: data.escalation_suggested,
                   ratable: true,
                 } : m)),
