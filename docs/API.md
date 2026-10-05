@@ -84,15 +84,27 @@ Status: `AGREEMENT → IN_PROGRESS → AWAITING_VERIFICATION → COMPLETED`, den
 
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
-| GET | `/communities` | login | Filter `sector, type, search, mine=true`. Item memuat `is_member` |
-| GET | `/communities/:id` | login | Detail + anggota |
+| GET | `/communities` | login | Filter `sector, type, search, mine=true` (`mine` = anggota ACTIVE). Item memuat `is_member` (ACTIVE), `membership_status` (`PENDING`/`ACTIVE`/`REJECTED`/null), `membership_role` |
+| GET | `/communities/:id` | login | Detail + anggota ACTIVE |
 | POST | `/communities` | login | `name, type?, description?, leader_name?, leader_role?, established_at?, whatsapp?, address?, lat?, lng?`. Requester otomatis PENGURUS; liaison mencatat sebagai `AGENSUSI` |
-| POST | `/communities/:id/join` · DELETE `/communities/:id/leave` | login | |
-| GET | `/discussions` | login | Filter `community_id, category` (limit default 50) |
-| GET | `/discussions/:id` | login | Topik + balasan |
-| POST | `/discussions` | login | `text, category?, community_id?, pos_x?, pos_y?, rotation?, color? (#RRGGBB)` |
+| POST | `/communities/:id/join` | talent | `message?` (≤ 300). Permintaan gabung → `PENDING` (201) dan notifikasi `komunitas` ke pemutus. Sudah anggota/menunggu → 409; pernah ditolak boleh mengajukan lagi. Peran lain → 403 |
+| DELETE | `/communities/:id/join` (alias `/leave`) | anggota/pemohon | Batalkan permintaan, hapus status ditolak, atau keluar. `members_count` turun hanya bila sebelumnya ACTIVE |
+| GET | `/communities/join-requests` | login | Semua permintaan `PENDING` di komunitas yang dikelola pemanggil: `items [{ community_id, community_name, user_id, name, level, skills, completed_projects, message, requested_at }]` |
+| GET | `/communities/:id/join-requests` | pemutus | `?status=PENDING\|ACTIVE\|REJECTED` (bawaan PENDING). Selain pemutus → 403 |
+| PATCH | `/communities/:id/join-requests/:userId` | pemutus | `decision: ACTIVE\|REJECTED`. Hanya dari `PENDING` (selain itu 409). Disetujui → `members_count` + 1; talenta diberi notifikasi |
+| GET | `/discussions` | login | Filter `community_id, category` (limit default 50). Hanya topik yang belum lewat `expires_at` (NULL = tanpa batas) |
+| GET | `/discussions/:id` | login | Topik + balasan, termasuk yang sudah kedaluwarsa (`expired: true`). Juga `can_extend`, `can_delete`, dan `replies[].can_delete` untuk pemanggil |
+| POST | `/discussions` | login | `text, category?, duration_days? (1\|3\|7\|14\|30, bawaan 7), community_id?, pos_x?, pos_y?, rotation?, color? (#RRGGBB)` |
 | POST | `/discussions/:id/replies` | login | `text, community_id?` (penulis topik diberi notifikasi) |
 | PATCH | `/discussions/:id/position` | penulis topik | `pos_x, pos_y (0–32767), rotation? (−45..45)` |
+| PATCH | `/discussions/:id/extend` | penulis topik | `duration_days` (1\|3\|7\|14\|30), ditambahkan dari batas sekarang atau dari saat ini bila sudah lewat. Topik tanpa batas → 400 |
+| DELETE | `/discussions/:id` | penulis, pengurus komunitas terkait, admin | Soft delete (`deleted_at`). Lainnya → 403 |
+| DELETE | `/discussions/replies/:id` | penulis balasan, admin | Hapus balasan |
+
+**Keanggotaan (U1).** Bergabung khusus talenta lewat persetujuan. Pemutus = pengurus ACTIVE komunitas;
+bila komunitas belum punya pengurus berakun (dicatat liaison), liaison pembuatnya atau admin.
+Menulis atas nama komunitas (`community_id` di topik, balasan, dan kebutuhan) mensyaratkan
+keanggotaan ACTIVE (atau liaison/admin).
 
 ## Talenta, testimoni, notifikasi, pengaturan
 
