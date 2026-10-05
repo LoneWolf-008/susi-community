@@ -46,4 +46,24 @@ describe('validateEnv (regresi T0: start tanpa secret harus gagal)', () => {
   it('menolak DB_PORT bukan angka', () => {
     expect(validateEnv({ ...base, DB_PORT: 'abc' })).toContain('DB_PORT harus berupa angka');
   });
+
+  it('chatbot (T11): variabel LLM opsional, tetapi nilai yang diisi harus valid', () => {
+    // Tanpa key/provider sama sekali tetap valid: chatbot menjawab dari KB.
+    expect(validateEnv({ ...base, OPENROUTER_API_KEY: '' })).toEqual([]);
+    expect(validateEnv({
+      ...base, LLM_PROVIDER: 'OpenRouter', OPENROUTER_DATA_COLLECTION: 'deny', OPENROUTER_REASONING_EFFORT: 'low',
+      OPENROUTER_TIMEOUT_MS: '12000', CHATBOT_MAX_TOKENS: '350', CHATBOT_DAILY_BUDGET_USD: '0.5',
+    })).toEqual([]);
+    expect(validateEnv({
+      ...base, LLM_PROVIDER: 'openai', OPENROUTER_DATA_COLLECTION: 'maybe', OPENROUTER_REASONING_EFFORT: 'turbo',
+      OPENROUTER_TIMEOUT_MS: '12s', CHATBOT_MAX_TOKENS: '-1', CHATBOT_DAILY_BUDGET_USD: 'gratis',
+    })).toEqual([
+      'LLM_PROVIDER harus salah satu dari: openrouter, mock',
+      'OPENROUTER_DATA_COLLECTION harus salah satu dari: allow, deny',
+      'OPENROUTER_REASONING_EFFORT harus salah satu dari: none, minimal, low, medium, high',
+      'OPENROUTER_TIMEOUT_MS harus bilangan bulat positif',
+      'CHATBOT_MAX_TOKENS harus bilangan bulat positif',
+      'CHATBOT_DAILY_BUDGET_USD harus angka ≥ 0',
+    ]);
+  });
 });

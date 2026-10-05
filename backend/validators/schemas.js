@@ -330,3 +330,13 @@ export const settingsSchema = z.object({
   notif_diskusi: flag('Notifikasi diskusi').optional(),
   show_location: flag('Tampilkan lokasi').optional(),
 }).refine(atLeastOneField, 'Tidak ada pengaturan yang diubah');
+
+// ===== Chatbot =====
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const chatMessageSchema = z.object({
+  // Kosong/tidak dikirim = mulai percakapan baru.
+  session_id: emptyToNull(z.union([z.string().regex(UUID_RE, 'Sesi chat tidak valid'), z.null()])).optional(),
+  message: text('Pesan', 500),
+});

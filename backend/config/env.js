@@ -22,6 +22,10 @@ const REQUIRED = [
 
 const isBlank = (v) => v === undefined || v === null || String(v).trim() === '';
 
+// openrouter = OpenRouter sungguhan; mock = jawaban tiruan deterministik untuk dev & test tanpa key.
+export const LLM_PROVIDERS = ['openrouter', 'mock'];
+export const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high'];
+
 /**
  * Validasi murni (tanpa efek samping) agar mudah diuji.
  * @returns {string[]} daftar pesan kesalahan; kosong bila valid
@@ -56,6 +60,25 @@ export function validateEnv(source) {
     }
   }
 
+  // Chatbot / LLM: semuanya opsional (tanpa key chatbot menjawab dari KB), tapi nilai yang
+  // diisi harus valid agar salah ketik tidak diam-diam mematikan LLM.
+  const oneOf = (key, allowed) => {
+    if (!isBlank(source[key]) && !allowed.includes(String(source[key]).trim().toLowerCase())) {
+      errors.push(`${key} harus salah satu dari: ${allowed.join(', ')}`);
+    }
+  };
+  oneOf('LLM_PROVIDER', LLM_PROVIDERS);
+  oneOf('OPENROUTER_DATA_COLLECTION', ['allow', 'deny']);
+  oneOf('OPENROUTER_REASONING_EFFORT', REASONING_EFFORTS);
+  for (const key of ['OPENROUTER_TIMEOUT_MS', 'CHATBOT_MAX_TOKENS']) {
+    if (!isBlank(source[key]) && !(Number.isInteger(Number(source[key])) && Number(source[key]) > 0)) {
+      errors.push(`${key} harus bilangan bulat positif`);
+    }
+  }
+  if (!isBlank(source.CHATBOT_DAILY_BUDGET_USD) && !(Number(source.CHATBOT_DAILY_BUDGET_USD) >= 0)) {
+    errors.push('CHATBOT_DAILY_BUDGET_USD harus angka ≥ 0');
+  }
+
   return errors;
 }
 
@@ -83,6 +106,9 @@ const intOr = (raw, fallback) => {
   const n = Number.parseInt(raw, 10);
   return Number.isFinite(n) && n > 0 ? n : fallback;
 };
+const numberOr = (raw, fallback) => (isBlank(raw) || !Number.isFinite(Number(raw)) ? fallback : Number(raw));
+const listOf = (raw) => (isBlank(raw) ? [] : String(raw).split(',').map((s) => s.trim()).filter(Boolean));
+const lower = (raw, fallback) => (isBlank(raw) ? fallback : String(raw).trim().toLowerCase());
 
 export const env = Object.freeze({
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -114,5 +140,28 @@ export const env = Object.freeze({
     // Endpoint publik tanpa login: per IP per menit, dan pencatatan kunjungan per 15 menit.
     publicMax: intOr(process.env.PUBLIC_RATE_LIMIT_MAX, 60),
     visitMax: intOr(process.env.VISIT_RATE_LIMIT_MAX, 10),
+  }),
+  // Key OpenRouter hanya dibaca di sini dan dipakai klien LLM di backend; tidak pernah dikirim ke FE.
+  llm: Object.freeze({
+    provider: lower(process.env.LLM_PROVIDER, 'openrouter'),
+    openrouter: Object.freeze({
+      apiKey: isBlank(process.env.OPENROUTER_API_KEY) ? null : process.env.OPENROUTER_API_KEY.trim(),
+      model: isBlank(process.env.OPENROUTER_MODEL) ? 'anthropic/claude-haiku-4.5' : process.env.OPENROUTER_MODEL.trim(),
+      fallbackModels: listOf(process.env.OPENROUTER_FALLBACK_MODELS),
+      timeoutMs: intOr(process.env.OPENROUTER_TIMEOUT_MS, 12000),
+      // HTTP-Referer & X-OpenRouter-Title: atribusi aplikasi di OpenRouter (opsional).
+      referer: isBlank(process.env.OPENROUTER_REFERER) ? null : process.env.OPENROUTER_REFERER.trim(),
+      title: isBlank(process.env.OPENROUTER_TITLE) ? 'SUSI Community' : process.env.OPENROUTER_TITLE.trim(),
+      // deny = hanya provider yang tidak menyimpan/melatih dengan data prompt (default, demi privasi).
+      dataCollection: lower(process.env.OPENROUTER_DATA_COLLECTION, 'deny'),
+      // Kosong = tidak mengirim parameter reasoning (Haiku 4.5 tidak memerlukannya).
+      reasoningEffort: lower(process.env.OPENROUTER_REASONING_EFFORT, null),
+    }),
+  }),
+  chatbot: Object.freeze({
+    maxTokens: intOr(process.env.CHATBOT_MAX_TOKENS, 350),
+    dailyBudgetUsd: numberOr(process.env.CHATBOT_DAILY_BUDGET_USD, 1),
+    messageMaxChars: 500,
+    historyMessages: 6,
   }),
 });

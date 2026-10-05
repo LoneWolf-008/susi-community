@@ -16,6 +16,7 @@ import mysql from 'mysql2/promise';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { recomputeReputation } from './reputation.js';
+import { syncKbIndex } from '../services/chatbot/kb.js';
 import { SKILLS, USERS, COMMUNITIES, NEEDS, VISITS, TOPICS } from '../db/seeds/demo.js';
 
 const BCRYPT_ROUNDS = 12; // sama dengan authController.register
@@ -371,8 +372,10 @@ async function seedKnowledgeBase(conn) {
       continue;
     }
     await conn.query(
-      `INSERT INTO kb_entries (keywords, reply, is_active, sort_order) VALUES (?, ?, 1, ?)`,
-      [keywords, entry.reply, (index + 1) * 10],
+      `INSERT INTO kb_entries (title, category, keywords, reply, audience, status, source, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [entry.title ?? null, entry.category ?? null, keywords, entry.reply, entry.audience ?? 'all',
+        entry.status ?? 'active', entry.source ?? null, (index + 1) * 10],
     );
     stats.kb.dibuat += 1;
   }
@@ -438,6 +441,9 @@ async function main() {
     await recomputeReputation(conn, USERS.filter((u) => u.role === 'talent').map((u) => userIds[u.key]));
 
     await conn.commit();
+    // Di luar transaksi (OPTIMIZE melakukan commit implisit): tanpa ini, DB yang baru di-reset
+    // memberi skor FULLTEXT 0 untuk semua entri sehingga chatbot memilih entri KB yang salah.
+    await syncKbIndex(conn);
   } catch (err) {
     await conn.rollback();
     throw err;

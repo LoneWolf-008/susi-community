@@ -38,23 +38,13 @@ export const authenticate = async (req, res, next) => {
   }
 };
 
-export const optionalAuth = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return next();
-    }
-    const token = authHeader.substring(7);
-    const decoded = verifyAccessToken(token);
-    const [users] = await pool.query(
-      `SELECT id, name, email, role, status FROM users WHERE id = ? AND deleted_at IS NULL`,
-      [decoded.userId]
-    );
-    if (users[0] && users[0].status === 'AKTIF') {
-      req.user = users[0];
-    }
-  } catch (err) {
-    // Abaikan error, lanjut tanpa user
-  }
-  next();
+/**
+ * Login opsional: tanpa header Authorization → lanjut sebagai anonim. Bila token DIKIRIM tetapi tidak
+ * sah/kedaluwarsa → 401 (bukan diam-diam anonim), agar klien memperbarui token lalu mengulang;
+ * kalau tidak, pengguna yang tokennya habis kehilangan akses ke datanya sendiri secara membingungkan.
+ */
+export const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return next();
+  return authenticate(req, res, next);
 };
