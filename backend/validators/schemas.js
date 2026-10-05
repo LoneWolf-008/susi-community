@@ -249,18 +249,37 @@ export const createCommunitySchema = z.object({
   lng: coordinate('Longitude', -180, 180),
 });
 
+// U1: talenta mengajukan gabung (pesan singkat opsional); pengurus memutuskan.
+export const joinRequestSchema = z.object({
+  message: optText('Pesan', 300),
+});
+
+export const joinDecisionSchema = z.object({
+  decision: enumOf('Keputusan', ['ACTIVE', 'REJECTED']),
+});
+
 const position = (label, min, max) =>
   z.coerce.number({ error: `${label} tidak valid` }).int(`${label} harus bilangan bulat`)
     .min(min, `${label} minimal ${min}`).max(max, `${label} maksimal ${max}`);
+
+// Lama topik dipajang di mading (hari).
+export const TOPIC_DURATIONS = [1, 3, 7, 14, 30];
+const durationDays = z.coerce.number({ error: 'Lama dipajang tidak valid' })
+  .refine((v) => TOPIC_DURATIONS.includes(v), `Lama dipajang harus salah satu dari: ${TOPIC_DURATIONS.join(', ')} hari`);
 
 export const createTopicSchema = z.object({
   text: text('Isi topik', 1000),
   community_id: optId('Komunitas'),
   category: enumOf('Kategori', TOPIC_CATEGORIES).optional(),
+  duration_days: durationDays.optional(),
   pos_x: position('Posisi X', 0, 32767).optional(),
   pos_y: position('Posisi Y', 0, 32767).optional(),
   rotation: position('Rotasi', -45, 45).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Warna harus format #RRGGBB').optional(),
+});
+
+export const extendTopicSchema = z.object({
+  duration_days: durationDays,
 });
 
 export const createReplySchema = z.object({
