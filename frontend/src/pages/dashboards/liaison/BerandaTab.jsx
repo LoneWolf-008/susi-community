@@ -17,8 +17,8 @@ function TargetBar({ label, value, target, color }) {
   );
 }
 
-/** Beranda liaison: agenda hari ini, capaian bulan ini vs target (GET /liaison/summary), slot eskalasi. */
-export default function BerandaTab({ first, summaryQ, onRecord, onNewIntake, onChanged, onOpenVisits }) {
+/** Beranda liaison: agenda hari ini, capaian bulan ini vs target (GET /liaison/summary), antrean eskalasi. */
+export default function BerandaTab({ first, summaryQ, onRecord, onNewIntake, onChanged, onOpenVisits, onOpenEscalations }) {
   const agendaQ = useApi((signal) => api.get('/liaison/visits', { signal, query: { date: todayInput(), limit: 50 } }), []);
   const agenda = (agendaQ.data?.items || []).filter((v) => v.status !== 'TERDATA');
   const s = summaryQ.data;
@@ -73,11 +73,20 @@ export default function BerandaTab({ first, summaryQ, onRecord, onNewIntake, onC
               </>
             ) : <SkeletonLines count={3} dark />}
           </div>
-          {/* Diisi di T14: pertanyaan Tanya SUSI yang dieskalasi ke liaison. */}
-          <div className="dash-item card-light p-7 border-dashed">
+          {/* Pertanyaan Tanya SUSI yang diteruskan pengguna ke AgenSUSI (T13–T14). */}
+          <div className={`dash-item card-light p-7 ${s?.escalations?.stale ? 'border-[#b45309]' : ''}`}>
             <span className="label-mono !text-[#e62b2b] !opacity-100">ANTREAN ESKALASI</span>
             <h3 className="text-xl font-black mt-1 mb-3">Pertanyaan warga</h3>
-            <p className="text-sm text-[#12283c]/60 leading-relaxed">Pertanyaan yang tidak bisa dijawab asisten Tanya SUSI akan muncul di sini untuk Anda tindak lanjuti. Segera hadir.</p>
+            {s ? (
+              <>
+                <p className="text-4xl font-black tracking-tight">{s.escalations.pending}<span className="text-sm font-bold text-[#12283c]/60 ml-2">menunggu</span></p>
+                <p className="text-sm text-[#12283c]/60 leading-relaxed mt-1">
+                  {s.escalations.mine} sedang Anda tangani
+                  {s.escalations.stale > 0 && <strong className="text-[#b45309]"> · {s.escalations.stale} menunggu lebih dari 24 jam</strong>}
+                </p>
+                <button type="button" onClick={onOpenEscalations} className="btn-pill btn-navy w-full !py-3 mt-4 text-[10px]">Buka antrean →</button>
+              </>
+            ) : <SkeletonLines count={2} />}
           </div>
         </div>
       </div>

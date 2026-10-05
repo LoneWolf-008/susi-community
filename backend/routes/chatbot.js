@@ -16,6 +16,7 @@ router.post('/feedback', optionalAuth, validate(chatFeedbackSchema), ctrl.postFe
 // Eskalasi ke AgenSUSI (T13): dihitung kuota chatbot agar tiket tidak bisa dibanjiri.
 router.post('/escalate', optionalAuth, chatbotLimiters, validate(escalateSchema), ctrl.escalate);
 router.get('/session/:id', optionalAuth, ctrl.getSession);
+router.get('/suggestions', optionalAuth, ctrl.getSuggestions);
 router.get('/health', authenticate, requireRole('admin'), ctrl.health);
 
 export default router;

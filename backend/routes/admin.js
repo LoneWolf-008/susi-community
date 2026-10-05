@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import * as ctrl from '../controllers/adminController.js';
+import * as chatbot from '../controllers/chatbotAdminController.js';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/role.js';
 import { validate } from '../middleware/validate.js';
 import {
   moderationDecisionSchema, takedownSchema, resolveDisputeSchema, adminMessageSchema,
-  userStatusSchema, createLiaisonSchema,
+  userStatusSchema, createLiaisonSchema, createKbSchema, updateKbSchema,
 } from '../validators/schemas.js';
 
 const router = Router();
@@ -35,5 +36,12 @@ router.patch('/users/:id/status', validate(userStatusSchema), ctrl.updateUserSta
 router.get('/liaisons', ctrl.getLiaisons);
 router.post('/liaisons', validate(createLiaisonSchema), ctrl.createLiaison);
 router.patch('/liaisons/:id/status', validate(userStatusSchema), ctrl.updateLiaisonStatus);
+
+// Tanya SUSI: basis pengetahuan, pertanyaan tak terjawab, statistik (T14)
+router.get('/kb', chatbot.listKb);
+router.post('/kb', validate(createKbSchema), chatbot.createKb);
+router.patch('/kb/:id', validate(updateKbSchema), chatbot.updateKb);
+router.get('/chatbot/unanswered', chatbot.listUnanswered);
+router.get('/chatbot/stats', chatbot.chatbotStats);
 
 export default router;

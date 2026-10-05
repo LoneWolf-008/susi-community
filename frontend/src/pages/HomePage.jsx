@@ -8,17 +8,14 @@ import photoTop from '../assets/photos/hero-top.jpg';
 import photoLeft from '../assets/photos/hero-left.jpg';
 import photoRight from '../assets/photos/hero-right.jpg';
 import photoBottom from '../assets/photos/hero-bottom.jpg';
+import { PUBLIC_SUGGESTIONS } from '../data/askSuggestions';
 
 const VISIT_KEY = 'susi_visit_recorded';
 
 // Foto Unsplash disimpan lokal agar landing tetap utuh tanpa internet (cadangan demo onsite).
 const PHOTOS = { top: photoTop, left: photoLeft, right: photoRight, bottom: photoBottom };
-const QUESTIONS = [
-  'Apa saja pekerjaan yang SUSI lakukan?',
-  'Bagaimana pendekatan SUSI terhadap komunitas?',
-  'Tunjukkan proyek yang relevan di sektor saya...',
-  'Apa yang membuat SUSI berbeda dari yang lain?',
-];
+// Saran yang dijamin terjawab basis pengetahuan Tanya SUSI (lihat data/askSuggestions.js).
+const QUESTIONS = PUBLIC_SUGGESTIONS;
 
 const NOISE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
 const Dither = () => (

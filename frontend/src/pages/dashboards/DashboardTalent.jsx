@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import DashShell from '../../components/common/DashShell';
-import AiAgent from '../../components/common/AiAgent';
+import ChatWidget from '../../components/chat/ChatWidget';
 import MadingBoard from '../../components/mading/MadingBoard';
 import SettingsPanel from '../../components/settings/SettingsPanel';
 import { api } from '../../lib/api';
@@ -99,7 +99,7 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
         {tab === 'profil' && <ProfileTab onEdit={() => onTab('setting')} />}
         {tab === 'setting' && <SettingsPanel onLogout={onLogout} />}
       </div>
-      <AiAgent role="talent" />
+      <ChatWidget variant="floating" />
     </DashShell>
   );
 }

@@ -176,6 +176,58 @@ export function upload(path, formData, { onProgress, signal } = {}) {
   });
 }
 
+/**
+ * POST yang dijawab Server-Sent Events (Tanya SUSI: /chatbot/stream). `EventSource` hanya
+ * mendukung GET, jadi stream dibaca lewat fetch + ReadableStream. `onEvent(event, data)` dipanggil
+ * per event. Galat sebelum stream dimulai (validasi, 409, 429, 5xx) dilempar sebagai ApiError;
+ * koneksi putus di tengah jalan → ApiError status 0; dibatalkan lewat `signal` → AbortError.
+ */
+export async function stream(path, body, { signal, onEvent, retry = true } = {}) {
+  const headers = { 'Content-Type': 'application/json', Accept: 'text/event-stream' };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  let res;
+  try {
+    res = await fetch(buildUrl(path), { method: 'POST', headers, credentials: 'include', signal, body: JSON.stringify(body) });
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err;
+    throw toApiError(0, null);
+  }
+  if (res.status === 401 && retry && accessToken) {
+    try {
+      await refreshSession();
+    } catch {
+      sessionExpiredHandler?.();
+      throw toApiError(401, await readBody(res));
+    }
+    return stream(path, body, { signal, onEvent, retry: false });
+  }
+  if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {
+    throw toApiError(res.status, await readBody(res));
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let end;
+      while ((end = buffer.indexOf('\n\n')) >= 0) {
+        const block = buffer.slice(0, end);
+        buffer = buffer.slice(end + 2);
+        const event = /^event: (.+)$/m.exec(block)?.[1];
+        const data = /^data: (.+)$/m.exec(block)?.[1];
+        if (event && data) onEvent?.(event, JSON.parse(data));
+      }
+    }
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err;
+    throw toApiError(0, null);
+  }
+}
+
 /** Mengunduh berkas yang butuh login (header Authorization) lalu memicu dialog simpan. */
 export async function download(path, filename) {
   const doFetch = () => fetch(buildUrl(path), {
@@ -210,6 +262,7 @@ export const api = {
   send: (method, path, options) => request(method, path, options),
   upload,
   download,
+  stream,
 };
 
 export default api;

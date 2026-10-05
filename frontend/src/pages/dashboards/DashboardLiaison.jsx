@@ -14,15 +14,18 @@ import BerandaTab from './liaison/BerandaTab';
 import VisitsTab from './liaison/VisitsTab';
 import IntakeTab from './liaison/IntakeTab';
 import LaporanTab from './liaison/LaporanTab';
+import EskalasiTab from './liaison/EskalasiTab';
+import ChatWidget from '../../components/chat/ChatWidget';
 
 const NAV = [
   { id: 'beranda', n: '01', l: 'Beranda' },
-  { id: 'kunjungan', n: '02', l: 'Kunjungan' },
-  { id: 'catat', n: '03', l: 'Catat Kebutuhan' },
-  { id: 'kebutuhan', n: '04', l: 'Kebutuhan Tercatat' },
-  { id: 'komunitas', n: '05', l: 'Komunitas & Peta' },
-  { id: 'laporan', n: '06', l: 'Laporan' },
-  { id: 'setting', n: '07', l: 'Pengaturan' },
+  { id: 'eskalasi', n: '02', l: 'Eskalasi' },
+  { id: 'kunjungan', n: '03', l: 'Kunjungan' },
+  { id: 'catat', n: '04', l: 'Catat Kebutuhan' },
+  { id: 'kebutuhan', n: '05', l: 'Kebutuhan Tercatat' },
+  { id: 'komunitas', n: '06', l: 'Komunitas & Peta' },
+  { id: 'laporan', n: '07', l: 'Laporan' },
+  { id: 'setting', n: '08', l: 'Pengaturan' },
 ];
 
 export default function DashboardLiaison({ user, onLogout, navigateTo }) {
@@ -31,11 +34,12 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
   const [selected, setSelected] = useState(null); // id kebutuhan yang dibuka (pemilik proksi)
   const rootRef = useRef(null);
   const [liveKey, setLiveKey] = useState(0);
+  const [escalationFocus, setEscalationFocus] = useState(null); // tiket yang dibuka dari notifikasi
 
   const summaryQ = useApi((signal) => api.get('/liaison/summary', { signal }), []);
   const needsQ = useApi((signal) => api.get('/needs/mine', { signal, query: { limit: 50 } }), []);
   const projectsQ = useApi((signal) => api.get('/projects/mine', { signal, query: { limit: 50 } }), []);
-  // Notifikasi baru (moderasi, lamaran, hasil kerja) → papan, ringkasan, dan detail dimuat ulang.
+  // Notifikasi baru (moderasi, lamaran, hasil kerja, eskalasi) → papan, ringkasan, antrean, dan detail dimuat ulang.
   const notifications = useNotifications({
     onNew: () => { summaryQ.refetch(); needsQ.refetch(); projectsQ.refetch(); setLiveKey((k) => k + 1); },
   });
@@ -53,12 +57,13 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
     setTab(id);
     setSelected(null);
     // Papan & ringkasan berubah karena aksi pihak lain (moderasi, lamaran): muat ulang saat dibuka.
-    if (['beranda', 'kebutuhan', 'laporan'].includes(id)) reload();
+    if (['beranda', 'eskalasi', 'kebutuhan', 'laporan'].includes(id)) reload();
   };
   // Form intake baru (key berganti → form bersih), opsional dari kunjungan yang sedang berlangsung.
   const startIntake = (visit = null) => { setIntake((s) => ({ key: s.key + 1, visit })); setTab('catat'); setSelected(null); };
   const openNotification = (n) => {
     if (n.ref_type === 'visit') { onTab('kunjungan'); return; }
+    if (n.ref_type === 'escalation') { onTab('eskalasi'); setEscalationFocus(n.ref_id); return; }
     const needId = n.ref_type === 'need' ? n.ref_id
       : n.ref_type === 'project' ? cards.find((c) => Number(c.project?.id) === Number(n.ref_id))?.need.id
         : null;
@@ -77,8 +82,10 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
             onNewIntake={() => startIntake()}
             onChanged={reload}
             onOpenVisits={() => onTab('kunjungan')}
+            onOpenEscalations={() => onTab('eskalasi')}
           />
         )}
+        {tab === 'eskalasi' && <EskalasiTab liveKey={liveKey} focusId={escalationFocus} onChanged={reload} />}
         {tab === 'kunjungan' && <VisitsTab onRecord={startIntake} onChanged={reload} />}
         {tab === 'catat' && (
           <IntakeTab
@@ -111,6 +118,7 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
         )}
         {tab === 'setting' && <SettingsPanel onLogout={onLogout} />}
       </div>
+      <ChatWidget variant="floating" />
     </DashShell>
   );
 }

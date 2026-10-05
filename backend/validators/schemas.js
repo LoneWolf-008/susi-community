@@ -363,6 +363,38 @@ export const escalateSchema = z.object({
 
 export const escalationReplySchema = z.object({ message: text('Balasan', 2000) });
 
+// ===== Manajer KB admin (T14) =====
+
+export const KB_AUDIENCES = ['all', 'public', 'requester', 'talent', 'liaison'];
+
+// Daftar kata kunci atau satu teks dipisah koma → disimpan sebagai teks dipisah koma.
+const kbKeywords = z.union([
+  z.array(text('Kata kunci', 60), { error: 'Kata kunci wajib diisi' })
+    .min(1, 'Kata kunci wajib diisi').max(30, 'Kata kunci maksimal 30 item'),
+  text('Kata kunci', 500),
+], { error: 'Kata kunci wajib diisi' })
+  .transform((v) => (Array.isArray(v) ? v.join(', ') : v))
+  .refine((v) => v.length <= 500, 'Kata kunci maksimal 500 karakter');
+
+const kbFields = {
+  title: text('Judul', 200, 3),
+  category: optText('Kategori', 50),
+  keywords: kbKeywords,
+  reply: text('Jawaban', 2000, 10),
+  audience: enumOf('Audiens', KB_AUDIENCES).optional(),
+  status: enumOf('Status', ['active', 'draft', 'archived']).optional(),
+  source: optText('Sumber', 255),
+};
+
+export const createKbSchema = z.object(kbFields);
+
+export const updateKbSchema = z.object({
+  ...kbFields,
+  title: kbFields.title.optional(),
+  keywords: kbKeywords.optional(),
+  reply: kbFields.reply.optional(),
+}).refine(atLeastOneField, 'Tidak ada data yang diubah');
+
 // resolved = masalah selesai; closed = ditutup tanpa penyelesaian (spam, duplikat, salah sasaran).
 export const resolveEscalationSchema = z.object({
   outcome: enumOf('Hasil', ['resolved', 'closed']).optional(),

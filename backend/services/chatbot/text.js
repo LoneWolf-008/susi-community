@@ -123,6 +123,9 @@ export const STOPWORDS = new Set([
   'lalu', 'kemudian', 'setelah', 'sebelum', 'pakai', 'pake', 'gunakan', 'menggunakan', 'lewat', 'melalui', 'sama',
   'punya', 'milik', 'gitu', 'begitu', 'gini', 'begini', 'kak', 'kakak', 'min', 'mimin', 'mas', 'mbak', 'bang', 'pak',
   'bu', 'ibu', 'bapak', 'tanya', 'nanya', 'bertanya', 'tanyain',
+  // kata kerja umum yang tidak membedakan topik ("bagaimana sengketa ditangani?")
+  'ditangani', 'menangani', 'penanganan', 'dihitung', 'menghitung', 'perhitungan', 'dilakukan', 'melakukan',
+  'terjadi', 'berlaku',
 ]);
 
 const SUFFIXES = ['nya', 'ku', 'mu'];

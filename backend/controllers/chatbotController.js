@@ -13,6 +13,7 @@ import {
   summarizeConversation, withinServiceHours,
 } from '../services/chatbot/escalation.js';
 import { escalationCreatedReply } from '../services/chatbot/replies.js';
+import { suggestionsFor } from '../services/chatbot/suggestions.js';
 import {
   createSession, findAccessibleSession, claimIfAnonymous, countMessages, addMessage,
   recentMessages, listMessages, MAX_MESSAGES_PER_SESSION,
@@ -263,6 +264,9 @@ export const postFeedback = async (req, res, next) => {
     next(err);
   }
 };
+
+/** Saran pertanyaan cepat sesuai peran (anonim → saran publik). */
+export const getSuggestions = (req, res) => success(res, { suggestions: suggestionsFor(req.user) });
 
 /** Admin: cek konfigurasi & key OpenRouter (kuota) tanpa memanggil model dan tanpa membocorkan key. */
 export const health = async (req, res, next) => {
