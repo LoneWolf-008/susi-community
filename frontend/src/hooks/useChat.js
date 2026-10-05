@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/authContext';
 
@@ -6,11 +6,14 @@ import { useAuth } from '../context/authContext';
 // dan polling balasan agen. ID sesi disimpan di sessionStorage per pengguna (anonim: "anon"); sesi
 // milik pengguna yang masuk dijaga server (pengguna lain mendapat 404). Saat pengunjung anonim
 // masuk, percakapannya diadopsi dan diklaim server pada pesan berikutnya.
+// Privasi (T15): bila server menjawab `stored: false` (pengguna mematikan penyimpanan riwayat), id sesi
+// tidak diingat; percakapan bisa dihapus dari server (remove) atau seluruhnya dari Pengaturan.
 
 export const MAX_LENGTH = 500;
 const POLL_MS = 8000;
 const OPEN_ESCALATION = ['pending', 'assigned'];
 const STORAGE_PREFIX = 'susi_chat_session:';
+const HISTORY_DELETED_EVENT = 'susi:chat-history-deleted';
 export const OFFLINE_MESSAGE = 'Tanya SUSI sedang tidak dapat dihubungi. Periksa koneksi Anda lalu coba lagi, atau hubungi tim SUSI lewat WhatsApp di halaman Tentang Kami.';
 
 const storageKey = (user) => `${STORAGE_PREFIX}${user ? `u${user.id}` : 'anon'}`;
@@ -31,6 +34,12 @@ const writeStored = (key, value) => {
   }
 };
 
+/** Setelah riwayat pengguna dihapus di server (Pengaturan): lupakan id sesinya & kosongkan widget yang terbuka. */
+export function chatHistoryDeleted(user) {
+  writeStored(storageKey(user), null);
+  window.dispatchEvent(new Event(HISTORY_DELETED_EVENT));
+}
+
 let seq = 0;
 const nextKey = () => `m${Date.now()}-${(seq += 1)}`;
 const fromServer = (m) => ({ key: `s${m.id}`, id: m.id, role: m.role, content: m.content, status: 'done' });
@@ -38,7 +47,8 @@ const patchMessage = (setConv, key, patch) => setConv((c) => ({
   ...c,
   messages: c.messages.map((m) => (m.key === key ? { ...m, ...(typeof patch === 'function' ? patch(m) : patch) } : m)),
 }));
-const EMPTY = { key: null, sessionId: null, messages: [], escalation: null, available: true, restore: false, adopted: false };
+// stored: null = belum diketahui, false = server tidak menyimpan riwayat percakapan ini.
+const EMPTY = { key: null, sessionId: null, messages: [], escalation: null, available: true, restore: false, adopted: false, stored: null };
 const maxId = (messages) => messages.reduce((max, m) => (m.id > max ? m.id : max), 0);
 // Urut kronologis menurut id server; pesan yang belum punya id (jawaban yang sedang di-stream) di akhir.
 const inOrder = (messages) => [...messages].sort((a, b) => (a.id ?? Infinity) - (b.id ?? Infinity));
@@ -167,10 +177,13 @@ export function useChat({ enabled = true, active = enabled } = {}) {
         onEvent: (event, data) => {
           if (event === 'start') {
             sessionRef.current = data.session_id;
-            writeStored(key, data.session_id);
+            // Riwayat tidak disimpan (pilihan pengguna): id sesi tidak diingat untuk dipulihkan.
+            const stored = data.stored !== false;
+            writeStored(key, stored ? data.session_id : null);
             setConv((c) => ({
               ...c,
               sessionId: data.session_id,
+              stored,
               messages: c.messages.map((m) => (m.key === userKey ? { ...m, id: data.user_message_id } : m)),
             }));
           } else if (event === 'delta') {
@@ -267,12 +280,34 @@ export function useChat({ enabled = true, active = enabled } = {}) {
     setError(null);
   };
 
+  /** Hapus percakapan ini dari server (pesan & tiket bantuannya), lalu mulai baru. Melempar galat bila gagal. */
+  const remove = async () => {
+    const id = sessionRef.current;
+    if (id) {
+      try {
+        await api.delete(`/chatbot/session/${id}`);
+      } catch (err) {
+        if (err.status !== 404) throw err; // sudah tidak ada: cukup dilepas dari tampilan
+      }
+    }
+    reset();
+  };
+
+  // Seluruh riwayat dihapus dari Pengaturan → lepaskan percakapan yang sedang tampil.
+  const onHistoryDeleted = useEffectEvent(() => reset());
+  useEffect(() => {
+    const handler = () => onHistoryDeleted();
+    window.addEventListener(HISTORY_DELETED_EVENT, handler);
+    return () => window.removeEventListener(HISTORY_DELETED_EVENT, handler);
+  }, []);
+
   return {
     messages: conv.messages,
     escalation: conv.escalation,
     available: conv.available,
     restoring: conv.restore,
     hasSession: Boolean(conv.sessionId),
+    stored: conv.stored,
     busy,
     error,
     send,
@@ -281,6 +316,7 @@ export function useChat({ enabled = true, active = enabled } = {}) {
     rate,
     escalate,
     reset,
+    remove,
   };
 }
 

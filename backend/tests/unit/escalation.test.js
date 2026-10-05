@@ -117,6 +117,12 @@ describe('Ringkasan untuk AgenSUSI (T13.3)', () => {
     expect(ruleSummary({ role: 'requester', questions: ['x '.repeat(200)], reasons: [] }).split(/\s+/).length).toBeLessThanOrEqual(80);
   });
 
+  it('riwayat tidak disimpan (T15): pertanyaan kosong dilewati dan AgenSUSI diberi tahu', () => {
+    expect(ruleSummary({ role: 'requester', questions: ['', ''], reasons: ['sensitive'], historyStored: false })).toBe(
+      'Pengguna Komunitas meminta bantuan AgenSUSI. Alasan: topik sensitif. Riwayat chat tidak disimpan atas pilihan pengguna; tanyakan kembali kebutuhannya.',
+    );
+  });
+
   it('clipWords memotong per kata', () => {
     expect(clipWords('a b c d', 2)).toBe('a b…');
     expect(clipWords('  a   b ', 5)).toBe('a b');

@@ -9,7 +9,7 @@ import { notify, audit } from '../utils/activity.js';
 import { parsePagination, paged } from '../utils/pagination.js';
 import { addMessage } from '../services/chatbot/sessions.js';
 import { queryTerms } from '../services/chatbot/text.js';
-import { withoutMasks } from '../services/chatbot/guard.js';
+import { displayQuestion } from '../services/chatbot/guard.js';
 import { STALE_HOURS } from '../services/chatbot/escalation.js';
 
 const OPEN = ['pending', 'assigned'];
@@ -183,7 +183,7 @@ const clip = (text, max) => {
 /** Judul & kata kunci draft KB dari pertanyaan pengguna di sesi (bila liaison tidak mengisinya). */
 async function draftKbFields(conn, sessionId, { title, keywords }) {
   const [turns] = await conn.query(`SELECT question FROM ask_logs WHERE session_id = ? ORDER BY id`, [sessionId]);
-  const questions = turns.map((t) => withoutMasks(t.question).replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const questions = turns.map((t) => displayQuestion(t.question)).filter(Boolean);
   const derivedKeywords = [...new Set(questions.flatMap((q) => queryTerms(q).map((t) => t.word)))].slice(0, 12);
   return {
     title: clip(title || questions.find((q) => queryTerms(q).length > 0) || 'Pertanyaan dari eskalasi', 200),

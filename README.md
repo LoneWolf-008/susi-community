@@ -79,6 +79,8 @@ bukan lewat phpMyAdmin.
 | `npm run db:reset` | **Menghapus semua tabel**, lalu `db:init`. Ditolak bila `NODE_ENV=production` |
 | `npm run seed` | Isi data demo, termasuk basis pengetahuan chatbot dari `backend/db/seeds/kb.json`. Idempoten; ditolak di production kecuali `-- --force` |
 | `npm run seed -- --sync-kb` | Seperti `seed`, tetapi entri KB yang sudah ada ditimpa isi `kb.json` terbaru (per `slug`; suntingan admin ikut tertimpa) |
+| `npm run chat:retention` | Jalankan retensi riwayat Tanya SUSI sekali (server juga menjalankannya harian) |
+| `npm run eval:chatbot` | Evaluasi Tanya SUSI terhadap golden set (`tests/chatbot/golden.jsonl`) di database sekali pakai `susi_community_eval` (`EVAL_DB_NAME`, wajib berakhiran `_eval` karena isinya dikosongkan); menulis `docs/chatbot-eval.md`. Mode bawaan `mock` (tanpa biaya). `-- --mode live` memakai OpenRouter sungguhan (**berbayar**, key dari environment) |
 
 Database hasil impor dump phpMyAdmin (tanpa `schema_migrations`) ditolak oleh
 `db:init`. Kosongkan dulu dengan `db:reset` atau pakai database baru.
@@ -172,6 +174,8 @@ fallback SPA untuk Vercel/Netlify.
 | `CHATBOT_ALLOWED_DOMAINS` | | kosong | Domain tambahan yang boleh muncul sebagai tautan di jawaban (host `FRONTEND_URL` & `wa.me` selalu boleh) |
 | `CHATBOT_ESCALATION_THRESHOLD` | | `50` | Skor sinyal minimal untuk menyarankan "Hubungi AgenSUSI" |
 | `CHATBOT_SERVICE_HOURS`, `CHATBOT_SERVICE_TZ` | | kosong, `Asia/Jakarta` | Jam layanan AgenSUSI `HH:MM-HH:MM` (kosong = setiap saat); di luar jam itu tiket tetap dibuat |
+| `CHATBOT_KB_DIRECT` | | `true` | Jawab langsung dari KB tanpa LLM bila satu entri mencakup penuh pertanyaan. `false` hanya untuk evaluasi prompt/model |
+| `CHATBOT_RETENTION_DAYS` | | `90` | Isi chat lebih tua dari ini dihapus harian (pertanyaan di `ask_logs` dianonimkan); `0` = retensi mati |
 | `MIGRATIONS_DIR` | | `db/migrations` | Hanya untuk pengujian runner migrasi |
 | `TEST_DB_NAME` | | `susi_community_test` | Database untuk `npm test` (harus berakhiran `_test`) |
 

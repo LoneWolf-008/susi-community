@@ -106,7 +106,7 @@ Status: `AGREEMENT → IN_PROGRESS → AWAITING_VERIFICATION → COMPLETED`, den
 | GET | `/notifications` | login | `unread_only=true` opsional |
 | GET | `/notifications/unread-count` | login | `{ count }`. Dasbor mem-polling tiap 30 detik (berhenti saat tab peramban tidak aktif) |
 | PATCH | `/notifications/:id/read` · `/notifications/read-all` · DELETE `/notifications/:id` | login | |
-| GET/PATCH | `/settings` | login | `notif_email, notif_whatsapp, notif_talenta, notif_diskusi, show_location` (boolean). `notif_talenta`/`notif_diskusi` = 0 → notifikasi bertipe `talenta`/`diskusi` tidak dibuat; `show_location` = 0 → titik & sektor komunitas yang didaftarkan pengguna itu disembunyikan di peta publik (komunitasnya tetap terdaftar). Email & WhatsApp belum punya kanal pengiriman |
+| GET/PATCH | `/settings` | login | `notif_email, notif_whatsapp, notif_talenta, notif_diskusi, show_location, allows_ai_chat, allows_chat_history_storage` (boolean). `notif_talenta`/`notif_diskusi` = 0 → notifikasi bertipe `talenta`/`diskusi` tidak dibuat; `show_location` = 0 → titik & sektor komunitas yang didaftarkan pengguna itu disembunyikan di peta publik (komunitasnya tetap terdaftar); `allows_ai_chat` & `allows_chat_history_storage` → privasi Tanya SUSI (lihat bagian Chatbot). Email & WhatsApp belum punya kanal pengiriman |
 
 ## Liaison (AgenSUSI)
 
@@ -146,12 +146,14 @@ Login opsional: tanpa header `Authorization` = anonim. Header yang dikirim tetap
 
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
-| POST | `/chatbot/message` | semua (anonim boleh) | `{ session_id?, message }` (1–500 karakter). Tanpa `session_id` = percakapan baru. → `{ session_id, user_message_id, message: { id, role, content }, intent, source, sources: [{ id, title }], escalation_suggested }`. Sesi berisi ≥ 200 pesan → 409 |
+| POST | `/chatbot/message` | semua (anonim boleh) | `{ session_id?, message }` (1–500 karakter). Tanpa `session_id` = percakapan baru. → `{ session_id, user_message_id, message: { id, role, content }, intent, source, sources: [{ id, title }], escalation_suggested, stored }`. `stored = false` → isi percakapan tidak disimpan (pilihan pengguna); klien tidak perlu mengingat `session_id` untuk dipulihkan. Sesi berisi ≥ 200 pesan → 409 |
 | POST | `/chatbot/stream` | semua (anonim boleh) | Body sama dengan `/message`; jawaban lewat SSE (lihat di bawah). Galat sebelum stream dimulai (validasi, sesi, 409, 429) tetap JSON biasa |
 | POST | `/chatbot/feedback` | pemilik sesi (anonim: pemegang `session_id`) | `{ session_id, message_id, value: 1\|-1 }` (👍/👎 untuk jawaban asisten) → `ask_logs.feedback`; boleh diubah. Pesan bukan jawaban/beda sesi/sesi orang lain → 404 |
 | POST | `/chatbot/escalate` | pemilik sesi (anonim: pemegang `session_id`) | Tombol "Hubungi AgenSUSI". `{ session_id, contact? }`; `contact` (email/WhatsApp) **wajib untuk anonim**. → 201 `{ escalation: { id, status, priority, created_at }, already_open: false, available, message }` (`message` = konfirmasi yang juga tersimpan di sesi). Sesi yang sudah punya tiket terbuka → 200 `{ escalation, already_open: true, message: null }`. `available = false` bila tidak ada liaison aktif atau di luar jam layanan: tiket tetap dibuat, tampilkan WhatsApp resmi. Pengguna masuk yang mengeskalasi sesi anonim mengklaimnya. Sesi tanpa tanya-jawab → 400. Dihitung kuota chatbot |
 | GET | `/chatbot/suggestions` | semua (anonim boleh) | `{ suggestions: string[] }`: 4 saran pertanyaan sesuai peran (anonim → saran publik). Setiap saran diuji terjawab langsung oleh KB |
 | GET | `/chatbot/session/:id` | pemilik sesi | `?after=<messageId>` untuk polling. → `{ session, messages: [{ id, role: 'user'\|'assistant'\|'agent', content, created_at }], escalation: { id, status, created_at } \| null }` (tiket terakhir sesi; balasan AgenSUSI = `role: 'agent'`) |
+| DELETE | `/chatbot/session/:id` | pemilik sesi (anonim: pemegang `session_id`) | Hapus satu percakapan: pesan, tiket eskalasinya (tiket terbuka ikut dibatalkan), dan notifikasi tiket itu. Baris `ask_logs` dianonimkan (pertanyaan dikosongkan, `user_id` dilepas). → `{ deleted: 1 }`; sesi orang lain/tidak ada → 404 |
+| DELETE | `/chatbot/history` | login | Hapus seluruh percakapan milik akun dengan aturan yang sama, termasuk melepas `ask_logs` lama dari akun. → `{ deleted: <jumlah sesi> }` |
 | GET | `/chatbot/health` | admin | `{ provider, model, fallback_models, configured, status: 'ok'\|'error'\|'not_configured', credits? }` — memeriksa key lewat `GET /api/v1/key` OpenRouter tanpa memanggil model; key/label tidak pernah dikembalikan |
 
 Akses sesi: sesi milik pengguna hanya untuk pemiliknya (selain itu 404). Sesi anonim dibuka dengan
@@ -173,7 +175,7 @@ disarankan lagi selama sesi punya tiket terbuka. Tiket tidak pernah dibuat otoma
 
 | Event | Data |
 |---|---|
-| `start` | `{ session_id, user_message_id }` — dikirim pertama, sebelum jawaban |
+| `start` | `{ session_id, user_message_id, stored }` — dikirim pertama, sebelum jawaban |
 | `delta` | `{ content }` — potongan teks, ditempel berurutan |
 | `done` | Isi sama dengan respons `/message` + `replace`. Bila `replace = true`, ganti seluruh teks yang sudah tampil dengan `message.content` (LLM gagal di tengah jalan atau keluaran diblokir) |
 | `error` | `{ message, session_id }` — galat tak terduga setelah stream dimulai |
@@ -186,8 +188,10 @@ dijawab tetap tanpa LLM. Intent data pribadi ("status proyek saya", "lamaran say
 saya", "poin saya") hanya untuk pengguna yang masuk dan hanya membaca data milik `req.user.id`;
 anonim diminta masuk. Retrieval memakai FULLTEXT (`title, keywords, reply`) dengan kueri yang
 dibakukan (slang & sinonim), filter `status = 'active'` dan audiens (anonim → `all`, `public`;
-pengguna → `all` + perannya; admin → semua), lalu diurutkan ulang dengan ambang relevansi.
-Entri yang mencakup penuh pertanyaan dijawab langsung tanpa LLM; jawaban LLM disimpan di cache
+pengguna → `all` + perannya; admin → semua), lalu diurutkan ulang dengan ambang relevansi (seri
+dipecah urutan kurasi `sort_order`). Kata kasar dan penanda samaran beserta labelnya ("email saya
+[email disamarkan]") tidak ikut dicari. Entri yang mencakup penuh pertanyaan dijawab langsung tanpa
+LLM (`CHATBOT_KB_DIRECT=false` mematikannya untuk evaluasi prompt); jawaban LLM disimpan di cache
 memori (kunci = pertanyaan baku + audiens). LLM menerima prompt sistem (`PROMPT_VERSION`), `<kb>`,
 `<user_data>`, dan 6 giliran terakhir. Keluarannya disaring: tautan di luar host `FRONTEND_URL`,
 `wa.me`, dan `CHATBOT_ALLOWED_DOMAINS` dihapus; kebocoran prompt diganti jawaban penolakan.
@@ -200,6 +204,22 @@ bisa diatur lewat env `CHATBOT_*`.
 Setiap jawaban dicatat di `ask_logs`: `intent`, `kb_entry_id`, `model`, `prompt_version`, token,
 latensi, `cost_usd`, `cache_hit`, `llm_error` (nama galat LLM, `OutputBlocked`,
 `BudgetExceeded`, `ClientAborted`), dan `feedback`.
+
+**Privasi (T15).** Pengaturan per akun (`PATCH /settings`, bawaan aktif):
+
+- `allows_ai_chat = 0`: pesan tidak pernah dikirim ke penyedia LLM. Jawaban dari KB, aturan, atau
+  ringkasan data; ringkasan tiket eskalasi dibuat tanpa LLM.
+- `allows_chat_history_storage = 0`: isi pesan disimpan sebagai `[tidak disimpan]` dan pertanyaan
+  di `ask_logs` dikosongkan (metadata biaya/kualitas tetap). Riwayat tidak dikirim ke LLM, jadi tiap
+  pesan dijawab berdiri sendiri. Sinyal eskalasi giliran itu dinilai dari teks di memori; ringkasan
+  tiket hanya memuat alasan dan catatan bahwa riwayat tidak disimpan.
+
+Pengunjung anonim memakai bawaan dan bisa menghapus percakapannya dengan `DELETE /chatbot/session/:id`.
+Retensi: isi chat lebih tua dari `CHATBOT_RETENTION_DAYS` (bawaan 90; 0 = mati) dihapus harian oleh
+server (atau `npm run chat:retention`): pertanyaan `ask_logs` dianonimkan, `chat_messages` dihapus,
+sesi kosong yang lama dihapus beserta tiket selesainya. Sesi dengan tiket terbuka dilewati. Rate
+limit anonim memakai HMAC IP dengan garam acak per proses (di memori); IP mentah tidak pernah disimpan
+oleh chatbot.
 
 ## Admin
 

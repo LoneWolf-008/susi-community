@@ -13,10 +13,26 @@ const PHONE_RE = /(?<![\p{N}])(?:\+?62|0)[\s.-]?8(?:[\s.-]?\p{N}){7,11}(?![\p{N}
 // Deretan ≥ 10 digit (NIK, rekening). Titik tidak dihitung pemisah agar nominal "Rp 1.500.000.000" aman.
 const LONG_NUMBER_RE = /(?<![\p{N}])\p{N}(?:[\s-]?\p{N}){9,}(?![\p{N}])/gu;
 
-/** Teks tanpa penanda samaran, untuk retrieval & intent ("[email disamarkan]" bukan kata kunci topik). */
-export const withoutMasks = (text) => String(text ?? '')
-  .split(MASK_EMAIL).join(' ')
-  .split(MASK_NUMBER).join(' ');
+// Penanda samaran beserta label di depannya ("email saya [email disamarkan]", "no. WA: [nomor …]"):
+// label itu menerangkan data pribadi, bukan topik pertanyaan, jadi tidak boleh menyeret retrieval ke
+// entri kontak (evaluasi T15).
+const PII_LABEL = '(?:email|e-mail|surel|nomor|nomer|no|hp|wa|whatsapp|telepon|telp|nik|ktp|rekening|rek)(?:ku|mu|nya)?';
+const PII_OWNER = '(?:saya|aku|gue|gw|ku|kami)';
+const MASK_TOKENS = [MASK_EMAIL, MASK_NUMBER].map((m) => m.replace(/[[\]]/g, '\\$&')).join('|');
+const MASK_WITH_LABEL_RE = new RegExp(
+  String.raw`(?:\b${PII_LABEL}\b\.?(?:\s+${PII_OWNER}\b)?\s*:?\s*)*(?:${MASK_TOKENS})`,
+  'giu',
+);
+
+/** Teks tanpa penanda samaran (dan labelnya), untuk retrieval & intent. */
+export const withoutMasks = (text) => String(text ?? '').replace(MASK_WITH_LABEL_RE, ' ');
+
+/** Pertanyaan untuk tampilan (daftar tak terjawab, ringkasan eskalasi): tanpa samaran, tanda baca yatim dirapikan. */
+export const displayQuestion = (text) => withoutMasks(text)
+  .replace(/\s+/g, ' ')
+  .replace(/ ([,.;:!?])/g, '$1')
+  .replace(/^[\s,.;:/-]+/, '')
+  .trim();
 
 /** Samarkan PII; `masked` = ada yang disamarkan. */
 export function maskPii(text) {
@@ -64,6 +80,12 @@ const words = (text) => normalizeText(text).split(' ').filter(Boolean);
 export const detectProfanity = (text) => words(text).some((w) => PROFANITY.has(w));
 
 /**
+ * Teks ternormalisasi tanpa kata kasar, untuk retrieval & intent: "goblok, cara daftar?" tetap dicari
+ * sebagai "cara daftar" (evaluasi T15: kata kasar sempat dihitung kata isi sehingga jatuh ke fallback).
+ */
+export const withoutProfanity = (text) => words(text).filter((w) => !PROFANITY.has(w)).join(' ');
+
+/**
  * @returns {{ text: string, piiMasked: boolean, injection: boolean, profanity: boolean, abusiveOnly: boolean }}
  *   `text` = pesan yang aman disimpan & diproses; `abusiveOnly` = hanya berisi kata kasar/sapaan tanpa pertanyaan.
  */
@@ -71,12 +93,11 @@ export function precheck(message) {
   const clean = stripControlChars(message).trim();
   const { text, masked } = maskPii(clean);
   const profanity = detectProfanity(text);
-  const withoutProfanity = words(text).filter((w) => !PROFANITY.has(w)).join(' ');
   return {
     text,
     piiMasked: masked,
     injection: detectInjection(clean),
     profanity,
-    abusiveOnly: profanity && queryTerms(withoutProfanity).length === 0,
+    abusiveOnly: profanity && queryTerms(withoutProfanity(text)).length === 0,
   };
 }

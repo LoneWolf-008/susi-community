@@ -70,6 +70,7 @@ const DOMAIN_GROUPS = {
   moderasi: ['dimoderasi', 'moderator', 'ditinjau', 'peninjauan', 'tinjau'],
   tolak: ['ditolak', 'menolak', 'penolakan'],
   kirim: ['mengirim', 'dikirim', 'pengiriman', 'kirimkan'],
+  tulis: ['menulis', 'ditulis', 'tuliskan', 'penulisan', 'nulis'],
   unggah: ['mengunggah', 'diunggah', 'upload', 'uplod'],
   hubungi: ['menghubungi', 'dihubungi', 'hubungkan', 'menghubungkan', 'dihubungkan', 'sambungkan', 'disambungkan', 'terhubung', 'tersambung'],
   notifikasi: ['notif', 'notification', 'pemberitahuan'],

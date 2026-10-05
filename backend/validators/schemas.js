@@ -330,6 +330,9 @@ export const settingsSchema = z.object({
   notif_talenta: flag('Notifikasi talenta').optional(),
   notif_diskusi: flag('Notifikasi diskusi').optional(),
   show_location: flag('Tampilkan lokasi').optional(),
+  // Tanya SUSI (T15): izinkan AI (LLM) & simpan riwayat chat.
+  allows_ai_chat: flag('Izinkan AI di Tanya SUSI').optional(),
+  allows_chat_history_storage: flag('Simpan riwayat chat').optional(),
 }).refine(atLeastOneField, 'Tidak ada pengaturan yang diubah');
 
 // ===== Chatbot =====

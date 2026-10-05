@@ -56,6 +56,8 @@ describe('Retrieval KB: skor & pemeringkatan ulang (T11–T12)', () => {
     ['bisa bikin website buat toko saya?', 'contoh-masalah'],
     ['saya ditipu talenta, bagaimana cara lapor sengketa?', 'sengketa'],
     ['mau mengadukan talenta yang bermasalah', 'sengketa'],
+    // regresi evaluasi T15: bentuk kata kerja "ditulis" dikenali sebagai "tulis"
+    ['bagaimana testimoni ditulis?', 'testimoni'],
   ])('"%s" → %s', (question, slug) => {
     expect(topSlug(question)).toBe(slug);
   });
@@ -85,12 +87,23 @@ describe('Retrieval KB: skor & pemeringkatan ulang (T11–T12)', () => {
     expect(twoTopics.map((e) => e.slug)).toEqual(expect.arrayContaining(['biaya', 'apa-itu-agensusi']));
   });
 
-  it('kata tanya/fungsi diabaikan; tanpa kata isi, cakupan 0 dan urutan jatuh ke skor FULLTEXT lalu sort_order', () => {
+  it('kata tanya/fungsi diabaikan; tanpa kata isi, cakupan 0 dan urutan jatuh ke sort_order lalu skor FULLTEXT', () => {
     const ranked = rankEntries('gimana caranya dong?', [
-      { id: 1, keywords: 'cara kerja', reply: 'x', sort_order: 1, score: 0.2 },
-      { id: 2, keywords: 'lain', reply: 'y', sort_order: 2, score: 0.9 },
+      { id: 1, keywords: 'cara kerja', reply: 'x', sort_order: 2, score: 0.2 },
+      { id: 2, keywords: 'lain', reply: 'y', sort_order: 1, score: 0.1 },
+      { id: 3, keywords: 'lain', reply: 'z', sort_order: 2, score: 0.9 },
     ]);
-    expect(ranked.map((e) => [e.id, e.lexical, e.coverage])).toEqual([[2, 0, 0], [1, 0, 0]]);
+    expect(ranked.map((e) => [e.id, e.lexical, e.coverage])).toEqual([[2, 0, 0], [3, 0, 0], [1, 0, 0]]);
+  });
+
+  it('regresi T15: seri leksikal dipecah urutan kurasi, bukan skor FULLTEXT ("gimana caranya daftar kak")', () => {
+    const question = 'gimana caranya daftar kak';
+    // Skor FULLTEXT dari DB evaluasi: entri talenta lebih tinggi karena kata "daftar" lebih sering muncul.
+    const ftScore = { 'daftar-sebagai-talenta': 2.62, 'cara-daftar': 1.747 };
+    const ranked = rankEntries(question, candidates(question).map((r) => ({ ...r, score: ftScore[r.slug] ?? 0.5 })));
+    const talent = ranked.find((e) => e.slug === 'daftar-sebagai-talenta');
+    expect(ranked[0].slug).toBe('cara-daftar');
+    expect(ranked[0].lexical).toBe(talent.lexical);
   });
 
   it('searchKb: kueri FULLTEXT diperluas dengan bentuk baku, hasil diurutkan ulang & diberi ambang', async () => {
