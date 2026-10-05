@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/authContext';
+import { isHandoffActive } from '../lib/handoff';
 
 // Percakapan Tanya SUSI (T14): streaming jawaban, hentikan, coba lagi, 👍/👎, eskalasi ke AgenSUSI,
 // dan polling balasan agen. ID sesi disimpan di sessionStorage per pengguna (anonim: "anon"); sesi
@@ -8,10 +9,13 @@ import { useAuth } from '../context/authContext';
 // masuk, percakapannya diadopsi dan diklaim server pada pesan berikutnya.
 // Privasi (T15): bila server menjawab `stored: false` (pengguna mematikan penyimpanan riwayat), id sesi
 // tidak diingat; percakapan bisa dihapus dari server (remove) atau seluruhnya dari Pengaturan.
+// Ruang AgenSUSI (U6): objek `handoff` dari server. Selama aktif, pesan dikirim ke AgenSUSI (tanpa
+// jawaban AI), balasan di-polling (8 detik saat terbuka, 20 detik saat tertutup untuk titik penanda),
+// dan pengguna bisa kembali ke AI; setelah selesai pengguna menilai atau bertanya lagi ke AI.
 
 export const MAX_LENGTH = 500;
 const POLL_MS = 8000;
-const OPEN_ESCALATION = ['pending', 'assigned'];
+const POLL_CLOSED_MS = 20000;
 const STORAGE_PREFIX = 'susi_chat_session:';
 const HISTORY_DELETED_EVENT = 'susi:chat-history-deleted';
 export const OFFLINE_MESSAGE = 'Tanya SUSI sedang tidak dapat dihubungi. Periksa koneksi Anda lalu coba lagi, atau hubungi tim SUSI lewat WhatsApp di halaman Tentang Kami.';
@@ -48,7 +52,7 @@ const patchMessage = (setConv, key, patch) => setConv((c) => ({
   messages: c.messages.map((m) => (m.key === key ? { ...m, ...(typeof patch === 'function' ? patch(m) : patch) } : m)),
 }));
 // stored: null = belum diketahui, false = server tidak menyimpan riwayat percakapan ini.
-const EMPTY = { key: null, sessionId: null, messages: [], escalation: null, available: true, restore: false, adopted: false, stored: null };
+const EMPTY = { key: null, sessionId: null, messages: [], handoff: null, restore: false, adopted: false, stored: null };
 const maxId = (messages) => messages.reduce((max, m) => (m.id > max ? m.id : max), 0);
 // Urut kronologis menurut id server; pesan yang belum punya id (jawaban yang sedang di-stream) di akhir.
 const inOrder = (messages) => [...messages].sort((a, b) => (a.id ?? Infinity) - (b.id ?? Infinity));
@@ -102,7 +106,7 @@ export function useChat({ enabled = true, active = enabled } = {}) {
         if (adopted) writeStored(storageKey(null), null);
         syncedIdRef.current = maxId(data.messages);
         setConv((c) => (c.key === convKey
-          ? { ...c, restore: false, messages: data.messages.map(fromServer), escalation: data.escalation }
+          ? { ...c, restore: false, messages: data.messages.map(fromServer), handoff: data.handoff ?? null }
           : c));
       },
       (err) => {
@@ -116,9 +120,10 @@ export function useChat({ enabled = true, active = enabled } = {}) {
     return () => controller.abort();
   }, [convKey, storedSession, needsRestore, adopted]);
 
-  // Selama tiket eskalasi terbuka & widget terbuka: ambil pesan baru (balasan AgenSUSI) segera, lalu
-  // tiap 8 detik selama tab peramban aktif.
-  const polling = enabled && active && Boolean(conv.sessionId) && OPEN_ESCALATION.includes(conv.escalation?.status);
+  // Selama handoff aktif: ambil pesan baru (balasan AgenSUSI) segera, lalu tiap 8 detik saat widget
+  // terbuka atau 20 detik saat tertutup (titik penanda di peluncur), selama tab peramban aktif.
+  const handoffActive = isHandoffActive(conv.handoff);
+  const polling = enabled && Boolean(conv.sessionId) && handoffActive;
   useEffect(() => {
     if (!polling) return undefined;
     let timer;
@@ -136,7 +141,7 @@ export function useChat({ enabled = true, active = enabled } = {}) {
             const fresh = data.messages.filter((m) => !known.has(m.id)).map(fromServer);
             return {
               ...c,
-              escalation: data.escalation ?? c.escalation,
+              handoff: data.handoff ?? c.handoff,
               messages: fresh.length ? inOrder([...c.messages, ...fresh]) : c.messages,
             };
           });
@@ -144,14 +149,24 @@ export function useChat({ enabled = true, active = enabled } = {}) {
           // dicoba lagi pada putaran berikutnya
         }
       }
-      timer = setTimeout(tick, POLL_MS);
+      timer = setTimeout(tick, active ? POLL_MS : POLL_CLOSED_MS);
     };
     timer = setTimeout(tick, 0);
     return () => {
       clearTimeout(timer);
       controller?.abort();
     };
-  }, [polling]);
+  }, [polling, active]);
+
+  // Widget terbuka & ada balasan AgenSUSI yang belum dilihat → tandai terbaca di server.
+  const unread = conv.handoff?.unread ?? 0;
+  useEffect(() => {
+    if (!active || unread === 0 || !sessionRef.current) return;
+    api.post('/chatbot/handoff/read', { session_id: sessionRef.current }).then(
+      () => setConv((c) => (c.handoff ? { ...c, handoff: { ...c.handoff, unread: 0 } } : c)),
+      () => {}, // dicoba lagi saat balasan berikutnya masuk
+    );
+  }, [active, unread]);
 
   const send = async (raw) => {
     const message = String(raw ?? '').trim().slice(0, MAX_LENGTH);
@@ -160,6 +175,10 @@ export function useChat({ enabled = true, active = enabled } = {}) {
     setBusy(true);
     setError(null);
     const userKey = nextKey();
+    if (handoffActive) {
+      await sendToAgent(message, userKey);
+      return;
+    }
     const botKey = nextKey();
     setConv((c) => ({
       ...c,
@@ -188,6 +207,9 @@ export function useChat({ enabled = true, active = enabled } = {}) {
             }));
           } else if (event === 'delta') {
             patchMessage(setConv, botKey, (m) => ({ content: m.content + data.content }));
+          } else if (event === 'done' && !data.message) {
+            // Server sudah dalam mode AgenSUSI (mis. tiket dibuat dari tab lain): tidak ada jawaban AI.
+            setConv((c) => ({ ...c, handoff: data.handoff ?? c.handoff, messages: c.messages.filter((m) => m.key !== botKey) }));
           } else if (event === 'done') {
             // Isi akhir dari server selalu menang (mis. `replace` saat LLM gagal di tengah jalan).
             setConv((c) => ({
@@ -206,6 +228,7 @@ export function useChat({ enabled = true, active = enabled } = {}) {
                   escalationSuggested: data.escalation_suggested,
                   ratable: true,
                 } : m)),
+              handoff: data.handoff ?? c.handoff,
             }));
           } else if (event === 'error') {
             patchMessage(setConv, botKey, { content: data.message, status: 'error' });
@@ -229,6 +252,32 @@ export function useChat({ enabled = true, active = enabled } = {}) {
       }
     } finally {
       if (controllerRef.current === controller) controllerRef.current = null;
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+
+  /**
+   * Handoff aktif (U6): pesan untuk AgenSUSI lewat /message (tanpa stream, tanpa jawaban AI).
+   * Dipanggil dari send() setelah status sibuk dipasang.
+   */
+  const sendToAgent = async (message, userKey) => {
+    setConv((c) => ({ ...c, messages: [...c.messages, { key: userKey, role: 'user', content: message, status: 'done' }] }));
+    try {
+      const data = await api.post('/chatbot/message', { session_id: sessionRef.current, message });
+      // Bila AgenSUSI baru saja menyelesaikan tiket, server sudah kembali ke mode AI dan menjawab.
+      const answer = data.message
+        ? [{ ...fromServer(data.message), source: data.source, sources: data.sources, cards: data.cards ?? [], escalationSuggested: data.escalation_suggested, ratable: true }]
+        : [];
+      setConv((c) => ({
+        ...c,
+        handoff: data.handoff ?? c.handoff,
+        messages: [...c.messages.map((m) => (m.key === userKey ? { ...m, id: data.user_message_id } : m)), ...answer],
+      }));
+    } catch (err) {
+      setConv((c) => ({ ...c, messages: c.messages.map((m) => (m.key === userKey ? { ...m, status: 'failed' } : m)) }));
+      setError({ message: err.status === 0 ? OFFLINE_MESSAGE : err.message, retryText: message, userKey });
+    } finally {
       busyRef.current = false;
       setBusy(false);
     }
@@ -261,14 +310,35 @@ export function useChat({ enabled = true, active = enabled } = {}) {
     const data = await api.post('/chatbot/escalate', { session_id: sessionRef.current, contact: contact || undefined });
     setConv((c) => ({
       ...c,
-      escalation: { id: data.escalation.id, status: data.escalation.status },
-      available: data.available,
+      handoff: data.handoff ?? c.handoff,
       messages: [
         ...c.messages.map((m) => (m.escalationSuggested ? { ...m, escalationSuggested: false } : m)),
         ...(data.message ? [fromServer({ ...data.message })] : []),
       ],
     }));
     return data;
+  };
+
+  /** "Lanjut dengan AI": tutup kartu tawaran AgenSUSI tanpa membuat tiket. */
+  const declineHandoff = () => setConv((c) => ({
+    ...c,
+    messages: c.messages.map((m) => (m.escalationSuggested ? { ...m, escalationSuggested: false } : m)),
+  }));
+
+  /** "Kembali ke asisten AI": batalkan permintaan AgenSUSI yang masih terbuka. Melempar galat bila gagal. */
+  const cancelHandoff = async () => {
+    const data = await api.post('/chatbot/handoff/cancel', { session_id: sessionRef.current });
+    setConv((c) => ({
+      ...c,
+      handoff: data.handoff,
+      messages: data.message ? inOrder([...c.messages, fromServer(data.message)]) : c.messages,
+    }));
+  };
+
+  /** Setelah AgenSUSI selesai: nilai 1–5, atau `null` = langsung bertanya lagi ke AI. */
+  const rateHandoff = async (rating) => {
+    const data = await api.post('/chatbot/handoff/rate', { session_id: sessionRef.current, rating });
+    setConv((c) => ({ ...c, handoff: data.handoff }));
   };
 
   /** Mulai percakapan baru (riwayat lama tetap di server, hanya dilepas dari tampilan). */
@@ -304,8 +374,10 @@ export function useChat({ enabled = true, active = enabled } = {}) {
 
   return {
     messages: conv.messages,
-    escalation: conv.escalation,
-    available: conv.available,
+    handoff: conv.handoff,
+    handoffActive,
+    unread,
+    sessionId: conv.sessionId,
     restoring: conv.restore,
     hasSession: Boolean(conv.sessionId),
     stored: conv.stored,
@@ -316,6 +388,9 @@ export function useChat({ enabled = true, active = enabled } = {}) {
     retry,
     rate,
     escalate,
+    declineHandoff,
+    cancelHandoff,
+    rateHandoff,
     reset,
     remove,
   };
