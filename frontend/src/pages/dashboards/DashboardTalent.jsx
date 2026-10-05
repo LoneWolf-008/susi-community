@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { OPEN_NEED_EVENT } from '../../lib/chatNavigation';
 import gsap from 'gsap';
 import DashShell from '../../components/common/DashShell';
 import ChatWidget from '../../components/chat/ChatWidget';
@@ -62,6 +63,13 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
     if (id === 'projek') projectsQ.refetch();
   };
   const openNeed = (id) => { setTab('jelajahi'); setProjectId(null); setNeedId(id); setFocusApply(false); };
+  // Kartu kebutuhan di Tanya SUSI (R3) → buka detail kebutuhan di katalog.
+  const onOpenNeedFromChat = useEffectEvent((e) => openNeed(Number(e.detail?.id)));
+  useEffect(() => {
+    const handler = (e) => onOpenNeedFromChat(e);
+    window.addEventListener(OPEN_NEED_EVENT, handler);
+    return () => window.removeEventListener(OPEN_NEED_EVENT, handler);
+  }, []);
   const openProject = (id) => { setTab('projek'); setNeedId(null); setProjectId(id); };
   const openNotification = (n) => {
     if (n.ref_type === 'project') openProject(n.ref_id);

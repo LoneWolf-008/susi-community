@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { OPEN_OWNER_NEED_EVENT } from '../../lib/chatNavigation';
 import gsap from 'gsap';
 import DashShell from '../../components/common/DashShell';
 import SettingsPanel from '../../components/settings/SettingsPanel';
@@ -61,6 +62,13 @@ export default function DashboardLiaison({ user, onLogout, navigateTo }) {
   };
   // Form intake baru (key berganti → form bersih), opsional dari kunjungan yang sedang berlangsung.
   const startIntake = (visit = null) => { setIntake((s) => ({ key: s.key + 1, visit })); setTab('catat'); setSelected(null); };
+  // Kartu talenta di Tanya SUSI (R3) → buka kebutuhan (pemilik proksi) terkait.
+  const onOpenNeedFromChat = useEffectEvent((e) => { setTab('kebutuhan'); setSelected(Number(e.detail?.id)); });
+  useEffect(() => {
+    const handler = (e) => onOpenNeedFromChat(e);
+    window.addEventListener(OPEN_OWNER_NEED_EVENT, handler);
+    return () => window.removeEventListener(OPEN_OWNER_NEED_EVENT, handler);
+  }, []);
   const openNotification = (n) => {
     if (n.ref_type === 'visit') { onTab('kunjungan'); return; }
     if (n.ref_type === 'escalation') { onTab('eskalasi'); setEscalationFocus(n.ref_id); return; }

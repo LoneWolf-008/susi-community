@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Send, Square, RotateCcw, X, Sparkles, ThumbsUp, ThumbsDown, Headset, Trash2 } from 'lucide-react';
 import MarkdownLite from './MarkdownLite';
+import ChatCards from './ChatCards';
 import { MAX_LENGTH } from '../../hooks/useChat';
 import { useToast } from '../../context/toastContext';
 import { CONTACT } from '../../data/contact';
@@ -122,7 +123,7 @@ function Feedback({ t, chat, message }) {
   );
 }
 
-function MessageItem({ t, m, chat, isLatest, anonymous, onEscalated }) {
+function MessageItem({ t, m, chat, isLatest, anonymous, onEscalated, onNavigate }) {
   if (m.role === 'user') {
     return (
       <div className="flex flex-col items-end">
@@ -164,6 +165,7 @@ function MessageItem({ t, m, chat, isLatest, anonymous, onEscalated }) {
         )}
         {m.status === 'stopped' && <p className={`mt-1 font-mono text-[9px] font-bold ${t.muted}`}>{m.content ? '— DIHENTIKAN' : 'JAWABAN DIHENTIKAN'}</p>}
       </div>
+      {done && m.cards?.length > 0 && <ChatCards t={t} cards={m.cards} onNavigate={onNavigate} />}
       {(showSources || (done && m.ratable)) && (
         <div className="mt-1.5 flex flex-wrap items-center gap-2 max-w-[88%]">
           {m.ratable && <Feedback t={t} chat={chat} message={m} />}
@@ -296,7 +298,7 @@ export default function ChatPanel({ chat, suggestions, dark = false, anonymous, 
         )}
         {chat.restoring && <p className={`font-mono text-[10px] ${t.muted}`}>Memuat percakapan…</p>}
         {chat.messages.map((m) => (
-          <MessageItem key={m.key} t={t} m={m} chat={chat} isLatest={m === lastAssistant} anonymous={anonymous} onEscalated={() => inputRef.current?.focus()} />
+          <MessageItem key={m.key} t={t} m={m} chat={chat} isLatest={m === lastAssistant} anonymous={anonymous} onEscalated={() => inputRef.current?.focus()} onNavigate={onClose} />
         ))}
         {chat.error && (
           <div role="alert" className={`rounded-xl px-4 py-3 text-sm ${t.alert}`}>
