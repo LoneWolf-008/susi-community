@@ -3,6 +3,7 @@ import { success, created, fail } from '../utils/response.js';
 import { parsePagination, paged } from '../utils/pagination.js';
 import { getNeedOwnerId, isNeedOwner } from '../utils/ownership.js';
 import { notify, addProjectEvent } from '../utils/activity.js';
+import { invalidateRecommendations } from '../services/recommendation/index.js';
 
 const APPLICATION_STATUSES = ['MENUNGGU', 'DITERIMA', 'DITOLAK'];
 
@@ -148,6 +149,11 @@ export const apply = async (req, res, next) => {
       `INSERT INTO applications (need_id, talent_id, message) VALUES (?, ?, ?)`,
       [need.id, req.user.id, text || null]
     );
+    // R1: talenta yang diundang lalu melamar → undangan diterima.
+    await conn.query(
+      `UPDATE need_invites SET status = 'ACCEPTED' WHERE need_id = ? AND talent_id = ? AND status = 'SENT'`,
+      [need.id, req.user.id]
+    );
 
     // Pemilik efektif: requester, atau liaison untuk kebutuhan jalur Assisted.
     await notify(conn, {
@@ -160,6 +166,7 @@ export const apply = async (req, res, next) => {
     });
 
     await conn.commit();
+    invalidateRecommendations(req.user.id, getNeedOwnerId(need));
 
     const [rows] = await pool.query(
       `SELECT * FROM applications WHERE id = ?`,
