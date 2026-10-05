@@ -1,49 +1,392 @@
 {
-  "_sumber": "Dipindah apa adanya dari frontend/src/utils/askSusi.js dan frontend/src/components/common/AiAgent.jsx (T1). Kata kunci adalah gabungan kedua array; jawaban memakai versi askSusi.js. Jangan menambah entri tanpa sumber dokumen (PRD/Proposal/wawancara).",
+  "_sumber": "Basis pengetahuan Tanya SUSI (T12). Setiap entri wajib punya `source` yang merujuk dokumen proyek: PRD (docs/PRD.md), Proposal (Proposal-SUSI-Community-DRAFT.md, termasuk temuan wawancara di §1.1), SDD/addendum, docs/API.md, docs/TASKS.md, atau perilaku aplikasi yang terdokumentasi. Entri tanpa sumber dimuat sebagai `draft` (tidak dipakai chatbot). `slug` adalah kunci seed: jangan diubah setelah dimuat. Jangan menambah fakta yang tidak ada di sumber.",
   "entries": [
     {
-      "keywords": ["halo", "hai", "hi", "hello", "pagi", "siang", "sore"],
-      "reply": "Halo! Saya Agen SUSI AI 👋\nSiap bantu navigasi platform SUSI. Mau tanya soal apa hari ini?"
+      "slug": "apa-itu-susi",
+      "title": "Apa itu SUSI Community",
+      "category": "umum",
+      "audience": "all",
+      "keywords": ["susi", "susi community", "apa itu susi", "tentang susi", "platform", "penghubung", "komunitas", "talenta it", "bandung", "tujuan susi"],
+      "reply": "SUSI Community adalah platform yang mempertemukan komunitas non-teknis di Bandung, seperti UMKM, karang taruna, PKK, komunitas hobi, dan panitia sekolah, dengan talenta IT yang butuh pengalaman proyek nyata: mahasiswa tingkat akhir, lulusan baru, pengalih karier, hingga engineer. SUSI berperan sebagai penghubung dan lapisan kepercayaan: mencatat kebutuhan, mempertemukan kedua pihak, mencatat kesepakatan, dan memverifikasi bahwa pekerjaan benar-benar selesai.",
+      "source": "PRD §1–2; Proposal B (Ringkasan) & §2.1"
     },
     {
-      "keywords": ["proyek", "status", "progress", "lacak", "lacak proyek"],
-      "reply": "Untuk melihat progres proyek, buka tab **Beranda** di dasbor → klik kartu proyek yang ingin dipantau.\n\nSetiap proyek punya 4 fase:\n• DITERIMA → DIKERJAKAN → SELESAI → VERIFIKASI\n\nProgres visual muncul otomatis di kartu proyek."
+      "slug": "cara-kerja-delapan-langkah",
+      "title": "Cara kerja SUSI dalam 8 langkah",
+      "category": "alur",
+      "audience": "all",
+      "keywords": ["cara kerja", "alur", "langkah", "8 langkah", "delapan langkah", "proses", "tahapan", "mekanisme", "bagaimana susi bekerja"],
+      "reply": "Alur SUSI dalam 8 langkah:\n1. Komunitas menceritakan masalahnya lewat formulir berbahasa sehari-hari.\n2. Bila belum terbiasa dengan website, AgenSUSI datang dan mencatatkannya.\n3. Setelah ditinjau admin, kebutuhan tampil di katalog proyek terbuka.\n4. Talenta IT mengajukan diri.\n5. Komunitas memilih satu talenta setelah melihat rekam jejaknya.\n6. Kedua pihak menyepakati batasan pekerjaan dan definisi selesai.\n7. Pengerjaan berlangsung.\n8. Talenta menandai selesai, lalu komunitas memverifikasi dan memberi testimoni.",
+      "source": "Proposal §2.1; PRD §7; Beranda bagian Delapan Langkah; API.md §Kebutuhan (moderasi)"
     },
     {
-      "keywords": ["verifikasi", "selesai", "konfirmasi", "testimoni"],
-      "reply": "SUSI pakai **verifikasi dua arah** (langkah 08):\n\n1. Talenta menandai proyek selesai\n2. Komunitas mengonfirmasi + beri testimoni\n\nReputasi talenta bertambah **setelah kedua pihak konfirmasi** — menjaga kejujuran sistem."
+      "slug": "mulai-dari-mana",
+      "title": "Baru di SUSI, mulai dari mana",
+      "category": "umum",
+      "audience": "public",
+      "keywords": ["mulai", "memulai", "baru", "pengunjung", "pertama kali", "mulai dari mana", "langkah awal", "harus apa dulu"],
+      "reply": "Tergantung siapa Anda. Pengurus komunitas atau pelaku usaha: daftar sebagai Komunitas, lalu ceritakan masalah Anda lewat formulir \"Ajukan Kebutuhan\". Talenta IT: daftar sebagai Talenta, lengkapi profil dan keahlian, lalu telusuri proyek yang terbuka. Belum terbiasa memakai website? AgenSUSI bisa membantu mencatatkan kebutuhan komunitas Anda.",
+      "source": "PRD §5 & P0-1–P0-3; Proposal §2.2"
     },
     {
-      "keywords": ["talenta", "reputasi", "poin", "level"],
-      "reply": "Sistem Reputasi Talenta:\n\n• Setiap proyek terverifikasi = +1 poin\n• Level: Talenta Muda → Terpercaya → Ahli\n• Reputasi tinggi = prioritas dipilih komunitas\n\nCek poinmu di tab **Profil** dasbor talenta."
+      "slug": "peran-pengguna",
+      "title": "Peran pengguna di SUSI",
+      "category": "akun",
+      "audience": "all",
+      "keywords": ["peran", "role", "jenis akun", "komunitas", "requester", "talenta", "talent", "agensusi", "liaison", "admin", "daftar sebagai apa", "bedanya"],
+      "reply": "Ada tiga peran utama di SUSI:\n• Komunitas (requester): pengurus komunitas atau pelaku UMKM yang mengajukan masalah.\n• Talenta: mahasiswa, lulusan baru, pengalih karier, atau engineer yang mengerjakan proyek untuk pengalaman nyata.\n• AgenSUSI (liaison): anggota inti SUSI yang mencatat kebutuhan langsung dari lapangan.\nSetiap peran hanya bisa menjalankan aksi miliknya, dan aturan ini dijaga di server, bukan hanya di tampilan.",
+      "source": "PRD §5, P0-1; Proposal §2.2, F1"
     },
     {
-      "keywords": ["cara kerja", "alur", "langkah", "8 langkah", "proses"],
-      "reply": "SUSI bekerja dalam **8 langkah**:\n\n1. Komunitas cerita masalah\n2. AgenSUSI data lapangan\n3. Masuk katalog terbuka\n4. Talenta mengajukan diri\n5. Komunitas pilih talenta\n6. Kesepakatan target\n7. Pengerjaan\n8. Verifikasi dua arah\n\nScroll ke section \"Delapan Langkah\" di beranda untuk detail visualnya."
+      "slug": "cara-daftar",
+      "title": "Cara mendaftar akun",
+      "category": "akun",
+      "audience": "all",
+      "keywords": ["daftar", "mendaftar", "pendaftaran", "registrasi", "register", "buat akun", "bikin akun", "akun baru", "sign up", "gabung", "bergabung"],
+      "reply": "Buka halaman Masuk lalu pilih Daftar. Pilih peran Komunitas bila ingin mengajukan masalah, atau Talenta bila ingin mengerjakan proyek. Isi nama, email, dan kata sandi minimal 10 karakter. Akun AgenSUSI tidak dibuka lewat pendaftaran umum; akunnya dibuatkan oleh admin SUSI.",
+      "source": "PRD P0-1; API.md §Auth (register: requester|talent) & §Admin (akun liaison)"
     },
     {
-      "keywords": ["komunitas", "daftar", "gabung", "ikut"],
-      "reply": "Komunitas bergabung **gratis**:\n\n1. Daftar via halaman Masuk/Daftar → pilih peran Komunitas\n2. Lengkapi profil\n3. Ajukan kebutuhan di dasbor\n\nBelum familiar digital? AgenSUSI siap datang ke lokasi Anda."
+      "slug": "daftar-sebagai-talenta",
+      "title": "Cara mendaftar sebagai talenta",
+      "category": "talenta",
+      "audience": "all",
+      "keywords": ["jadi talenta", "daftar talenta", "gabung talenta", "relawan it", "developer", "programmer", "mahasiswa it", "fresh graduate", "ikut proyek"],
+      "reply": "Daftar lewat halaman Masuk → Daftar dan pilih peran Talenta. Setelah masuk, lengkapi profil dan keahlian di tab Profil agar komunitas bisa menilai kecocokan Anda. Lalu buka tab Lihat Proyek untuk menelusuri kebutuhan yang terbuka dan mengajukan diri. Talenta SUSI bergabung untuk pengalaman nyata dan rekam jejak yang terverifikasi.",
+      "source": "PRD §5, P0-1, P0-3, P0-6; Proposal F3 & F6; dasbor talenta"
     },
     {
-      "keywords": ["mading", "diskusi", "forum", "topik"],
-      "reply": "**Mading Komunitas** adalah ruang diskusi lintas komunitas:\n\n• Drag papan untuk jelajah topik\n• Tempel topik baru (Diskusi/Tanya/Info)\n• Balas topik komunitas lain\n\nAkses via tab **Komunitas** di dasbor komunitas."
+      "slug": "mengajukan-kebutuhan",
+      "title": "Cara mengajukan kebutuhan",
+      "category": "komunitas",
+      "audience": "all",
+      "keywords": ["ajukan kebutuhan", "mengajukan", "pengajuan", "minta bantuan", "formulir", "form", "kebutuhan baru", "ceritakan masalah", "buat website", "bikin aplikasi", "butuh aplikasi", "butuh website", "istilah teknis"],
+      "reply": "Masuk sebagai Komunitas, lalu tekan \"+ Ajukan Kebutuhan\" di dasbor. Di formulir \"Ceritakan Masalahmu\", tulis judul, cerita masalahnya, dan pilih kategori. Tidak perlu istilah teknis; cukup bahasa sehari-hari, misalnya \"catatan iuran warga masih di buku tulis dan sering selisih\". Keahlian dan lokasi boleh dikosongkan. Kebutuhan ditinjau admin dulu sebelum tampil di katalog talenta.",
+      "source": "PRD P0-2, story 1; Proposal F2 & §2.2; API.md §Kebutuhan; formulir Ajukan Kebutuhan"
     },
     {
-      "keywords": ["map", "peta", "lokasi", "cari komunitas"],
-      "reply": "Tab **Map** menampilkan komunitas terdaftar di Bandung:\n\n• Titik merah = komunitas existing\n• Titik mint = komunitas Anda\n• Klik titik → detail + rute Google Maps\n\nAnda juga bisa menandai komunitas baru dari tab ini."
+      "slug": "contoh-masalah",
+      "title": "Masalah apa saja yang bisa diajukan",
+      "category": "komunitas",
+      "audience": "all",
+      "keywords": ["contoh masalah", "jenis masalah", "masalah apa", "bisa dibantu apa", "pencatatan", "iuran", "data anggota", "promosi", "jadwal", "rekap", "laporan", "pesanan", "warung", "toko", "usaha", "umkm", "jualan", "kategori"],
+      "reply": "Masalah operasional sehari-hari yang bisa dibantu teknologi, misalnya pencatatan iuran atau pesanan yang sering tercecer, pendataan anggota, promosi, koordinasi jadwal, serta rekap dan laporan yang dikerjakan berulang secara manual. Kategori di formulir: Pencatatan & Data, Website, Aplikasi, atau Lainnya. Kalau ragu masalah Anda bisa dibantu, ajukan saja dengan bahasa sendiri atau minta bantuan AgenSUSI.",
+      "source": "PRD §2; Proposal §1.1 (temuan wawancara) & §2.2; kategori formulir kebutuhan"
     },
     {
-      "keywords": ["agen", "agensusi", "lapangan", "kunjungan"],
-      "reply": "**AgenSUSI** adalah tim lapangan kami yang:\n\n• Datang langsung ke komunitas\n• Mencatat kebutuhan secara personal\n• Menjembatani komunitas yang belum familiar digital\n\nButuh kunjungan? Hubungi via WhatsApp di halaman Tentang Kami."
+      "slug": "moderasi-kebutuhan",
+      "title": "Kebutuhan belum tampil atau ditolak (moderasi)",
+      "category": "komunitas",
+      "audience": "all",
+      "keywords": ["moderasi", "menunggu moderasi", "belum tampil", "tidak muncul", "ditolak", "tayang", "ditinjau", "review admin", "kebutuhan ditolak", "alasan ditolak", "spam", "duplikat"],
+      "reply": "Setiap kebutuhan baru ditinjau admin dulu (status MENUNGGU MODERASI) agar katalog bebas spam dan kategorinya tepat. Bila disetujui, statusnya TAYANG dan kebutuhan muncul di katalog talenta. Bila ditolak, alasan admin terlihat di detail kebutuhan (mis. spam, duplikat, salah kategori, atau tidak layak). Kebutuhan yang ditolak bisa diperbaiki lalu diajukan ulang.",
+      "source": "API.md §Kebutuhan (PENDING/REJECTED) & §Admin (moderasi); detail kebutuhan pemilik"
     },
     {
-      "keywords": ["biaya", "bayar", "gratis", "harga", "mahal"],
-      "reply": "**SUSI 100% gratis** untuk komunitas maupun talenta.\n\n• Komunitas dapat solusi tanpa biaya\n• Talenta dapat portofolio + poin reputasi\n\nPlatform didukung SMKN 4 Bandung sebagai proyek sosial-edukasi."
+      "slug": "tidak-ada-pelamar",
+      "title": "Belum ada talenta yang melamar",
+      "category": "komunitas",
+      "audience": "all",
+      "keywords": ["belum ada pelamar", "tidak ada pelamar", "sepi pelamar", "tidak ada yang melamar", "belum dilamar", "menunggu pelamar", "pelamar"],
+      "reply": "Kebutuhan Anda tetap tayang di katalog selama masih terbuka, jadi talenta masih bisa menemukannya. Bila lama belum ada pelamar, minta bantuan AgenSUSI untuk meninjau apakah deskripsi atau batasan pekerjaannya perlu diperjelas agar lebih mudah dipahami talenta.",
+      "source": "PRD story 10 & §12 (peran Liaison); Proposal §3.3.1 (tetap tayang + saran perbaikan deskripsi)"
     },
     {
-      "keywords": ["bantuan", "help", "tolong", "support"],
-      "reply": "Saya siap bantu! Beberapa hal yang bisa saya jawab:\n\n• Cara kerja SUSI\n• Status proyek & verifikasi\n• Reputasi talenta\n• Mading komunitas & Map\n\nAtau ketik pertanyaan spesifik Anda 😊"
+      "slug": "tarik-kebutuhan",
+      "title": "Menarik atau membatalkan kebutuhan",
+      "category": "komunitas",
+      "audience": "all",
+      "keywords": ["tarik kebutuhan", "batalkan kebutuhan", "hapus kebutuhan", "tutup kebutuhan", "tidak jadi", "withdraw", "ubah kebutuhan", "edit kebutuhan"],
+      "reply": "Pemilik kebutuhan bisa menariknya selama belum ada proyek yang berjalan; kebutuhan menjadi DITUTUP, tidak tampil lagi di katalog, dan talenta yang sudah melamar diberi tahu. Kebutuhan yang sudah punya proyek aktif tidak bisa ditarik. Selama masih menunggu moderasi atau ditolak, isi kebutuhan juga masih bisa diubah.",
+      "source": "PRD §7 (TERBUKA → DIBATALKAN); Proposal U15; API.md §Kebutuhan (withdraw, PATCH)"
+    },
+    {
+      "slug": "daftarkan-komunitas",
+      "title": "Mendaftarkan komunitas",
+      "category": "komunitas",
+      "audience": "all",
+      "keywords": ["daftarkan komunitas", "komunitas baru", "tambah komunitas", "buat komunitas", "gabung komunitas", "anggota komunitas", "pengurus", "keluar komunitas"],
+      "reply": "Komunitas didaftarkan dari menu Komunitas & Peta: isi nama, jenis, deskripsi, pengurus, dan lokasi bila mau. Pengguna Komunitas yang mendaftarkannya otomatis tercatat sebagai pengurus, dan pengguna lain bisa bergabung sebagai anggota. Kebutuhan bisa diajukan atas nama komunitas tempat Anda terdaftar; tanpa komunitas pun kebutuhan tetap bisa dikirim.",
+      "source": "PRD §8–9 (entitas Komunitas); Proposal U6; API.md §Komunitas; formulir Ajukan Kebutuhan"
+    },
+    {
+      "slug": "apa-itu-agensusi",
+      "title": "Apa itu AgenSUSI",
+      "category": "agensusi",
+      "audience": "all",
+      "keywords": ["agensusi", "agen susi", "agen", "liaison", "petugas lapangan", "tim lapangan", "pendamping", "assisted intake"],
+      "reply": "AgenSUSI (liaison) adalah anggota inti SUSI yang mendatangi komunitas secara langsung. Tugasnya mencatatkan kebutuhan atas nama komunitas yang belum terbiasa memakai website, membantu memperjelas batasan pekerjaan, dan mewakili sisi komunitas yang belum punya akun. AgenSUSI tidak melamar atau mengerjakan proyek seperti talenta.",
+      "source": "PRD §1, §5, story 8–9; Proposal §2.2"
+    },
+    {
+      "slug": "minta-bantuan-agensusi",
+      "title": "Belum terbiasa memakai website (jalur berbantuan)",
+      "category": "agensusi",
+      "audience": "all",
+      "keywords": ["tidak bisa pakai website", "gaptek", "belum melek digital", "minta didatangi", "kunjungan", "datang ke lokasi", "dibantu isi", "bantu isi formulir", "jalur berbantuan", "offline"],
+      "reply": "Tidak masalah. SUSI punya jalur berbantuan: AgenSUSI bisa mencatatkan kebutuhan komunitas Anda ke sistem dari hasil kunjungan atau obrolan langsung, jadi Anda tidak wajib membuka website sendiri. Kebutuhan itu tercatat dengan sumber AgenSUSI dan diproses sama seperti pengajuan mandiri. Untuk minta dibantu, hubungi kontak resmi SUSI di halaman Tentang Kami, atau minta dihubungkan dengan AgenSUSI lewat chat ini.",
+      "source": "PRD P0-2 & G2; Proposal F2, §2.2, §3.3.2; Beranda langkah 02"
+    },
+    {
+      "slug": "cari-dan-lamar-proyek",
+      "title": "Cara mencari dan melamar proyek",
+      "category": "talenta",
+      "audience": "all",
+      "keywords": ["lamar", "melamar", "lamaran", "ajukan diri", "apply", "cari proyek", "katalog", "lihat proyek", "proyek terbuka", "filter keahlian"],
+      "reply": "Masuk sebagai talenta lalu buka tab Lihat Proyek. Di sana tampil kebutuhan yang terbuka beserta ringkasan dan keahlian yang dibutuhkan; bisa disaring per kategori atau keahlian. Buka kebutuhan yang cocok, lalu ajukan diri dengan pesan pengantar singkat tentang kemampuan Anda. Satu kebutuhan hanya bisa dilamar sekali, dan lamaran ditutup setelah komunitas memilih talenta.",
+      "source": "PRD P0-3, story 5–6; Proposal F3; API.md §Kebutuhan (catalog) & §Lamaran"
+    },
+    {
+      "slug": "status-lamaran",
+      "title": "Arti status lamaran",
+      "category": "talenta",
+      "audience": "all",
+      "keywords": ["status lamaran", "histori lamaran", "riwayat lamaran", "menunggu", "diterima", "ditolak", "hasil lamaran"],
+      "reply": "Status lamaran ada tiga: MENUNGGU (komunitas belum memutuskan), DITERIMA (Anda terpilih dan proyek masuk tahap kesepakatan), dan DITOLAK (komunitas memilih talenta lain atau kebutuhannya ditutup). Riwayat lamaran ada di tab Histori, dan proyek dari lamaran yang diterima muncul di tab Proyek Saya. Anda juga mendapat notifikasi saat lamaran diterima atau ditolak.",
+      "source": "API.md §Lamaran; notifikasi lamaran (applicationsController); dasbor talenta"
+    },
+    {
+      "slug": "lengkapi-profil-talenta",
+      "title": "Melengkapi profil dan keahlian talenta",
+      "category": "talenta",
+      "audience": "all",
+      "keywords": ["profil", "keahlian", "skill", "bio", "portofolio", "lengkapi profil", "rekam jejak", "edit profil"],
+      "reply": "Buka tab Profil di dasbor talenta untuk mengisi bio, nomor kontak, dan keahlian. Profil juga menampilkan proyek yang sudah terverifikasi, poin reputasi, level, dan testimoni. Inilah yang dilihat komunitas saat menilai pelamar, jadi isi keahlian sesuai kemampuan Anda yang sebenarnya.",
+      "source": "PRD P0-6, story 6–7; Proposal F6; API.md §Talenta (/talent/profile)"
+    },
+    {
+      "slug": "memilih-talenta",
+      "title": "Cara memilih talenta",
+      "category": "komunitas",
+      "audience": "all",
+      "keywords": ["pilih talenta", "memilih pelamar", "pelamar", "lihat pelamar", "terima lamaran", "rekam jejak pelamar", "talenta yang cocok", "menilai pelamar"],
+      "reply": "Buka kebutuhan Anda di dasbor untuk melihat daftar pelamar beserta keahlian, jumlah proyek selesai, poin reputasi, level, dan testimoni terbarunya. Pilih satu talenta, lalu isi ringkasan pekerjaan (scope) dan definisi selesai; tenggat boleh diisi bila perlu. Pelamar lain yang masih menunggu otomatis ditolak, dan proyek menunggu talenta terpilih menyetujui kesepakatan.",
+      "source": "PRD P0-3, P0-4, story 2; Proposal F4 & F6; API.md §Lamaran (decide)"
+    },
+    {
+      "slug": "scope-definisi-selesai",
+      "title": "Scope dan definisi selesai",
+      "category": "alur",
+      "audience": "all",
+      "keywords": ["scope", "lingkup", "batasan pekerjaan", "definisi selesai", "kesepakatan", "sepakat", "target", "kriteria selesai", "perjanjian", "salah paham"],
+      "reply": "Saat memilih talenta, komunitas menuliskan ringkasan pekerjaan (scope: apa saja yang akan dibuat) dan definisi selesai (kapan pekerjaan dianggap beres). Talenta terpilih meninjau lalu menyetujui kesepakatan itu sebelum pengerjaan dimulai, jadi kesepakatannya dua arah. Kesepakatan tersimpan dan bisa dilihat kedua pihak, sehingga tidak ada salah paham soal hasil akhir.",
+      "source": "PRD P0-4, story 3; Proposal F4 & §1.4; Beranda langkah 06"
+    },
+    {
+      "slug": "setujui-kesepakatan",
+      "title": "Menyetujui kesepakatan proyek",
+      "category": "talenta",
+      "audience": "all",
+      "keywords": ["setujui kesepakatan", "menyetujui", "status diterima", "mulai mengerjakan", "mulai proyek", "tinjau kesepakatan", "agree"],
+      "reply": "Saat lamaran Anda dipilih, proyek muncul di tab Proyek Saya dengan status DITERIMA. Baca scope, definisi selesai, dan tenggat (bila ada), lalu setujui kesepakatannya. Status berubah menjadi DIKERJAKAN dan pengerjaan bisa dimulai; komunitas mendapat notifikasi bahwa kesepakatan sudah disetujui.",
+      "source": "PRD P0-4; Proposal F4; API.md §Proyek (agree); dasbor talenta"
+    },
+    {
+      "slug": "pengerjaan-di-luar-sistem",
+      "title": "Komunikasi selama pengerjaan",
+      "category": "alur",
+      "audience": "all",
+      "keywords": ["komunikasi", "chat talenta", "hubungi talenta", "hubungi komunitas", "koordinasi", "kolaborasi", "kontak talenta", "kontak komunitas", "whatsapp", "diskusi proyek"],
+      "reply": "Pengerjaan dan obrolan sehari-hari berlangsung di luar SUSI, lewat saluran yang sudah biasa dipakai seperti WhatsApp (dan repositori kode bagi talenta). SUSI fokus pada dua titik penting: saat kebutuhan masuk dan saat pekerjaan dinyatakan selesai. Kontak kedua pihak tampil di halaman detail proyek.",
+      "source": "PRD §4 & §7; Proposal §2.1; API.md §Proyek (detail memuat kontak kedua pihak)"
+    },
+    {
+      "slug": "kirim-hasil",
+      "title": "Menandai selesai dengan mengirim hasil",
+      "category": "talenta",
+      "audience": "all",
+      "keywords": ["tandai selesai", "kirim hasil", "unggah hasil", "upload", "serahkan hasil", "submit", "tautan hasil", "link hasil", "sudah selesai"],
+      "reply": "Bila pekerjaan sudah sesuai definisi selesai, buka proyek di tab Proyek Saya lalu kirim hasilnya: unggah berkas (maks. 25 MB, mis. zip, pdf, gambar, dokumen, atau video) dan/atau tautan. Dengan mengirim hasil, Anda menandai pekerjaan selesai; status menjadi MENUNGGU VERIFIKASI sampai komunitas mengonfirmasi.",
+      "source": "PRD P0-5; Proposal F5; API.md §Proyek (upload & deliveries)"
+    },
+    {
+      "slug": "verifikasi-dua-arah",
+      "title": "Verifikasi dua arah",
+      "category": "verifikasi",
+      "audience": "all",
+      "keywords": ["verifikasi", "verifikasi dua arah", "konfirmasi", "konfirmasi selesai", "sign off", "selesai", "terverifikasi", "proyek selesai"],
+      "reply": "Proyek baru dianggap selesai bila dua pihak setuju. Pertama, talenta menandai selesai dengan mengirim hasil. Kedua, komunitas memeriksa lalu memverifikasi, boleh sambil menulis testimoni. Setelah keduanya terpenuhi, status menjadi TERVERIFIKASI dan reputasi talenta bertambah. Selama baru satu pihak yang menandai, status tetap menunggu dan reputasi tidak berubah; komunitas juga tidak bisa menuntaskan proyek sebelum talenta menandai selesai.",
+      "source": "PRD §7, P0-5; Proposal F5 & §3.3.3"
+    },
+    {
+      "slug": "cara-verifikasi-hasil",
+      "title": "Cara memeriksa dan memverifikasi hasil",
+      "category": "verifikasi",
+      "audience": "all",
+      "keywords": ["cara verifikasi", "periksa hasil", "hasil kerja", "terima hasil", "konfirmasi hasil", "menunggu verifikasi", "revisi", "minta revisi", "minta perbaikan", "hasil belum sesuai", "hasil jelek", "kurang bagus"],
+      "reply": "Saat status MENUNGGU VERIFIKASI, buka proyek di dasbor dan periksa hasil kiriman talenta terhadap definisi selesai yang disepakati. Bila sudah sesuai, tekan verifikasi dan tulis testimoni bila mau. Bila belum sesuai, minta revisi dengan catatan apa yang perlu diperbaiki; status menjadi REVISI sampai talenta mengirim ulang. Konfirmasi hanya bila pekerjaan benar-benar selesai.",
+      "source": "PRD P0-5, story 4; Proposal F5; API.md §Proyek (verify, revisions)"
+    },
+    {
+      "slug": "status-proyek",
+      "title": "Arti status proyek",
+      "category": "alur",
+      "audience": "all",
+      "keywords": ["status proyek", "arti status", "diterima", "dikerjakan", "revisi", "menunggu verifikasi", "terverifikasi", "dibatalkan", "progres proyek", "lacak proyek", "pantau proyek"],
+      "reply": "Urutan status proyek: DITERIMA (menunggu talenta menyetujui kesepakatan) → DIKERJAKAN → MENUNGGU VERIFIKASI (talenta sudah mengirim hasil) → TERVERIFIKASI (dikonfirmasi kedua pihak). Status lain: REVISI (komunitas minta perbaikan), SENGKETA (dimediasi admin), dan DIBATALKAN (talenta mundur). Status proyek Anda bisa dipantau di dasbor.",
+      "source": "PRD §7; API.md §Proyek; label status dasbor"
+    },
+    {
+      "slug": "talenta-mundur",
+      "title": "Talenta mundur dari proyek",
+      "category": "alur",
+      "audience": "all",
+      "keywords": ["mundur", "mengundurkan diri", "batal mengerjakan", "tidak sanggup", "cancel proyek", "keluar dari proyek", "talenta kabur", "talenta menghilang"],
+      "reply": "Talenta boleh mengundurkan diri dengan menuliskan alasannya, selama proyek masih di tahap kesepakatan, dikerjakan, atau revisi. Proyek menjadi DIBATALKAN, kebutuhan kembali terbuka di katalog, dan komunitas mendapat notifikasi sehingga bisa memilih talenta lain. Bila ada masalah dengan jalannya proyek, komunitas maupun talenta dapat mengajukan sengketa agar dimediasi admin.",
+      "source": "PRD story 11 & §7 (transisi tambahan); Proposal U14 & §3.3.1; API.md §Proyek (cancel, dispute)"
+    },
+    {
+      "slug": "reputasi-dan-level",
+      "title": "Reputasi dan level talenta",
+      "category": "reputasi",
+      "audience": "all",
+      "keywords": ["reputasi", "poin", "poin reputasi", "level", "talenta muda", "talenta terpercaya", "talenta ahli", "naik level", "peringkat"],
+      "reply": "Setiap proyek yang terverifikasi dua arah menambah 1 poin reputasi. Level talenta: Talenta Muda (0–19 poin), Talenta Terpercaya (mulai 20 poin), dan Talenta Ahli (mulai 50 poin). Reputasi tidak bisa ditambah sendiri: angkanya dihitung dari proyek yang sudah dikonfirmasi kedua pihak. Poin, level, dan target level berikutnya terlihat di tab Profil talenta.",
+      "source": "PRD P0-5; Proposal §3.2 (reputasi nilai turunan); backend/utils/reputation.js (ambang level)"
+    },
+    {
+      "slug": "testimoni",
+      "title": "Testimoni",
+      "category": "reputasi",
+      "audience": "all",
+      "keywords": ["testimoni", "ulasan", "review", "rating", "tulis testimoni", "testimoni publik", "nilai talenta"],
+      "reply": "Komunitas bisa menulis testimoni saat memverifikasi hasil; testimoni ini langsung tampil di profil talenta sebagai bukti pengalaman yang terverifikasi. Setelah proyek selesai, kedua pihak juga bisa saling menulis testimoni tambahan, yang ditinjau admin dulu sebelum tampil. Admin juga dapat menurunkan testimoni bila diperlukan.",
+      "source": "PRD P0-5 & P0-6; Proposal F5–F6; API.md §Testimoni & §Admin (takedown); testimoni dari verifikasi (projectService)"
+    },
+    {
+      "slug": "sengketa",
+      "title": "Sengketa proyek",
+      "category": "sengketa",
+      "audience": "all",
+      "keywords": ["sengketa", "dispute", "konflik", "tidak sepakat", "bermasalah", "keberatan", "mediasi", "laporkan masalah", "komplain proyek", "tidak puas"],
+      "reply": "Bila komunitas dan talenta tidak sepakat soal hasil atau jalannya proyek, salah satu pihak bisa mengajukan sengketa dari halaman proyek (saat proyek dikerjakan, menunggu verifikasi, atau revisi) dengan ringkasan masalahnya. Admin SUSI memediasi: kedua pihak bisa menulis pernyataan dan admin dapat mengirim pesan. Hasilnya, admin menandai proyek selesai atau memberi perpanjangan waktu 7 hari.",
+      "source": "API.md §Proyek (dispute) & §Admin (resolve: MARK_COMPLETE | EXTEND_7_DAYS); dasbor admin Sengketa"
+    },
+    {
+      "slug": "biaya",
+      "title": "Apakah SUSI berbayar",
+      "category": "biaya",
+      "audience": "all",
+      "keywords": ["biaya", "bayar", "gratis", "harga", "tarif", "mahal", "berbayar", "ongkos", "fee", "uang", "pembayaran", "escrow"],
+      "reply": "SUSI tidak memungut biaya dari komunitas, karena keterbatasan anggaran justru menjadi alasan SUSI dibuat. Di versi ini juga tidak ada pembayaran atau rekening bersama di dalam platform: talenta bergabung untuk memperoleh pengalaman nyata, portofolio, dan bukti kerja yang terverifikasi, bukan tarif pasar.",
+      "source": "PRD §1 & §4 (tanpa pembayaran/escrow); Proposal §1.4 & §4.1"
+    },
+    {
+      "slug": "manfaat-talenta",
+      "title": "Apakah talenta dibayar",
+      "category": "talenta",
+      "audience": "all",
+      "keywords": ["manfaat talenta", "keuntungan talenta", "talenta dibayar", "gaji", "honor", "upah", "imbalan", "dapat apa", "portofolio", "pengalaman"],
+      "reply": "Tidak ada pembayaran lewat SUSI. Yang didapat talenta adalah pengalaman menyelesaikan masalah nyata, jejaring, dan rekam jejak yang dikonfirmasi langsung oleh komunitas penerima manfaat, bukan klaim sepihak di CV. Setiap proyek yang terverifikasi menambah reputasi dan testimoni di profil Anda.",
+      "source": "PRD §1, §4, §5; Proposal §1.4"
+    },
+    {
+      "slug": "keamanan-data",
+      "title": "Keamanan data",
+      "category": "privasi",
+      "audience": "all",
+      "keywords": ["keamanan data", "keamanan", "privasi", "data aman", "data pribadi", "siapa yang bisa lihat", "data anggota", "kebocoran", "aman", "kata sandi", "password"],
+      "reply": "Keamanan data menjadi perhatian utama komunitas dalam riset kami. Di SUSI, setiap permintaan diperiksa di server: siapa Anda, apa peran Anda, dan apakah data itu milik Anda, sehingga pengguna tidak bisa membuka atau mengubah data milik orang lain. Kata sandi disimpan dalam bentuk hash (diacak satu arah), bukan teks asli. Kontak hanya ditampilkan kepada pihak yang terlibat dalam proyek.",
+      "source": "Proposal §1.1 (temuan wawancara) & §2.4.1; PRD §11–12; API.md §Lamaran (tanpa email) & §Proyek (kontak pihak proyek)"
+    },
+    {
+      "slug": "peta-dan-lokasi",
+      "title": "Peta komunitas dan privasi lokasi",
+      "category": "fitur",
+      "audience": "all",
+      "keywords": ["peta", "map", "lokasi", "sembunyikan lokasi", "titik komunitas", "koordinat", "alamat", "tampilkan lokasi", "cari komunitas"],
+      "reply": "Menu Komunitas & Peta menampilkan komunitas terdaftar di Bandung beserta jumlah kebutuhan terbuka dan proyek selesainya. Di peta publik, titik lokasi dibulatkan sekitar 100 meter sehingga alamat persis tidak ditampilkan. Titik komunitas yang Anda daftarkan juga bisa disembunyikan lewat Pengaturan (tampilkan lokasi); komunitasnya tetap terdaftar.",
+      "source": "SDD-addendum F7 (Peta Komunitas); API.md §Publik (/public/communities) & §Pengaturan (show_location)"
+    },
+    {
+      "slug": "mading",
+      "title": "Mading komunitas",
+      "category": "fitur",
+      "audience": "all",
+      "keywords": ["mading", "diskusi", "forum", "topik", "papan diskusi", "tempel topik", "balas topik", "tanya komunitas lain"],
+      "reply": "Mading adalah papan diskusi antarkomunitas di dasbor Komunitas dan Talenta. Anda bisa menempel topik baru (kategori diskusi, tanya, atau info), membaca, dan membalas topik pengguna lain; penulis topik mendapat notifikasi saat ada balasan. Papan bisa digeser untuk menjelajah, dan catatan yang Anda tempel bisa dipindahkan.",
+      "source": "API.md §Komunitas & mading; TASKS T10; tab Mading dasbor Komunitas & Talenta"
+    },
+    {
+      "slug": "notifikasi",
+      "title": "Notifikasi",
+      "category": "fitur",
+      "audience": "all",
+      "keywords": ["notifikasi", "pemberitahuan", "lonceng", "notif", "matikan notifikasi", "email", "notifikasi whatsapp"],
+      "reply": "Notifikasi muncul di ikon lonceng di dasbor, misalnya saat ada lamaran baru, lamaran diterima atau ditolak, proyek menunggu verifikasi, hasil moderasi, sengketa, atau balasan di mading. Notifikasi bisa ditandai dibaca atau dihapus. Di Pengaturan, notifikasi talenta dan diskusi bisa dimatikan. Pengiriman notifikasi lewat email dan WhatsApp belum tersedia.",
+      "source": "API.md §Notifikasi & §Pengaturan; TASKS T10; jenis notifikasi di backend"
+    },
+    {
+      "slug": "kontak-susi",
+      "title": "Kontak tim SUSI",
+      "category": "kontak",
+      "audience": "all",
+      "keywords": ["kontak", "hubungi susi", "nomor", "whatsapp", "wa", "email", "telepon", "alamat", "customer service", "cs", "kantor"],
+      "reply": "Kontak resmi SUSI (WhatsApp dan email) serta rute ke lokasi tim tercantum di halaman Tentang Kami. Bila butuh bantuan orang secara langsung, Anda juga bisa minta dihubungkan dengan AgenSUSI lewat chat ini.",
+      "source": "Halaman Tentang Kami (frontend/src/data/contact.js); TASKS T13 (eskalasi ke AgenSUSI)"
+    },
+    {
+      "slug": "tentang-tanya-susi",
+      "title": "Tentang asisten Tanya SUSI",
+      "category": "umum",
+      "audience": "all",
+      "keywords": ["tanya susi", "chatbot", "bot", "asisten", "ai", "robot", "kamu siapa", "bisa bantu apa", "bantuan", "bantu"],
+      "reply": "Saya Tanya SUSI, asisten AI yang menjawab pertanyaan seputar SUSI berdasarkan panduan platform. Saya bisa menjelaskan cara kerja SUSI, cara mengajukan kebutuhan atau melamar proyek, verifikasi, reputasi, dan menunjukkan ringkasan akun Anda bila sudah masuk. Jawaban AI bisa keliru; untuk hal penting atau masalah khusus, minta bantuan AgenSUSI.",
+      "source": "TASKS T12.3 & T14.5 (persona, transparansi AI)"
+    },
+    {
+      "slug": "kebutuhan-kompleks",
+      "title": "Kebutuhan yang besar atau rumit",
+      "category": "alur",
+      "audience": "all",
+      "keywords": ["terlalu besar", "kompleks", "rumit", "proyek besar", "sistem besar", "jaminan hasil", "kualitas", "talenta pemula", "hasil bagus"],
+      "reply": "Banyak talenta SUSI masih membangun pengalaman, jadi pekerjaan perlu batasan yang jelas. Karena itu scope dan definisi selesai disepakati sejak awal, dan AgenSUSI membantu menyaring kebutuhan yang terlalu rumit atau batasannya belum jelas. SUSI tidak menjamin hasil; verifikasi dua arah memastikan proyek baru dianggap selesai bila komunitas mengonfirmasinya.",
+      "source": "PRD §12 (kualitas pengerjaan; Liaison menyaring) & story 9; Proposal §4.2"
+    },
+    {
+      "slug": "tidak-bisa-masuk",
+      "title": "Tidak bisa masuk (login)",
+      "category": "akun",
+      "audience": "all",
+      "keywords": ["tidak bisa masuk", "gagal masuk", "gagal login", "lupa kata sandi", "lupa password", "salah password", "terlalu banyak percobaan", "terkunci", "login"],
+      "reply": "Pastikan email dan kata sandi benar; huruf besar dan kecil pada kata sandi berpengaruh. Setelah 10 kali gagal masuk dalam 15 menit, percobaan dari jaringan yang sama ditahan sementara, jadi tunggu 15 menit lalu coba lagi. Akun yang ditangguhkan admin juga tidak bisa dipakai. Bila lupa kata sandi atau tetap gagal, hubungi kontak resmi SUSI di halaman Tentang Kami.",
+      "source": "API.md §Auth (login: 10 percobaan gagal / 15 menit per IP); authController (akun ditangguhkan); halaman Tentang Kami"
+    },
+    {
+      "slug": "akun-ditangguhkan",
+      "title": "Akun ditangguhkan",
+      "category": "akun",
+      "audience": "all",
+      "keywords": ["ditangguhkan", "penangguhan", "suspend", "akun diblokir", "diblokir", "akun dibekukan"],
+      "reply": "Admin SUSI dapat menangguhkan akun; selama ditangguhkan, akun tidak bisa dipakai di dasbor. Untuk menanyakan status akun Anda, hubungi kontak resmi SUSI di halaman Tentang Kami.",
+      "source": "API.md §Admin (status AKTIF | DITANGGUHKAN); halaman Tentang Kami"
+    },
+    {
+      "slug": "agensusi-catat-kebutuhan",
+      "title": "AgenSUSI: mencatat kebutuhan atas nama komunitas",
+      "category": "agensusi",
+      "audience": "liaison",
+      "keywords": ["catat kebutuhan", "intake", "atas nama komunitas", "assisted intake", "formulir agensusi", "kebutuhan tercatat", "input kebutuhan"],
+      "reply": "Buka tab Catat Kebutuhan, pilih atau catat komunitasnya, lalu tuliskan masalah mereka dengan bahasa sehari-hari seperti yang disampaikan saat kunjungan. Kebutuhan tercatat dengan sumber AgenSUSI dan masuk antrean moderasi admin seperti pengajuan mandiri. Pantau hasilnya di tab Kebutuhan Tercatat.",
+      "source": "PRD P0-2, story 8; Proposal F2 & §3.3.2; API.md §Kebutuhan; TASKS T8"
+    },
+    {
+      "slug": "agensusi-pemilik-proksi",
+      "title": "AgenSUSI sebagai pemilik proksi",
+      "category": "agensusi",
+      "audience": "liaison",
+      "keywords": ["pemilik proksi", "proksi", "wakil komunitas", "komunitas tanpa akun", "pilih talenta atas nama", "verifikasi atas nama"],
+      "reply": "Untuk kebutuhan yang Anda catat atas nama komunitas tanpa akun, Anda menjadi pemilik proksi yang mewakili sisi komunitas: melihat pelamar, memilih talenta sambil menetapkan scope dan definisi selesai, memverifikasi atau meminta revisi, dan menarik kebutuhan. Aksinya sama dengan aksi pemilik kebutuhan biasa.",
+      "source": "Proposal §2.2; API.md (pemilik efektif & aksi pemilik proksi); TASKS T8"
+    },
+    {
+      "slug": "agensusi-kunjungan",
+      "title": "AgenSUSI: mencatat kunjungan lapangan",
+      "category": "agensusi",
+      "audience": "liaison",
+      "keywords": ["kunjungan", "jadwal kunjungan", "visit", "direncanakan", "berlangsung", "terdata", "agenda", "target bulanan", "laporan kunjungan"],
+      "reply": "Di tab Kunjungan, buat jadwal kunjungan (nama komunitas, tanggal, jam, alamat, narahubung). Status bergerak dari DIRENCANAKAN, lalu BERLANGSUNG saat Anda mulai, hingga TERDATA saat selesai; kebutuhan yang Anda catat dari kunjungan itu bisa ditautkan. Target dan capaian bulanan tampil di Beranda dan Laporan.",
+      "source": "API.md §Liaison (visits, summary); TASKS T8"
     }
   ]
 }

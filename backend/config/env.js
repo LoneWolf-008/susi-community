@@ -26,6 +26,12 @@ const isBlank = (v) => v === undefined || v === null || String(v).trim() === '';
 export const LLM_PROVIDERS = ['openrouter', 'mock'];
 export const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high'];
 
+const POSITIVE_INT_KEYS = [
+  'OPENROUTER_TIMEOUT_MS', 'CHATBOT_MAX_TOKENS', 'CHATBOT_CACHE_MAX',
+  'CHATBOT_RATE_LIMIT_PER_MIN', 'CHATBOT_ANON_RATE_LIMIT_PER_MIN', 'CHATBOT_ANON_IP_RATE_LIMIT_PER_MIN',
+  'CHATBOT_DAILY_LIMIT_USER', 'CHATBOT_DAILY_LIMIT_ANON', 'CHATBOT_DAILY_LIMIT_ANON_IP',
+];
+
 /**
  * Validasi murni (tanpa efek samping) agar mudah diuji.
  * @returns {string[]} daftar pesan kesalahan; kosong bila valid
@@ -70,13 +76,15 @@ export function validateEnv(source) {
   oneOf('LLM_PROVIDER', LLM_PROVIDERS);
   oneOf('OPENROUTER_DATA_COLLECTION', ['allow', 'deny']);
   oneOf('OPENROUTER_REASONING_EFFORT', REASONING_EFFORTS);
-  for (const key of ['OPENROUTER_TIMEOUT_MS', 'CHATBOT_MAX_TOKENS']) {
+  for (const key of POSITIVE_INT_KEYS) {
     if (!isBlank(source[key]) && !(Number.isInteger(Number(source[key])) && Number(source[key]) > 0)) {
       errors.push(`${key} harus bilangan bulat positif`);
     }
   }
-  if (!isBlank(source.CHATBOT_DAILY_BUDGET_USD) && !(Number(source.CHATBOT_DAILY_BUDGET_USD) >= 0)) {
-    errors.push('CHATBOT_DAILY_BUDGET_USD harus angka ≥ 0');
+  for (const key of ['CHATBOT_DAILY_BUDGET_USD', 'CHATBOT_CACHE_TTL_HOURS']) {
+    if (!isBlank(source[key]) && !(Number(source[key]) >= 0)) {
+      errors.push(`${key} harus angka ≥ 0`);
+    }
   }
 
   return errors;
@@ -160,8 +168,21 @@ export const env = Object.freeze({
   }),
   chatbot: Object.freeze({
     maxTokens: intOr(process.env.CHATBOT_MAX_TOKENS, 350),
+    // Biaya LLM per hari (USD); bila habis → mode KB-saja. 0 = LLM dimatikan.
     dailyBudgetUsd: numberOr(process.env.CHATBOT_DAILY_BUDGET_USD, 1),
     messageMaxChars: 500,
     historyMessages: 6,
+    // Cache jawaban LLM (LRU di memori). TTL 0 = cache dimatikan.
+    cacheTtlMs: numberOr(process.env.CHATBOT_CACHE_TTL_HOURS, 6) * 60 * 60 * 1000,
+    cacheMax: intOr(process.env.CHATBOT_CACHE_MAX, 500),
+    // Rate limit khusus chatbot: per menit (pengguna; anonim per IP+sesi; anonim per IP) dan per hari.
+    rateLimitPerMin: intOr(process.env.CHATBOT_RATE_LIMIT_PER_MIN, 12),
+    anonRateLimitPerMin: intOr(process.env.CHATBOT_ANON_RATE_LIMIT_PER_MIN, 6),
+    anonIpRateLimitPerMin: intOr(process.env.CHATBOT_ANON_IP_RATE_LIMIT_PER_MIN, 30),
+    dailyLimitUser: intOr(process.env.CHATBOT_DAILY_LIMIT_USER, 100),
+    dailyLimitAnon: intOr(process.env.CHATBOT_DAILY_LIMIT_ANON, 20),
+    dailyLimitAnonIp: intOr(process.env.CHATBOT_DAILY_LIMIT_ANON_IP, 300),
+    // Domain tambahan yang boleh muncul sebagai tautan di jawaban (selain host FRONTEND_URL & wa.me).
+    allowedDomains: listOf(process.env.CHATBOT_ALLOWED_DOMAINS),
   }),
 });

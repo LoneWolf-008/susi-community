@@ -14,6 +14,9 @@ const TRIGGERS = {
 
 function answerFor(messages) {
   const system = messages.find((m) => m.role === 'system')?.content || '';
+  // Pertanyaan data pribadi: ulangi baris pertama <user_data> agar test bisa memeriksa isinya.
+  const userData = /<user_data>\n([\s\S]*?)\n<\/user_data>/.exec(system)?.[1];
+  if (userData && userData !== '(tidak ada)') return `[mock] Data Anda: ${userData.split('\n').slice(0, 3).join(' | ')}`;
   const entry = /<entry[^>]*title="([^"]*)"[^>]*>\s*([\s\S]*?)\s*<\/entry>/.exec(system);
   if (!entry) return '[mock] Maaf, saya belum menemukan informasinya. Anda bisa minta bantuan AgenSUSI.';
   const firstSentence = entry[2].split(/(?<=[.!?])\s/)[0].slice(0, 200);
