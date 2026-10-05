@@ -453,6 +453,8 @@ export const listHandoffs = async (req, res, next) => {
         rating: r.rating ?? null,
         unread,
         last_message: r.last_role ? { role: r.last_role, preview: preview(r.last_content) } : null,
+        // Awal bagian AgenSUSI di transkrip (pesan sebelumnya = bagian AI), juga untuk tiket yang sudah ditutup.
+        since_message_id: r.handoff_message_id ?? null,
         created_at: r.created_at,
         resolved_at: r.resolved_at,
         last_active_at: r.last_active_at,

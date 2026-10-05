@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { OPEN_OWNER_NEED_EVENT } from '../../lib/chatNavigation';
+import { OPEN_OWNER_NEED_EVENT, ruangAgenPath } from '../../lib/chatNavigation';
 import gsap from 'gsap';
 import DashShell from '../../components/common/DashShell';
 import ChatWidget from '../../components/chat/ChatWidget';
@@ -21,6 +21,7 @@ const NAV = [
   { id: 'map', n: '03', l: 'Komunitas & Peta' },
   { id: 'profile', n: '04', l: 'Profil' },
   { id: 'setting', n: '05', l: 'Pengaturan' },
+  { id: 'ruang-agen', n: '06', l: 'Ruang AgenSUSI' }, // halaman penuh (U6), bukan tab
 ];
 
 export default function DashboardRequester({ user, onLogout, navigateTo }) {
@@ -44,6 +45,10 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
   }, [tab, selected]);
 
   const onTab = (id) => {
+    if (id === 'ruang-agen') {
+      navigateTo(ruangAgenPath());
+      return;
+    }
     setTab(id);
     setSelected(null);
     // Status berubah karena aksi pihak lain (moderasi, lamaran, kiriman hasil): muat ulang saat dibuka.
@@ -59,6 +64,7 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
   }, []);
   // Klik notifikasi → buka kebutuhan terkait (lewat kebutuhan atau proyeknya) atau mading.
   const openNotification = (n) => {
+    if (n.ref_type === 'escalation') { navigateTo(ruangAgenPath(n.ref_id)); return; } // balasan AgenSUSI (U6)
     if (n.ref_type === 'topic') { onTab('komunitas'); return; }
     if (n.ref_type === 'community') { onTab('map'); return; } // permintaan bergabung (U1)
     const needId = n.ref_type === 'need' ? n.ref_id
