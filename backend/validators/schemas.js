@@ -340,3 +340,10 @@ export const chatMessageSchema = z.object({
   session_id: emptyToNull(z.union([z.string().regex(UUID_RE, 'Sesi chat tidak valid'), z.null()])).optional(),
   message: text('Pesan', 500),
 });
+
+// 👍 = 1, 👎 = -1. session_id wajib: bagi pengguna anonim, memegang id sesi = bukti kepemilikan.
+export const chatFeedbackSchema = z.object({
+  session_id: z.string({ error: 'Sesi chat wajib diisi' }).regex(UUID_RE, 'Sesi chat tidak valid'),
+  message_id: id('Pesan'),
+  value: z.union([z.literal(1), z.literal(-1)], { error: 'Nilai umpan balik harus 1 (membantu) atau -1 (tidak membantu)' }),
+});

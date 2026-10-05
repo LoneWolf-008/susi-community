@@ -2,20 +2,21 @@
 //
 //   npm run seed              isi data demo (ditolak bila NODE_ENV=production)
 //   npm run seed -- --force   paksa di production (hanya bila benar-benar perlu)
+//   npm run seed -- --sync-kb timpa entri KB yang sudah ada dengan isi kb.json terbaru (per slug)
 //
 // Idempoten: user dicari per email, komunitas per nama, kebutuhan per judul (beserta seluruh
-// turunannya: lamaran, proyek, pengiriman, testimoni, sengketa, notifikasi). Data yang sudah ada
-// dilewati, jadi menjalankan seed dua kali tidak menduplikasi. Semuanya dalam satu transaksi.
+// turunannya: lamaran, proyek, pengiriman, testimoni, sengketa, notifikasi), entri KB per slug.
+// Data yang sudah ada dilewati, jadi menjalankan seed dua kali tidak menduplikasi. Semuanya dalam
+// satu transaksi.
 //
 // Env khusus seed (tidak dibutuhkan server):
 //   ADMIN_EMAIL, ADMIN_PASSWORD  akun admin
 //   SEED_USER_PASSWORD           password semua akun demo lain (liaison, requester, talenta)
-import { env, BACKEND_DIR } from '../config/env.js';
+import { env } from '../config/env.js';
 import bcrypt from 'bcrypt';
 import mysql from 'mysql2/promise';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { recomputeReputation } from './reputation.js';
+import { readKbFile, upsertKbEntries } from './kbSeed.js';
 import { syncKbIndex } from '../services/chatbot/kb.js';
 import { SKILLS, USERS, COMMUNITIES, NEEDS, VISITS, TOPICS } from '../db/seeds/demo.js';
 
@@ -51,6 +52,7 @@ const stats = {
   kunjungan: counter(), topik: counter(), kb: counter(),
 };
 let passwordsUpdated = 0;
+let kbUpdated = 0;
 
 async function upsertUser(conn, def, password) {
   const [rows] = await conn.query(`SELECT id, role, password_hash FROM users WHERE email = ?`, [def.email]);
@@ -362,23 +364,11 @@ async function seedTopics(conn, ctx) {
 }
 
 async function seedKnowledgeBase(conn) {
-  const file = path.join(BACKEND_DIR, 'db', 'seeds', 'kb.json');
-  const { entries } = JSON.parse(await fs.readFile(file, 'utf8'));
-  for (const [index, entry] of entries.entries()) {
-    const keywords = entry.keywords.join(', ');
-    const [rows] = await conn.query(`SELECT id FROM kb_entries WHERE keywords = ? LIMIT 1`, [keywords]);
-    if (rows[0]) {
-      stats.kb.dilewati += 1;
-      continue;
-    }
-    await conn.query(
-      `INSERT INTO kb_entries (title, category, keywords, reply, audience, status, source, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [entry.title ?? null, entry.category ?? null, keywords, entry.reply, entry.audience ?? 'all',
-        entry.status ?? 'active', entry.source ?? null, (index + 1) * 10],
-    );
-    stats.kb.dibuat += 1;
-  }
+  const sync = process.argv.includes('--sync-kb');
+  const { created, updated, skipped } = await upsertKbEntries(conn, await readKbFile(), { sync });
+  stats.kb.dibuat += created;
+  stats.kb.dilewati += skipped + updated;
+  kbUpdated = updated;
 }
 
 async function seedDailyStats(conn) {
@@ -456,6 +446,7 @@ async function main() {
     console.log(`  ${name.padEnd(10)} dibuat ${String(c.dibuat).padStart(2)} · sudah ada ${c.dilewati}`);
   }
   if (passwordsUpdated > 0) console.log(`  password diperbarui mengikuti .env: ${passwordsUpdated} akun`);
+  if (kbUpdated > 0) console.log(`  entri KB disinkronkan dari kb.json (--sync-kb): ${kbUpdated}`);
 }
 
 main().catch((err) => {

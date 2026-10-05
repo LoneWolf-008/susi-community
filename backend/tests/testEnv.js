@@ -21,4 +21,12 @@ export const TEST_ENV = {
   // Test tidak pernah memanggil OpenRouter sungguhan (tanpa biaya, tanpa jaringan).
   LLM_PROVIDER: 'mock',
   OPENROUTER_API_KEY: '',
+  // tests/chatbot.ratelimit.test.js menurunkan batas chatbot.
+  CHATBOT_RATE_LIMIT_PER_MIN: '100000',
+  CHATBOT_ANON_RATE_LIMIT_PER_MIN: '100000',
+  CHATBOT_ANON_IP_RATE_LIMIT_PER_MIN: '100000',
+  CHATBOT_DAILY_LIMIT_USER: '100000',
+  CHATBOT_DAILY_LIMIT_ANON: '100000',
+  CHATBOT_DAILY_LIMIT_ANON_IP: '100000',
+  CHATBOT_DAILY_BUDGET_USD: '1',
 };

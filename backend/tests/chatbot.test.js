@@ -3,7 +3,9 @@ import { pool } from '../config/db.js';
 import { api, resetData, one, all, createUser } from './helpers.js';
 import { setLLMForTests } from '../services/llm/index.js';
 import { createOpenRouterClient } from '../services/llm/openrouter.js';
+import { LLMTimeout, LLMRateLimited, LLMUnavailable, LLMEmptyResponse } from '../services/llm/errors.js';
 import { FALLBACK_REPLY } from '../services/chatbot/pipeline.js';
+import { answerCache } from '../services/chatbot/cache.js';
 import { searchKb, syncKbIndex } from '../services/chatbot/kb.js';
 
 const send = (body, auth) => {
@@ -12,15 +14,21 @@ const send = (body, auth) => {
 };
 const addKb = async (entry) => {
   const [res] = await pool.query(
-    `INSERT INTO kb_entries (title, keywords, reply, audience, status, sort_order) VALUES (?, ?, ?, ?, ?, ?)`,
-    [entry.title, entry.keywords, entry.reply, entry.audience || 'all', entry.status || 'active', entry.sortOrder ?? 10],
+    `INSERT INTO kb_entries (title, keywords, reply, audience, status, source, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [entry.title, entry.keywords, entry.reply, entry.audience || 'all', entry.status || 'active', 'uji', entry.sortOrder ?? 10],
   );
   return res.insertId;
 };
+/** Klien LLM palsu; `complete` boleh melempar galat untuk menguji fallback. */
+const fakeLlm = (complete) => ({ name: 'palsu', model: 'palsu', fallbackModels: [], isConfigured: () => true, complete });
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const DAFTAR_REPLY = 'Buka halaman Masuk lalu pilih Daftar dan peran Talenta. Lengkapi keahlian di profil.';
+// Dua topik (daftar + biaya): tidak ada satu entri yang mencakup seluruhnya → dijawab LLM dengan konteks KB.
+const TWO_TOPICS = 'cara daftar talenta dan berapa biayanya?';
 
-describe('Tanya SUSI: fondasi chatbot (T11)', () => {
+describe('Tanya SUSI: fondasi chatbot (T11, disesuaikan T12)', () => {
   let kbDaftar;
+  let kbBiaya;
   let kbTalentaSaja;
   let talent;
   let requester;
@@ -28,11 +36,8 @@ describe('Tanya SUSI: fondasi chatbot (T11)', () => {
 
   beforeAll(async () => {
     await resetData();
-    kbDaftar = await addKb({
-      title: 'Cara mendaftar sebagai talenta',
-      keywords: 'daftar, registrasi, talenta, akun',
-      reply: 'Buka halaman Masuk lalu pilih Daftar dan peran Talenta. Lengkapi keahlian di profil.',
-    });
+    kbDaftar = await addKb({ title: 'Cara mendaftar sebagai talenta', keywords: 'daftar, registrasi, talenta, akun', reply: DAFTAR_REPLY });
+    kbBiaya = await addKb({ title: 'Biaya memakai SUSI', keywords: 'biaya, gratis, bayar', reply: 'SUSI tidak memungut biaya dari komunitas.' });
     kbTalentaSaja = await addKb({
       title: 'Poin reputasi talenta', keywords: 'reputasi, poin, level',
       reply: 'Setiap proyek terverifikasi menambah satu poin reputasi.', audience: 'talent',
@@ -44,80 +49,85 @@ describe('Tanya SUSI: fondasi chatbot (T11)', () => {
     admin = await createUser('admin');
   });
 
-  afterEach(() => setLLMForTests(null));
+  afterEach(() => {
+    setLLMForTests(null);
+    answerCache.clear();
+  });
 
   it('anonim bertanya → dijawab LLM (mock) dengan konteks KB; tersimpan di chat_messages & ask_logs', async () => {
-    const res = await send({ message: 'gimana cara daftar jadi talenta?' });
+    const res = await send({ message: TWO_TOPICS });
     expect(res.status).toBe(200);
-    const { session_id: sessionId, message, source, sources } = res.body.data;
+    const { session_id: sessionId, message, source, sources, intent } = res.body.data;
     expect(sessionId).toMatch(UUID);
     expect(source).toBe('llm');
+    expect(intent).toBe('howto');
     // Jawaban mock merangkum entri <kb> pertama → bukti konteks KB dikirim ke LLM.
     expect(message.content).toMatch(/^\[mock\] Cara mendaftar sebagai talenta: Buka halaman Masuk/);
-    expect(sources[0]).toEqual({ id: kbDaftar, title: 'Cara mendaftar sebagai talenta' });
+    expect(sources).toEqual([
+      { id: kbDaftar, title: 'Cara mendaftar sebagai talenta' },
+      { id: kbBiaya, title: 'Biaya memakai SUSI' },
+    ]);
 
     const rows = await all(`SELECT role, content FROM chat_messages WHERE session_id = ? ORDER BY id`, [sessionId]);
-    expect(rows).toEqual([
-      { role: 'user', content: 'gimana cara daftar jadi talenta?' },
-      { role: 'assistant', content: message.content },
-    ]);
+    expect(rows).toEqual([{ role: 'user', content: TWO_TOPICS }, { role: 'assistant', content: message.content }]);
     const log = await one(`SELECT * FROM ask_logs WHERE message_id = ?`, [message.id]);
     expect(log).toMatchObject({
-      user_id: null, session_id: sessionId, question: 'gimana cara daftar jadi talenta?', matched: 1,
-      kb_entry_id: kbDaftar, model: 'mock', prompt_version: 't11.1', cache_hit: 0, escalated: 0, llm_error: null,
+      user_id: null, session_id: sessionId, question: TWO_TOPICS, matched: 1, intent: 'howto',
+      kb_entry_id: kbDaftar, model: 'mock', prompt_version: 't12.1', cache_hit: 0, escalated: 0, llm_error: null,
     });
     expect(log.tokens_in).toBeGreaterThan(0);
     expect(Number(log.cost_usd)).toBeGreaterThan(0);
   });
 
   it('pesan lanjutan mengirim riwayat sesi + prompt sistem berisi <kb> ke LLM', async () => {
-    const first = await send({ message: 'cara daftar talenta' });
+    const first = await send({ message: TWO_TOPICS });
     const sessionId = first.body.data.session_id;
     const seen = [];
-    setLLMForTests({
-      name: 'rekam', model: 'rekam', fallbackModels: [], isConfigured: () => true,
-      complete: async ({ messages, maxTokens }) => {
-        seen.push({ messages, maxTokens });
-        return { content: 'oke', model: 'rekam', finishReason: 'stop', usage: { tokensIn: 1, tokensOut: 1, costUsd: 0 }, latencyMs: 1 };
-      },
-    });
+    setLLMForTests(fakeLlm(async ({ messages, maxTokens }) => {
+      seen.push({ messages, maxTokens });
+      return { content: 'oke', model: 'rekam', finishReason: 'stop', usage: { tokensIn: 1, tokensOut: 1, costUsd: 0 }, latencyMs: 1 };
+    }));
     const second = await send({ session_id: sessionId, message: 'terus apa lagi?' });
     expect(second.body.data.session_id).toBe(sessionId);
+    expect(second.body.data.source).toBe('llm');
     const { messages, maxTokens } = seen[0];
     expect(maxTokens).toBe(350);
     expect(messages[0].role).toBe('system');
-    expect(messages[0].content).toContain('<kb>');
+    // "terus apa lagi?" tidak punya kata isi: KB dicari bersama pertanyaan sebelumnya.
+    expect(messages[0].content).toContain('Cara mendaftar sebagai talenta');
     expect(messages.slice(1).map((m) => [m.role, m.content])).toEqual([
-      ['user', 'cara daftar talenta'],
+      ['user', TWO_TOPICS],
       ['assistant', first.body.data.message.content],
       ['user', 'terus apa lagi?'],
     ]);
   });
 
-  it('LLM gagal (timeout/429/5xx/kosong) → jawaban dari entri KB teratas, bukan 500; galat dicatat', async () => {
-    for (const [trigger, name] of [['[mock:timeout]', 'LLMTimeout'], ['[mock:ratelimit]', 'LLMRateLimited'],
-      ['[mock:unavailable]', 'LLMUnavailable'], ['[mock:empty]', 'LLMEmptyResponse']]) {
-      const res = await send({ message: `cara daftar talenta ${trigger}` });
+  it('LLM gagal (timeout/429/5xx/kosong) → jawaban entri KB teratas + tawaran eskalasi, bukan 500; galat dicatat', async () => {
+    for (const err of [new LLMTimeout('x'), new LLMRateLimited('x'), new LLMUnavailable('x'), new LLMEmptyResponse('x')]) {
+      setLLMForTests(fakeLlm(async () => { throw err; }));
+      const res = await send({ message: TWO_TOPICS });
       expect(res.status).toBe(200);
-      expect(res.body.data).toMatchObject({ source: 'kb' });
-      expect(res.body.data.message.content).toBe('Buka halaman Masuk lalu pilih Daftar dan peran Talenta. Lengkapi keahlian di profil.');
+      expect(res.body.data).toMatchObject({ source: 'kb', escalation_suggested: true });
+      expect(res.body.data.message.content).toBe(DAFTAR_REPLY);
       const log = await one(`SELECT model, llm_error, tokens_in FROM ask_logs WHERE message_id = ?`, [res.body.data.message.id]);
-      expect(log).toEqual({ model: null, llm_error: name, tokens_in: null });
+      expect(log).toEqual({ model: null, llm_error: err.name, tokens_in: null });
     }
   });
 
-  it('LLM gagal & tidak ada entri KB yang cocok → jawaban cadangan yang menawarkan AgenSUSI', async () => {
-    const res = await send({ message: 'zzzqwx [mock:timeout]' });
+  it('pertanyaan seputar SUSI tanpa entri KB → jawaban cadangan yang menawarkan AgenSUSI, tanpa memanggil LLM', async () => {
+    setLLMForTests(fakeLlm(async () => { throw new Error('LLM tidak boleh dipanggil'); }));
+    const res = await send({ message: 'apakah ada fitur lupa password?' });
     expect(res.status).toBe(200);
-    expect(res.body.data).toMatchObject({ source: 'fallback', sources: [] });
+    expect(res.body.data).toMatchObject({ source: 'fallback', sources: [], escalation_suggested: true });
     expect(res.body.data.message.content).toBe(FALLBACK_REPLY);
   });
 
   it('tanpa key OpenRouter → jawaban KB tanpa memanggil jaringan', async () => {
     let calls = 0;
     setLLMForTests(createOpenRouterClient({ apiKey: null, model: 'anthropic/claude-haiku-4.5', fetchImpl: async () => { calls += 1; } }));
-    const res = await send({ message: 'cara daftar talenta' });
+    const res = await send({ message: TWO_TOPICS });
     expect(res.body.data.source).toBe('kb');
+    expect(res.body.data.message.content).toBe(DAFTAR_REPLY);
     expect(calls).toBe(0);
     const log = await one(`SELECT model, llm_error FROM ask_logs WHERE message_id = ?`, [res.body.data.message.id]);
     expect(log).toEqual({ model: null, llm_error: null });
@@ -190,9 +200,10 @@ describe('Tanya SUSI: fondasi chatbot (T11)', () => {
     await pool.query(`INSERT INTO chat_messages (session_id, role, content) VALUES ?`, [rows]);
     const full = await send({ session_id: sessionId, message: 'satu lagi' });
     expect(full.status).toBe(409);
+    expect(full.body).toEqual({ error: { message: expect.stringMatching(/terlalu panjang/) } });
   });
 
-  it('KB diisi ulang pada tabel kosong: urutan sumber mengikuti relevansi, bukan sort_order', async () => {
+  it('KB diisi ulang pada tabel kosong: skor FULLTEXT tersinkron & entri relevan teratas', async () => {
     // Kondisi persis setelah db:reset + seed: indeks FULLTEXT kosong, semua baris masuk sekaligus.
     const conn = await pool.getConnection();
     try {
@@ -202,15 +213,16 @@ describe('Tanya SUSI: fondasi chatbot (T11)', () => {
     } finally {
       conn.release();
     }
-    const weak = await addKb({ title: 'Info umum', keywords: 'umum, cara', reply: 'Ada banyak cara memakai SUSI.', sortOrder: 1 });
+    await addKb({ title: 'Info umum', keywords: 'umum, cara', reply: 'Ada banyak cara memakai SUSI.', sortOrder: 1 });
     const strong = await addKb({
       title: 'Cara daftar', keywords: 'daftar, registrasi, akun baru',
-      reply: 'Daftar lewat halaman Masuk lalu pilih Daftar. Daftar gratis.', sortOrder: 99,
+      reply: 'Daftar lewat halaman Masuk lalu pilih Daftar sebagai talenta. Daftar gratis.', sortOrder: 99,
     });
     await syncKbIndex(pool);
     const found = await searchKb(pool, 'gimana cara daftar jadi talenta?', { audiences: ['all', 'public'] });
-    expect(found.map((e) => e.id)).toEqual([strong, weak]);
-    expect(found[0].score).toBeGreaterThan(found[1].score);
+    // "Info umum" hanya memuat kata tanya "cara" → di bawah ambang, tidak ikut jadi sumber.
+    expect(found.map((e) => e.id)).toEqual([strong]);
+    expect(found[0].score).toBeGreaterThan(0);
   });
 
   it('health: hanya admin; melaporkan provider & status tanpa membocorkan key', async () => {
