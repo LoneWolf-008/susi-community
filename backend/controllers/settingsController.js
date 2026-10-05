@@ -20,7 +20,10 @@ export const getMySettings = async (req, res, next) => {
 
 export const updateMySettings = async (req, res, next) => {
   try {
-    const allowed = ['notif_email', 'notif_whatsapp', 'notif_talenta', 'notif_diskusi', 'show_location'];
+    const allowed = [
+      'notif_email', 'notif_whatsapp', 'notif_talenta', 'notif_diskusi', 'show_location',
+      'allows_ai_chat', 'allows_chat_history_storage',
+    ];
     const fields = [];
     const values = [];
 

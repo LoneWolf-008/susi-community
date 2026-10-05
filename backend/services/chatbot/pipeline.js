@@ -4,8 +4,8 @@
 //  3. retrieval KB (FULLTEXT + pemeringkatan ulang, filter audiens);
 //  4. tidak ada entri relevan → "belum tahu"/di luar topik, tanpa LLM;
 //  5. jalur murah: entri KB yang mencakup penuh pertanyaan dijawab langsung, lalu cache jawaban LLM;
-//  6. LLM (prompt sistem + <kb> + <user_data> + 6 giliran terakhir) bila key ada & anggaran cukup;
-//     gagal/timeout → jawaban tanpa LLM + tawaran eskalasi.
+//  6. LLM (prompt sistem + <kb> + <user_data> + 6 giliran terakhir) bila key ada, anggaran cukup, dan
+//     pengguna tidak mematikan AI (T15); gagal/timeout → jawaban tanpa LLM + tawaran eskalasi.
 // Keluaran LLM selalu melewati filter (tautan di luar allowlist, kebocoran prompt).
 import { env } from '../../config/env.js';
 import { LLMError } from '../llm/errors.js';
@@ -17,7 +17,7 @@ import { createOutputFilter, createStreamFilter, hostOf } from './outputFilter.j
 import { answerCache, answerCacheKey } from './cache.js';
 import { isBudgetExceeded, spentTodayUsd } from './budget.js';
 import { fetchUserData, formatUserDataForPrompt, formatUserDataReply } from './userData.js';
-import { withoutMasks } from './guard.js';
+import { withoutMasks, withoutProfanity } from './guard.js';
 import { FALLBACK_REPLY, SMALLTALK_REPLIES, REPLIES, BUDGET_NOTE } from './replies.js';
 
 export { FALLBACK_REPLY };
@@ -103,16 +103,19 @@ function estimateUsage(model, messages, output) {
  * @param {string} ctx.message     pesan yang sudah melewati precheck (PII disamarkan)
  * @param {object} [ctx.guard]     hasil precheck
  * @param {object[]} [ctx.history] pesan sesi sebelumnya (lama → baru)
+ * @param {boolean} [ctx.aiAllowed] false = pengguna mematikan AI (T15): tidak ada pemanggilan LLM
  */
-async function planAnswer({ db, llm, user, message, guard = {}, history = [] }) {
+async function planAnswer({ db, llm, user, message, guard = {}, history = [], aiAllowed = true }) {
   const started = Date.now();
   const final = (fields) => ({ kind: 'final', answer: makeAnswer(started, fields) });
 
   if (guard.injection) return final({ intent: 'injection', reply: REPLIES.injection });
   if (guard.abusiveOnly) return final({ intent: 'abusive', reply: REPLIES.abusive, escalationSuggested: true });
 
-  // Intent & retrieval memakai teks tanpa penanda samaran; LLM tetap menerima pesan bersamaran.
-  const query = withoutMasks(message);
+  // Intent & retrieval memakai teks tanpa penanda samaran & kata kasar; LLM tetap menerima pesan
+  // (bersamaran) apa adanya.
+  const retrievalText = (text) => withoutProfanity(withoutMasks(text));
+  const query = retrievalText(message);
   const classified = classifyIntent(query);
   let { intent } = classified;
   if (guard.profanity && (intent === 'faq' || intent === 'howto')) intent = 'complaint';
@@ -126,7 +129,7 @@ async function planAnswer({ db, llm, user, message, guard = {}, history = [] }) 
   const lastUser = [...history].reverse().find((m) => m.role === 'user');
   const followUp = Boolean(lastUser) && isFollowUp(query);
   // Pesan lanjutan ("terus apa lagi?") dicari bersama pertanyaan sebelumnya.
-  const searchText = followUp ? `${withoutMasks(lastUser.content)} ${query}` : query;
+  const searchText = followUp ? `${retrievalText(lastUser.content)} ${query}` : query;
   const kbEntries = await searchKb(db, searchText, { audiences, limit: 3 });
   const top = kbEntries[0] ?? null;
   const base = {
@@ -144,7 +147,7 @@ async function planAnswer({ db, llm, user, message, guard = {}, history = [] }) 
   }
 
   const standalone = !userData && !followUp;
-  if (standalone && isConfident(kbEntries)) return final({ ...base, reply: top.reply, source: 'kb' });
+  if (standalone && env.chatbot.kbDirect && isConfident(kbEntries)) return final({ ...base, reply: top.reply, source: 'kb' });
 
   // Pesan bersamaran tidak di-cache: jawabannya bisa merujuk data yang disamarkan.
   const cacheKey = standalone && !guard.piiMasked ? answerCacheKey(query, audiences) : null;
@@ -157,7 +160,7 @@ async function planAnswer({ db, llm, user, message, guard = {}, history = [] }) 
     if (top) return final({ ...base, reply: top.reply, source: 'kb', ...fields });
     return final({ ...base, reply: FALLBACK_REPLY, source: 'fallback', escalationSuggested: true, ...fields });
   };
-  if (!llm.isConfigured()) return withoutLlm();
+  if (!aiAllowed || !llm.isConfigured()) return withoutLlm();
   if (isBudgetExceeded(await spentTodayUsd(db), env.chatbot.dailyBudgetUsd)) {
     const plan = withoutLlm({ llmError: 'BudgetExceeded' });
     plan.answer.reply = `${plan.answer.reply}\n\n${BUDGET_NOTE}`;

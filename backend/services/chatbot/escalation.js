@@ -94,12 +94,17 @@ const WHO = {
   liaison: 'AgenSUSI', admin: 'Admin',
 };
 
-/** Ringkasan tanpa LLM: siapa, pertanyaan terakhir, dan alasan eskalasi (≤ 80 kata). */
-export function ruleSummary({ role, questions, reasons }) {
-  const asked = questions.slice(-3).map((q) => `"${clip(maskPii(q).text, 80)}"`).join('; ');
+/**
+ * Ringkasan tanpa LLM: siapa, pertanyaan terakhir, dan alasan eskalasi (≤ 80 kata).
+ * `historyStored` false = pengguna mematikan penyimpanan riwayat (T15): pertanyaannya tidak tersedia.
+ */
+export function ruleSummary({ role, questions, reasons, historyStored = true }) {
+  const asked = questions.filter((q) => String(q ?? '').trim()).slice(-3)
+    .map((q) => `"${clip(maskPii(q).text, 80)}"`).join('; ');
   const why = (reasons.length > 0 ? reasons : ['user_request']).map((r) => REASON_LABELS[r] || r).join(', ');
+  const note = historyStored ? '' : ' Riwayat chat tidak disimpan atas pilihan pengguna; tanyakan kembali kebutuhannya.';
   return clipWords(
-    `${WHO[role] || 'Pengguna'} meminta bantuan AgenSUSI. ${asked ? `Pertanyaan terakhir: ${asked}. ` : ''}Alasan: ${why}.`,
+    `${WHO[role] || 'Pengguna'} meminta bantuan AgenSUSI. ${asked ? `Pertanyaan terakhir: ${asked}. ` : ''}Alasan: ${why}.${note}`,
     80,
   );
 }
@@ -115,11 +120,12 @@ const SPEAKER = { user: 'Pengguna', assistant: 'Asisten', agent: 'AgenSUSI' };
 
 /**
  * Ringkasan untuk liaison: LLM bila tersedia & anggaran cukup, selain itu `fallback` (ruleSummary).
+ * `llm` null = pengguna mematikan AI atau penyimpanan riwayat (T15): selalu `fallback`.
  * Hasil LLM disamarkan PII-nya lagi dan dipotong 80 kata.
  * @returns {Promise<{ text: string, source: 'llm'|'rule', model?: string, costUsd?: number|null, llmError?: string }>}
  */
 export async function summarizeConversation({ db, llm, transcript, fallback }) {
-  if (!llm.isConfigured() || isBudgetExceeded(await spentTodayUsd(db), env.chatbot.dailyBudgetUsd)) {
+  if (!llm?.isConfigured() || isBudgetExceeded(await spentTodayUsd(db), env.chatbot.dailyBudgetUsd)) {
     return { text: fallback, source: 'rule' };
   }
   const conversation = transcript
@@ -168,9 +174,13 @@ export async function sessionTurns(db, sessionId) {
 /**
  * Setelah jawaban tercatat: sarankan eskalasi bila pipeline menyarankan (mis. LLM gagal, belum
  * tahu) atau skor sinyal ≥ ambang — kecuali sesi ini sudah punya tiket terbuka.
+ * `currentQuestion` = teks giliran ini dari memori; dipakai karena ask_logs bisa kosong bila pengguna
+ * mematikan penyimpanan riwayat (T15).
  */
-export async function assessEscalation(db, { sessionId, pipelineSuggested }) {
+export async function assessEscalation(db, { sessionId, pipelineSuggested, currentQuestion = null }) {
   if (await openEscalation(db, sessionId)) return { suggested: false, score: 0, reasons: [], open: true };
-  const { score, reasons } = scoreConversation(await sessionTurns(db, sessionId));
+  const turns = await sessionTurns(db, sessionId);
+  if (currentQuestion !== null && turns.length > 0) turns[turns.length - 1] = { ...turns.at(-1), question: currentQuestion };
+  const { score, reasons } = scoreConversation(turns);
   return { suggested: pipelineSuggested || score >= env.chatbot.escalationThreshold, score, reasons, open: false };
 }

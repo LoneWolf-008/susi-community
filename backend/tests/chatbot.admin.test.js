@@ -139,7 +139,7 @@ describe('Admin Tanya SUSI & saran (T14)', () => {
     expect(res.body.data.items.map((i) => [i.question, i.count, i.unanswered, i.thumbs_down])).toEqual([
       ['bisa bikin GAME??', 3, 3, 0],
       ['berapa biaya pakai susi?', 1, 0, 1],
-      ['nomor saya , kapan dihubungi?', 1, 1, 0],
+      ['kapan dihubungi?', 1, 1, 0],
     ]);
     expect((await api().get('/api/admin/chatbot/unanswered').set(requester.auth)).status).toBe(403);
   });

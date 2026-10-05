@@ -98,6 +98,11 @@ export function validateEnv(source) {
       errors.push(`${key} harus angka ≥ 0`);
     }
   }
+  if (!isBlank(source.CHATBOT_RETENTION_DAYS)
+    && !(Number.isInteger(Number(source.CHATBOT_RETENTION_DAYS)) && Number(source.CHATBOT_RETENTION_DAYS) >= 0)) {
+    errors.push('CHATBOT_RETENTION_DAYS harus bilangan bulat ≥ 0 (0 = retensi dimatikan)');
+  }
+  oneOf('CHATBOT_KB_DIRECT', ['true', 'false']);
   if (!isBlank(source.CHATBOT_SERVICE_HOURS) && !SERVICE_HOURS_RE.test(String(source.CHATBOT_SERVICE_HOURS).trim())) {
     errors.push('CHATBOT_SERVICE_HOURS harus format HH:MM-HH:MM (mis. 08:00-17:00)');
   }
@@ -207,5 +212,10 @@ export const env = Object.freeze({
     escalationThreshold: intOr(process.env.CHATBOT_ESCALATION_THRESHOLD, 50),
     serviceHours: isBlank(process.env.CHATBOT_SERVICE_HOURS) ? null : process.env.CHATBOT_SERVICE_HOURS.trim(),
     serviceTimeZone: isBlank(process.env.CHATBOT_SERVICE_TZ) ? 'Asia/Jakarta' : process.env.CHATBOT_SERVICE_TZ.trim(),
+    // Jalur murah: pertanyaan yang tercakup penuh satu entri KB dijawab langsung tanpa LLM.
+    // false hanya untuk evaluasi prompt/model (T15): semua pertanyaan lewat LLM bila tersedia.
+    kbDirect: lower(process.env.CHATBOT_KB_DIRECT, 'true') !== 'false',
+    // Isi chat (pesan & pertanyaan di ask_logs) dihapus setelah sekian hari. 0 = retensi dimatikan.
+    retentionDays: isBlank(process.env.CHATBOT_RETENTION_DAYS) ? 90 : Number.parseInt(process.env.CHATBOT_RETENTION_DAYS, 10),
   }),
 });

@@ -16,6 +16,9 @@ router.post('/feedback', optionalAuth, validate(chatFeedbackSchema), ctrl.postFe
 // Eskalasi ke AgenSUSI (T13): dihitung kuota chatbot agar tiket tidak bisa dibanjiri.
 router.post('/escalate', optionalAuth, chatbotLimiters, validate(escalateSchema), ctrl.escalate);
 router.get('/session/:id', optionalAuth, ctrl.getSession);
+// Privasi (T15): hapus satu percakapan (pemilik / pemegang id sesi anonim) atau seluruh riwayat akun.
+router.delete('/session/:id', optionalAuth, ctrl.deleteSession);
+router.delete('/history', authenticate, ctrl.deleteHistory);
 router.get('/suggestions', optionalAuth, ctrl.getSuggestions);
 router.get('/health', authenticate, requireRole('admin'), ctrl.health);
 

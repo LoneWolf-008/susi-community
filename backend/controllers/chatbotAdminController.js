@@ -11,7 +11,7 @@ import { getLLM } from '../services/llm/index.js';
 import { syncKbIndex } from '../services/chatbot/kb.js';
 import { answerCache } from '../services/chatbot/cache.js';
 import { canonicalText } from '../services/chatbot/text.js';
-import { withoutMasks } from '../services/chatbot/guard.js';
+import { displayQuestion } from '../services/chatbot/guard.js';
 import { spentTodayUsd, isBudgetExceeded } from '../services/chatbot/budget.js';
 
 const KB_STATUSES = ['active', 'draft', 'archived'];
@@ -159,7 +159,7 @@ export const listUnanswered = async (req, res, next) => {
     );
     const groups = new Map();
     for (const r of rows) {
-      const text = withoutMasks(r.question).replace(/\s+/g, ' ').trim();
+      const text = displayQuestion(r.question);
       const key = canonicalText(text);
       if (!key) continue;
       const g = groups.get(key) ?? { question: text, count: 0, unanswered: 0, thumbs_down: 0, last_at: r.created_at };

@@ -38,8 +38,12 @@ const round4 = (n) => Math.round(n * 10000) / 10000;
  * maksimal, sehingga pertanyaan di luar KB tidak "nyangkut" ke entri yang kebetulan memuat satu kata.
  *
  * `coverage` (0–1) = porsi bobot kata pertanyaan yang tercakup entri: penuh bila ada di judul/kata
- * kunci, setengah bila hanya di isi. Skor FULLTEXT hanya pemecah seri: pada DB yang baru di-seed,
- * InnoDB bisa memberi skor 0 untuk semua entri (lihat syncKbIndex).
+ * kunci, setengah bila hanya di isi.
+ *
+ * Pemecah seri: urutan kurasi KB (`sort_order`; entri umum ditulis sebelum entri khusus), baru skor
+ * FULLTEXT. Skor FULLTEXT mengikuti frekuensi kata mentah, sehingga "gimana caranya daftar" sempat
+ * dimenangkan entri khusus talenta, bukan entri pendaftaran umum (evaluasi T15). Pada DB yang baru
+ * di-seed, InnoDB juga bisa memberi skor 0 untuk semua entri (lihat syncKbIndex).
  */
 export function rankEntries(text, entries) {
   const terms = queryTerms(text);
@@ -79,7 +83,7 @@ export function rankEntries(text, entries) {
         coverage: totalIdf > 0 ? round4(covered / totalIdf) : 0,
       };
     })
-    .sort((a, b) => b.lexical - a.lexical || b.score - a.score || (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.id - b.id);
+    .sort((a, b) => b.lexical - a.lexical || (a.sort_order ?? 0) - (b.sort_order ?? 0) || b.score - a.score || a.id - b.id);
 }
 
 /**
