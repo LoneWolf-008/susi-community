@@ -84,8 +84,9 @@ describe('Eskalasi ke AgenSUSI (T13)', () => {
     expect(again.status).toBe(200);
     expect(again.body.data).toMatchObject({ already_open: true, escalation: { id: escalation.id }, message: null });
     expect(await notifications(liaisonA)).toHaveLength(1);
+    // U6: selama tiket terbuka AI dijeda; pesan disimpan untuk AgenSUSI tanpa jawaban asisten.
     const later = await chat('saya mau bicara dengan agen susi', { session });
-    expect(later.body.data.escalation_suggested).toBe(false);
+    expect(later.body.data).toMatchObject({ escalation_suggested: false, message: null, source: 'handoff' });
 
     // 6. Antrean liaison: ringkasan, kontak balik, transkrip.
     const list = await queue('', liaisonA);
@@ -96,7 +97,7 @@ describe('Eskalasi ke AgenSUSI (T13)', () => {
     });
     expect(list.body.data.counts).toMatchObject({ pending: 1, assigned: 0, mine: 0 });
     const detail = await queue(`/${escalation.id}`, liaisonA);
-    expect(detail.body.data.messages.map((m) => m.role)).toEqual(['user', 'assistant', 'assistant', 'user', 'assistant']);
+    expect(detail.body.data.messages.map((m) => m.role)).toEqual(['user', 'assistant', 'assistant', 'user']);
 
     // 7. Klaim: satu liaison saja; klaim ulang oleh pemilik idempoten.
     const claim = await act('patch', `/${escalation.id}/claim`, liaisonA);
@@ -112,7 +113,7 @@ describe('Eskalasi ke AgenSUSI (T13)', () => {
     expect(reply.body.data.message).toMatchObject({ role: 'agent', content: 'Halo, saya Rina dari AgenSUSI. Ada yang bisa saya bantu?' });
 
     // 9. Pengguna melihat balasan lewat polling sesi (?after=), beserta status tiket.
-    const poll = await api().get(`/api/chatbot/session/${session}?after=${later.body.data.message.id}`);
+    const poll = await api().get(`/api/chatbot/session/${session}?after=${later.body.data.user_message_id}`);
     expect(poll.status).toBe(200);
     expect(poll.body.data.messages).toEqual([expect.objectContaining({ role: 'agent', content: 'Halo, saya Rina dari AgenSUSI. Ada yang bisa saya bantu?' })]);
     expect(poll.body.data.escalation).toMatchObject({ id: escalation.id, status: 'assigned' });

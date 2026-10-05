@@ -45,6 +45,16 @@ export const ESCALATION_STATUS = {
   assigned: { label: 'DITANGANI', tone: 'info' },
   resolved: { label: 'SELESAI', tone: 'success' },
   closed: { label: 'DITUTUP', tone: 'muted' },
+  cancelled: { label: 'DIBATALKAN', tone: 'muted' }, // U6: pengguna kembali ke asisten AI
+};
+
+// Ruang AgenSUSI (U6): status alih-percakapan yang dilihat pengguna (objek `handoff` dari backend).
+export const HANDOFF_ACTIVE = ['requested', 'waiting', 'assigned'];
+export const HANDOFF_STATUS = {
+  requested: { label: 'MENUNGGU AGEN', tone: 'warning' },
+  waiting: { label: 'MENUNGGU AGEN', tone: 'warning' },
+  assigned: { label: 'DITANGANI', tone: 'info' },
+  resolved: { label: 'SELESAI', tone: 'success' },
 };
 
 export const ESCALATION_REASON = {

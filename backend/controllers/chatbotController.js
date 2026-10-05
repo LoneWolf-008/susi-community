@@ -13,13 +13,16 @@ import {
   assessEscalation, openEscalation, sessionTurns, scoreConversation, priorityFor, ruleSummary,
   summarizeConversation, withinServiceHours,
 } from '../services/chatbot/escalation.js';
-import { escalationCreatedReply } from '../services/chatbot/replies.js';
+import { escalationCreatedReply, handoffCancelledReply } from '../services/chatbot/replies.js';
 import { suggestionsFor } from '../services/chatbot/suggestions.js';
 import { chatPrivacy, deleteSessions, NOT_STORED } from '../services/chatbot/privacy.js';
 import {
   createSession, findAccessibleSession, claimIfAnonymous, countMessages, addMessage,
   recentMessages, listMessages, MAX_MESSAGES_PER_SESSION,
 } from '../services/chatbot/sessions.js';
+import {
+  ACTIVE_ESCALATION, latestTicket, sessionHandoff, toHandoff, handoffStatus, markReadByUser, closeResolvedForUser,
+} from '../services/chatbot/handoff.js';
 
 // Dicatat: kegagalan LLM & keluaran yang diblokir. Tidak dicatat: pembatalan oleh klien dan
 // mode hemat (terjadi di setiap pesan setelah anggaran habis).
@@ -40,12 +43,54 @@ async function beginTurn(req) {
   }
 
   const privacy = await chatPrivacy(pool, req.user);
+  const guard = precheck(message);
+  const ticket = sessionId ? await latestTicket(pool, session.id) : null;
+  // U6: tiket terbuka → AI dijeda. Pesan untuk AgenSUSI selalu disimpan (agen harus bisa membacanya,
+  // juga bila riwayat chat dimatikan); PII tetap disamarkan. Tanpa LLM dan tanpa baris ask_logs.
+  if (ACTIVE_ESCALATION.includes(ticket?.status)) {
+    const userMessageId = await addMessage(pool, session.id, 'user', guard.text);
+    return { session, guard, userMessageId, privacy, ticket, handoff: true };
+  }
+  // Tiket selesai yang belum ditutup pengguna: bertanya lagi berarti kembali ke AI.
+  if (handoffStatus(ticket) === 'resolved') await closeResolvedForUser(pool, ticket.id);
+
   // Riwayat diambil sebelum pesan baru disimpan agar tidak terkirim dua kali ke LLM. Tanpa penyimpanan
   // riwayat, tiap pesan dijawab berdiri sendiri.
   const history = privacy.storeHistory ? await recentMessages(pool, session.id, env.chatbot.historyMessages) : [];
-  const guard = precheck(message);
   const userMessageId = await addMessage(pool, session.id, 'user', privacy.storeHistory ? guard.text : NOT_STORED);
-  return { session, history, guard, userMessageId, privacy };
+  return { session, history, guard, userMessageId, privacy, handoff: false };
+}
+
+/**
+ * Giliran selama handoff (U6): pesan sudah tersimpan untuk AgenSUSI. AgenSUSI yang menangani diberi
+ * notifikasi hanya untuk pesan pertama yang belum ia baca, agar tidak banjir notifikasi.
+ */
+async function handoffTurn(turn) {
+  const { session, ticket, userMessageId, guard } = turn;
+  if (ticket.status === 'assigned' && ticket.assigned_to) {
+    const [[{ n }]] = await pool.query(
+      `SELECT COUNT(*) AS n FROM chat_messages WHERE session_id = ? AND role = 'user' AND id > ? AND id < ?`,
+      [session.id, Math.max(Number(ticket.agent_read_id), Number(ticket.handoff_message_id ?? 0)), userMessageId],
+    );
+    if (Number(n) === 0) {
+      await notify(pool, {
+        userId: ticket.assigned_to, type: 'eskalasi', title: `Pesan baru di tiket #${ticket.id}`, body: guard.text,
+        refType: 'escalation', refId: ticket.id,
+      });
+    }
+  }
+  return {
+    session_id: session.id,
+    user_message_id: userMessageId,
+    message: null, // AI dijeda: tidak ada jawaban asisten; balasan AgenSUSI datang lewat polling sesi.
+    intent: 'handoff',
+    source: 'handoff',
+    sources: [],
+    escalation_suggested: false,
+    stored: turn.privacy.storeHistory,
+    cards: [],
+    handoff: await sessionHandoff(pool, session.id, ticket),
+  };
 }
 
 /** Simpan jawaban + satu baris ask_logs (biaya, kualitas, umpan balik). */
@@ -86,6 +131,8 @@ const responseBody = (turn, assistantMessageId, answer) => ({
   stored: turn.privacy.storeHistory,
   // R3: kartu kebutuhan/talenta dari rekomendasi (tidak disimpan; hanya untuk giliran ini).
   cards: answer.cards ?? [],
+  // U6: giliran AI selalu berarti tidak ada handoff aktif (tiket terbuka dialihkan ke handoffTurn).
+  handoff: toHandoff(null),
 });
 
 const pipelineContext = (req, turn, extra = {}) => ({
@@ -103,6 +150,7 @@ const pipelineContext = (req, turn, extra = {}) => ({
 export const postMessage = async (req, res, next) => {
   try {
     const turn = await beginTurn(req);
+    if (turn.handoff) return success(res, await handoffTurn(turn));
     const answer = await answerMessage(pipelineContext(req, turn));
     const assistantMessageId = await recordAnswer({ ...turn, answer }, req.user);
     return success(res, responseBody(turn, assistantMessageId, answer));
@@ -142,6 +190,10 @@ export const streamMessage = async (req, res, next) => {
 
   send('start', { session_id: turn.session.id, user_message_id: turn.userMessageId, stored: turn.privacy.storeHistory });
   try {
+    if (turn.handoff) {
+      send('done', await handoffTurn(turn));
+      return;
+    }
     let answer = null;
     for await (const event of streamAnswer(pipelineContext(req, turn, { signal: abort.signal }))) {
       if (event.type === 'delta') send('delta', { content: event.content });
@@ -162,15 +214,13 @@ export const getSession = async (req, res, next) => {
     const session = await findAccessibleSession(pool, req.params.id, req.user);
     const afterId = Number.parseInt(req.query.after, 10);
     const messages = await listMessages(pool, session.id, { afterId: Number.isFinite(afterId) && afterId > 0 ? afterId : 0 });
-    // Status tiket terakhir agar FE bisa menampilkan "menunggu AgenSUSI" sambil mem-polling balasan.
-    const [escalations] = await pool.query(
-      `SELECT id, status, created_at FROM escalations WHERE session_id = ? ORDER BY id DESC LIMIT 1`,
-      [session.id],
-    );
+    // Tiket terakhir agar FE bisa menampilkan Ruang AgenSUSI sambil mem-polling balasan (U6: `handoff`).
+    const ticket = await latestTicket(pool, session.id);
     return success(res, {
       session: { id: session.id, started_at: session.started_at, last_active_at: session.last_active_at },
       messages,
-      escalation: escalations[0] ?? null,
+      escalation: ticket ? { id: ticket.id, status: ticket.status, created_at: ticket.created_at } : null,
+      handoff: await sessionHandoff(pool, session.id, ticket),
     });
   } catch (err) {
     next(err);
@@ -193,7 +243,9 @@ export const escalate = async (req, res, next) => {
     const available = liaisons.length > 0 && withinServiceHours();
 
     const existing = await openEscalation(pool, session.id);
-    if (existing) return success(res, { escalation: existing, already_open: true, available, message: null });
+    if (existing) {
+      return success(res, { escalation: existing, already_open: true, available, message: null, handoff: await sessionHandoff(pool, session.id) });
+    }
 
     const turns = await sessionTurns(pool, session.id);
     if (turns.length === 0) throw new HttpError(400, 'Tuliskan dulu pertanyaan Anda sebelum meminta bantuan AgenSUSI.');
@@ -231,6 +283,11 @@ export const escalate = async (req, res, next) => {
             summary.text, summary.source, summary.model ?? null, summary.costUsd ?? null],
         );
         isNew = true;
+        // Tiket selesai sebelumnya di sesi ini tidak lagi menunggu penilaian (U6).
+        await conn.query(
+          `UPDATE escalations SET user_done_at = NOW() WHERE session_id = ? AND status = 'resolved' AND user_done_at IS NULL`,
+          [session.id],
+        );
         // Jawaban terakhir sebelum eskalasi, untuk analisis "jawaban mana yang berujung eskalasi".
         await conn.query(`UPDATE ask_logs SET escalated = 1 WHERE session_id = ? ORDER BY id DESC LIMIT 1`, [session.id]);
         for (const { id } of liaisons) {
@@ -254,15 +311,156 @@ export const escalate = async (req, res, next) => {
       conn.release();
     }
 
-    if (!isNew) return success(res, { escalation, already_open: true, available, message: null });
+    if (!isNew) {
+      return success(res, { escalation, already_open: true, available, message: null, handoff: await sessionHandoff(pool, session.id) });
+    }
     const content = escalationCreatedReply({ id: escalation.id, available, anonymous: !req.user });
     const messageId = await addMessage(pool, session.id, 'assistant', content);
+    // U6: bagian AgenSUSI di transkrip dimulai dari pesan konfirmasi ini; pengguna sudah melihat semuanya.
+    await pool.query(
+      `UPDATE escalations SET handoff_message_id = ?, user_read_id = ? WHERE id = ?`,
+      [messageId, messageId, escalation.id],
+    );
     return created(res, {
       escalation,
       already_open: false,
       available,
       message: { id: messageId, role: 'assistant', content },
+      handoff: await sessionHandoff(pool, session.id),
     }, 'Permintaan bantuan diteruskan ke AgenSUSI');
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * "Kembali ke asisten AI" (U6): batalkan permintaan AgenSUSI yang masih terbuka. Idempoten: tanpa tiket
+ * terbuka → 200 `cancelled: false`. AgenSUSI yang sudah menangani diberi tahu.
+ */
+export const cancelHandoff = async (req, res, next) => {
+  try {
+    const session = await findAccessibleSession(pool, req.body.session_id, req.user);
+    const conn = await pool.getConnection();
+    let ticket;
+    let message = null;
+    try {
+      await conn.beginTransaction();
+      // Kunci baris sesi seperti /escalate: pembatalan tidak balapan dengan tiket baru.
+      await conn.query(`SELECT id FROM chat_sessions WHERE id = ? FOR UPDATE`, [session.id]);
+      [[ticket]] = await conn.query(
+        `SELECT id, status, assigned_to FROM escalations WHERE session_id = ? AND status IN (?) ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+        [session.id, ACTIVE_ESCALATION],
+      );
+      if (ticket) {
+        await conn.query(
+          `UPDATE escalations SET status = 'cancelled', resolved_at = NOW(), user_done_at = NOW() WHERE id = ?`,
+          [ticket.id],
+        );
+        const content = handoffCancelledReply(ticket.id);
+        message = { id: await addMessage(conn, session.id, 'assistant', content), role: 'assistant', content };
+        await notify(conn, {
+          userId: ticket.assigned_to, type: 'eskalasi', title: `Pengguna kembali ke asisten AI (tiket #${ticket.id})`,
+          refType: 'escalation', refId: ticket.id,
+        });
+      }
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+    return success(
+      res,
+      { cancelled: Boolean(ticket), message, handoff: await sessionHandoff(pool, session.id) },
+      ticket ? 'Anda kembali ke asisten AI' : 'Tidak ada permintaan AgenSUSI yang terbuka',
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** Penilaian setelah AgenSUSI selesai (U6): `rating` 1–5, atau tanpa nilai = tutup bagian AgenSUSI saja. */
+export const rateHandoff = async (req, res, next) => {
+  try {
+    const session = await findAccessibleSession(pool, req.body.session_id, req.user);
+    const ticket = await latestTicket(pool, session.id);
+    if (ticket?.status !== 'resolved') throw new HttpError(409, 'Belum ada bantuan AgenSUSI yang selesai di percakapan ini');
+    const rating = req.body.rating ?? null;
+    await closeResolvedForUser(pool, ticket.id, rating);
+    return success(
+      res,
+      { ticket_id: ticket.id, rating: ticket.rating ?? rating, handoff: await sessionHandoff(pool, session.id) },
+      rating ? 'Terima kasih atas penilaian Anda' : 'Kembali ke asisten AI',
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** Pengguna sedang melihat percakapan: balasan AgenSUSI di sesi ini tidak lagi berlencana (U6). */
+export const readHandoff = async (req, res, next) => {
+  try {
+    const session = await findAccessibleSession(pool, req.body.session_id, req.user);
+    await markReadByUser(pool, session.id);
+    return success(res, { unread: 0 });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const preview = (text) => {
+  const s = String(text ?? '').replace(/\s+/g, ' ').trim();
+  return s.length > 120 ? `${s.slice(0, 119).trimEnd()}…` : s;
+};
+
+/**
+ * Ruang AgenSUSI (U6): semua tiket di percakapan milik pengguna, yang masih terbuka dulu. Lencana
+ * belum dibaca hanya untuk tiket terakhir tiap sesi (tiket lama sudah selesai).
+ */
+export const listHandoffs = async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT e.id, e.session_id, e.status, e.summary, e.handed_back, e.rating, e.user_done_at, e.user_read_id,
+              e.handoff_message_id, e.created_at, e.assigned_at, e.resolved_at, s.last_active_at,
+              a.name AS agent_name, a.avatar_url AS agent_avatar,
+              e.id = (SELECT MAX(e2.id) FROM escalations e2 WHERE e2.session_id = e.session_id) AS latest,
+              (SELECT COUNT(*) FROM chat_messages m
+                WHERE m.session_id = e.session_id AND m.role = 'agent' AND m.id > e.user_read_id) AS unread,
+              (SELECT m.content FROM chat_messages m WHERE m.session_id = e.session_id ORDER BY m.id DESC LIMIT 1) AS last_content,
+              (SELECT m.role FROM chat_messages m WHERE m.session_id = e.session_id ORDER BY m.id DESC LIMIT 1) AS last_role
+       FROM escalations e
+       JOIN chat_sessions s ON s.id = e.session_id
+       LEFT JOIN users a ON a.id = e.assigned_to
+       WHERE s.user_id = ?
+       ORDER BY e.status IN ('pending', 'assigned') DESC, s.last_active_at DESC, e.id DESC
+       LIMIT 50`,
+      [req.user.id],
+    );
+    const [liaisons] = await pool.query(`SELECT id FROM users WHERE role = 'liaison' AND status = 'AKTIF'`);
+    const hasLiaison = liaisons.length > 0;
+    const available = hasLiaison && withinServiceHours();
+    const items = rows.map((r) => {
+      const unread = Number(r.latest) ? Number(r.unread) : 0;
+      return {
+        id: r.id,
+        session_id: r.session_id,
+        status: r.status,
+        handoff: toHandoff(r, { available, hasLiaison, unread }),
+        agent: r.agent_name ? { name: r.agent_name, avatar: r.agent_avatar ?? null } : null,
+        summary: r.summary,
+        handed_back: Boolean(Number(r.handed_back)),
+        rating: r.rating ?? null,
+        unread,
+        last_message: r.last_role ? { role: r.last_role, preview: preview(r.last_content) } : null,
+        // Awal bagian AgenSUSI di transkrip (pesan sebelumnya = bagian AI), juga untuk tiket yang sudah ditutup.
+        since_message_id: r.handoff_message_id ?? null,
+        created_at: r.created_at,
+        resolved_at: r.resolved_at,
+        last_active_at: r.last_active_at,
+      };
+    });
+    return success(res, { items, unread_total: items.reduce((sum, i) => sum + i.unread, 0) });
   } catch (err) {
     next(err);
   }

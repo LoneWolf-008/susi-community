@@ -1,6 +1,8 @@
 // Antrean eskalasi Tanya SUSI untuk AgenSUSI (liaison) dan admin (T13).
 // Alur: pending → claim (assigned ke liaison) → reply (pesan role 'agent' di sesi pengguna) →
 // resolve (resolved/closed), opsional menyimpan penyelesaian sebagai draft KB untuk ditinjau admin.
+// U6: handback ("Kembalikan ke AI") menyelesaikan tiket tanpa jawaban tuntas; pengguna bisa membatalkan
+// (cancelled); lencana belum dibaca dari `agent_read_id`.
 // Admin boleh membalas/menyelesaikan tiket siapa pun; liaison hanya tiket yang ia klaim.
 import { pool } from '../config/db.js';
 import { success, created } from '../utils/response.js';
@@ -11,6 +13,7 @@ import { addMessage } from '../services/chatbot/sessions.js';
 import { queryTerms } from '../services/chatbot/text.js';
 import { displayQuestion } from '../services/chatbot/guard.js';
 import { STALE_HOURS } from '../services/chatbot/escalation.js';
+import { HANDBACK_REPLY } from '../services/chatbot/replies.js';
 
 const OPEN = ['pending', 'assigned'];
 const STATUS_FILTERS = {
@@ -19,12 +22,19 @@ const STATUS_FILTERS = {
   assigned: ['assigned'],
   resolved: ['resolved'],
   closed: ['closed'],
-  all: ['pending', 'assigned', 'resolved', 'closed'],
+  cancelled: ['cancelled'],
+  all: ['pending', 'assigned', 'resolved', 'closed', 'cancelled'],
 };
 
+// unread = pesan pengguna di bagian AgenSUSI yang belum dilihat agen (hanya tiket terbuka).
 const SELECT_ESCALATION = `
   SELECT e.*, u.name AS user_name, u.role AS user_role, a.name AS assignee_name, s.last_active_at,
-         (e.status = 'pending' AND e.created_at < NOW() - INTERVAL ${STALE_HOURS} HOUR) AS stale
+         (e.status = 'pending' AND e.created_at < NOW() - INTERVAL ${STALE_HOURS} HOUR) AS stale,
+         IF(e.status IN ('pending', 'assigned'),
+            (SELECT COUNT(*) FROM chat_messages m WHERE m.session_id = e.session_id AND m.role = 'user'
+               AND m.id > GREATEST(e.agent_read_id, COALESCE(e.handoff_message_id, 0))), 0) AS unread,
+         (SELECT m.content FROM chat_messages m WHERE m.session_id = e.session_id ORDER BY m.id DESC LIMIT 1) AS last_content,
+         (SELECT m.role FROM chat_messages m WHERE m.session_id = e.session_id ORDER BY m.id DESC LIMIT 1) AS last_role
   FROM escalations e
   JOIN chat_sessions s ON s.id = e.session_id
   LEFT JOIN users u ON u.id = e.user_id
@@ -46,6 +56,12 @@ const toItem = (r) => ({
   stale: Boolean(Number(r.stale)),
   resolution: r.resolution,
   kb_entry_id: r.kb_entry_id,
+  // U6: inbox dua panel & transkrip (bagian AI = pesan sebelum handoff_message_id).
+  unread: Number(r.unread ?? 0),
+  last_message: r.last_role ? { role: r.last_role, preview: clip(r.last_content, 120) } : null,
+  handoff_message_id: r.handoff_message_id ?? null,
+  handed_back: Boolean(Number(r.handed_back)),
+  rating: r.rating ?? null,
   created_at: r.created_at,
   assigned_at: r.assigned_at,
   resolved_at: r.resolved_at,
@@ -67,6 +83,7 @@ async function findEscalation(db, id) {
 /** Liaison hanya boleh menangani tiket yang ia klaim; admin boleh semuanya. */
 function assertCanHandle(row, user, { allowPendingForAdmin = false } = {}) {
   const isAdmin = user.role === 'admin';
+  if (row.status === 'cancelled') throw new HttpError(409, 'Pengguna sudah kembali ke asisten AI');
   if (row.status === 'resolved' || row.status === 'closed') throw new HttpError(409, 'Tiket ini sudah selesai');
   if (row.status === 'pending' && !(isAdmin && allowPendingForAdmin)) {
     throw new HttpError(409, 'Klaim tiket ini dulu sebelum menanganinya');
@@ -124,6 +141,11 @@ export const getEscalation = async (req, res, next) => {
       `SELECT id, role, content, created_at FROM chat_messages WHERE session_id = ? ORDER BY id DESC LIMIT 100`,
       [row.session_id],
     );
+    // U6: AgenSUSI yang menangani membuka tiket → pesan pengguna sampai saat ini dianggap terbaca.
+    if (messages.length > 0 && Number(row.assigned_to) === Number(req.user.id)) {
+      await pool.query(`UPDATE escalations SET agent_read_id = GREATEST(agent_read_id, ?) WHERE id = ?`, [messages[0].id, row.id]);
+      row.unread = 0;
+    }
     return success(res, { ...toItem(row), messages: messages.reverse() });
   } catch (err) {
     next(err);
@@ -172,6 +194,42 @@ export const replyEscalation = async (req, res, next) => {
     return created(res, { message }, 'Balasan terkirim');
   } catch (err) {
     next(err);
+  }
+};
+
+/**
+ * "Kembalikan ke AI" (U6): tiket selesai tanpa jawaban tuntas dari AgenSUSI (`handed_back`), sesi
+ * pengguna kembali ke mode AI. Pesan agen (atau pesan bawaan) tampil di percakapan pengguna.
+ */
+export const handbackEscalation = async (req, res, next) => {
+  const conn = await pool.getConnection();
+  try {
+    const id = parseId(req.params.id);
+    await conn.beginTransaction();
+    const [[row]] = await conn.query(`SELECT * FROM escalations WHERE id = ? FOR UPDATE`, [id]);
+    if (!row) throw new HttpError(404, 'Tiket eskalasi tidak ditemukan');
+    assertCanHandle(row, req.user, { allowPendingForAdmin: true });
+    const content = req.body.message || HANDBACK_REPLY;
+    await addMessage(conn, row.session_id, 'agent', content);
+    await conn.query(
+      `UPDATE escalations
+       SET status = 'resolved', handed_back = 1, resolution = 'Dikembalikan ke asisten AI', resolved_at = NOW(),
+           assigned_to = COALESCE(assigned_to, ?)
+       WHERE id = ?`,
+      [req.user.id, id],
+    );
+    await audit(conn, { actorId: req.user.id, action: 'HANDBACK_ESCALATION', entity: 'escalations', entityId: id });
+    await notify(conn, {
+      userId: row.user_id, type: 'eskalasi', title: 'AgenSUSI mengembalikan percakapan ke asisten AI', body: content,
+      refType: 'escalation', refId: id,
+    });
+    await conn.commit();
+    return success(res, toItem(await findEscalation(pool, id)), 'Percakapan dikembalikan ke asisten AI');
+  } catch (err) {
+    await conn.rollback();
+    next(err);
+  } finally {
+    conn.release();
   }
 };
 

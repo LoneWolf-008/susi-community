@@ -5,13 +5,18 @@ import { useChat } from '../../hooks/useChat';
 import { useApi } from '../../hooks/useApi';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/authContext';
+import { useNavigateTo } from '../../context/transitionContext';
 import { PUBLIC_SUGGESTIONS } from '../../data/askSuggestions';
+import { OPEN_CHAT_EVENT, RUANG_AGEN_ROLES, ruangAgenPath } from '../../lib/chatNavigation';
+import { hasHandoff } from '../../lib/handoff';
 
 // Widget Tanya SUSI tunggal (T14), menggantikan AskSusiPanel (publik) dan AiAgent (dasbor).
 //  - variant "overlay": layar penuh untuk halaman publik, dibuka dari landing/navigasi (boleh
 //    membawa pertanyaan awal lewat `seed`).
 //  - variant "floating": tombol melayang + panel untuk dasbor.
-// Mode publik vs masuk mengikuti AuthContext (useChat). Riwayat & saran baru dimuat saat dibuka.
+// Mode publik vs masuk mengikuti AuthContext (useChat). Saran dimuat saat dibuka; riwayat juga, kecuali
+// tombol melayang yang memulihkan percakapan tersimpan sejak awal agar balasan AgenSUSI yang masuk
+// saat widget tertutup bisa ditandai titik di peluncur (U6). Di layar kecil panel tampil penuh.
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -67,7 +72,8 @@ export default function ChatWidget({ variant = 'floating', open: openProp = fals
   if (open && !activated) setActivated(true);
 
   const { user } = useAuth();
-  const chat = useChat({ enabled: activated, active: open });
+  const navigateTo = useNavigateTo();
+  const chat = useChat({ enabled: activated || !overlay, active: open });
   const suggestionsQ = useApi(
     (signal) => api.get('/chatbot/suggestions', { signal }),
     [user?.role ?? 'public'],
@@ -80,6 +86,18 @@ export default function ChatWidget({ variant = 'floating', open: openProp = fals
   const inputRef = useRef(null);
   const close = () => (overlay ? onClose?.() : setFloatingOpen(false));
   useDialogFocus(open, dialogRef, inputRef, close);
+
+  // Ruang AgenSUSI (U6): halaman penuh untuk peran yang memilikinya → tombol "Buka di ruang penuh".
+  const openFull = RUANG_AGEN_ROLES.includes(user?.role) && hasHandoff(chat.handoff)
+    ? () => { close(); navigateTo(ruangAgenPath(chat.handoff.ticket_id)); }
+    : undefined;
+  // Halaman Ruang AgenSUSI meminta widget dibuka ("Pertanyaan baru ke AI").
+  const onOpenRequest = useEffectEvent(() => { if (!overlay) setFloatingOpen(true); });
+  useEffect(() => {
+    const handler = () => onOpenRequest();
+    window.addEventListener(OPEN_CHAT_EVENT, handler);
+    return () => window.removeEventListener(OPEN_CHAT_EVENT, handler);
+  }, []);
 
   // Pertanyaan awal dari landing/navigasi: dikirim sekali per pembukaan, setelah riwayat termuat.
   const lastSeed = useRef(0);
@@ -118,7 +136,7 @@ export default function ChatWidget({ variant = 'floating', open: openProp = fals
   }, [open, overlay, mounted]);
 
   const panel = (dark) => (
-    <ChatPanel chat={chat} suggestions={suggestions} dark={dark} anonymous={!user} onClose={close} titleId={titleId} inputRef={inputRef} compactHeader={!dark} />
+    <ChatPanel chat={chat} suggestions={suggestions} dark={dark} anonymous={!user} onClose={close} titleId={titleId} inputRef={inputRef} compactHeader={!dark} onOpenFull={openFull} />
   );
 
   if (overlay) {
@@ -167,13 +185,18 @@ export default function ChatWidget({ variant = 'floating', open: openProp = fals
       <button
         type="button"
         onClick={() => setFloatingOpen(true)}
-        aria-label="Buka Tanya SUSI"
+        aria-label={chat.unread > 0 ? `Buka Tanya SUSI, ${chat.unread} balasan AgenSUSI belum dibaca` : 'Buka Tanya SUSI'}
         aria-haspopup="dialog"
         className={`${open ? 'hidden' : 'flex'} group fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[400] w-14 h-14 rounded-full bg-[#e62b2b] hover:bg-[#12283c] text-white items-center justify-center shadow-[0_10px_30px_rgba(230,43,43,0.4)] transition-colors`}
       >
         <Sparkles className="w-6 h-6 fill-current" strokeWidth={2.5} aria-hidden="true" />
+        {chat.unread > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#12283c] text-[#f2efe6] text-[10px] font-black flex items-center justify-center border-2 border-[#f2efe6]" aria-hidden="true">
+            {chat.unread > 9 ? '9+' : chat.unread}
+          </span>
+        )}
         <span className="absolute right-full mr-3 whitespace-nowrap font-mono text-[10px] font-bold tracking-widest text-[#12283c] bg-[#f2efe6] border border-[#12283c]/15 px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          TANYA SUSI
+          {chat.unread > 0 ? 'BALASAN AGENSUSI' : 'TANYA SUSI'}
         </span>
       </button>
       {open && (
@@ -182,7 +205,7 @@ export default function ChatWidget({ variant = 'floating', open: openProp = fals
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className="fixed z-[400] inset-x-3 bottom-3 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[400px] h-[min(600px,calc(100dvh-1.5rem))] flex flex-col rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.35)] border border-[#12283c]/15 bg-[#f2efe6]"
+          className="fixed z-[400] inset-0 sm:inset-auto sm:right-6 sm:bottom-6 sm:w-[400px] h-dvh sm:h-[min(600px,calc(100dvh-3rem))] flex flex-col sm:rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.35)] sm:border border-[#12283c]/15 bg-[#f2efe6]"
         >
           {panel(false)}
         </div>

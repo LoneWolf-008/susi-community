@@ -18,7 +18,9 @@ import mysql from 'mysql2/promise';
 import { recomputeReputation } from './reputation.js';
 import { readKbFile, upsertKbEntries } from './kbSeed.js';
 import { syncKbIndex } from '../services/chatbot/kb.js';
-import { SKILLS, USERS, COMMUNITIES, NEEDS, VISITS, TOPICS, INVITES } from '../db/seeds/demo.js';
+import { ruleSummary } from '../services/chatbot/escalation.js';
+import { escalationCreatedReply } from '../services/chatbot/replies.js';
+import { SKILLS, USERS, COMMUNITIES, NEEDS, VISITS, TOPICS, INVITES, ESCALATIONS } from '../db/seeds/demo.js';
 
 const BCRYPT_ROUNDS = 12; // sama dengan authController.register
 const MIN_PASSWORD = 10;
@@ -49,7 +51,7 @@ function readSeedConfig() {
 const counter = () => ({ dibuat: 0, dilewati: 0 });
 const stats = {
   pengguna: counter(), skill: counter(), komunitas: counter(), anggota: counter(), kebutuhan: counter(),
-  kunjungan: counter(), topik: counter(), kb: counter(),
+  kunjungan: counter(), topik: counter(), kb: counter(), eskalasi: counter(),
 };
 let passwordsUpdated = 0;
 let kbUpdated = 0;
@@ -413,6 +415,85 @@ async function seedInvites(conn, ctx) {
   }
 }
 
+/**
+ * Percakapan yang dialihkan ke AgenSUSI (U6), idempoten per id sesi. Urutan sama dengan alur nyata:
+ * bagian AI (+ ask_logs) → tiket + pesan konfirmasi → klaim → pesan AgenSUSI/pengguna.
+ */
+async function seedEscalations(conn, ctx) {
+  const minutesAgo = (m) => new Date(now.getTime() - m * 60 * 1000);
+  const addMessage = async (sessionId, role, content, at) => {
+    const [res] = await conn.query(
+      `INSERT INTO chat_messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)`,
+      [sessionId, role, content, at],
+    );
+    return res.insertId;
+  };
+
+  for (const def of ESCALATIONS) {
+    const userId = ctx.userIds[def.user];
+    const agentId = ctx.userIds[def.agent];
+    const owner = USERS.find((u) => u.key === def.user);
+    const startedAt = minutesAgo(def.ai[0].minutesAgo);
+    const [session] = await conn.query(
+      `INSERT IGNORE INTO chat_sessions (id, user_id, role, started_at, last_active_at) VALUES (?, ?, ?, ?, ?)`,
+      [def.session, userId, owner.role, startedAt, minutesAgo(def.afterHandoff.at(-1).minutesAgo)],
+    );
+    if (!session.affectedRows) {
+      stats.eskalasi.dilewati += 1;
+      continue;
+    }
+
+    for (const turn of def.ai) {
+      const at = minutesAgo(turn.minutesAgo);
+      await addMessage(def.session, 'user', turn.question, at);
+      const answerId = await addMessage(def.session, 'assistant', turn.answer, at);
+      await conn.query(
+        `INSERT INTO ask_logs (user_id, session_id, message_id, question, matched, intent, model, prompt_version, latency_ms, created_at)
+         VALUES (?, ?, ?, ?, 1, ?, NULL, 'seed', 0, ?)`,
+        [userId, def.session, answerId, turn.question, turn.intent, at],
+      );
+    }
+
+    const handoffAt = minutesAgo(def.handoffMinutesAgo);
+    const summary = ruleSummary({ role: owner.role, questions: def.ai.map((t) => t.question), reasons: def.reasons });
+    const [esc] = await conn.query(
+      `INSERT INTO escalations (session_id, user_id, reason, score, priority, summary, summary_source, status, assigned_to,
+                                created_at, assigned_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'rule', ?, ?, ?, ?)`,
+      [def.session, userId, def.reasons.join(','), def.score, def.priority, summary, def.status, agentId, handoffAt,
+        minutesAgo(def.assignedMinutesAgo)],
+    );
+    const escalationId = esc.insertId;
+    const confirmId = await addMessage(
+      def.session, 'assistant', escalationCreatedReply({ id: escalationId, available: true, anonymous: false }), handoffAt,
+    );
+
+    let userReadId = confirmId;
+    let agentReadId = confirmId;
+    for (const m of def.afterHandoff) {
+      const id = await addMessage(def.session, m.role, m.text, minutesAgo(m.minutesAgo));
+      // Agen sudah membaca semua pesan pengguna (ia membalas sesudahnya); pengguna belum membaca yang `unread`.
+      agentReadId = id;
+      if (!m.unread) userReadId = id;
+    }
+    await conn.query(
+      `UPDATE escalations SET handoff_message_id = ?, user_read_id = ?, agent_read_id = ? WHERE id = ?`,
+      [confirmId, userReadId, agentReadId, escalationId],
+    );
+
+    await notify(conn, {
+      userId: agentId, type: 'eskalasi', title: 'Eskalasi chat baru', body: summary.slice(0, 255),
+      refType: 'escalation', refId: escalationId, read: true, at: handoffAt,
+    });
+    const lastAgent = def.afterHandoff.filter((m) => m.role === 'agent').at(-1);
+    await notify(conn, {
+      userId, type: 'eskalasi', title: 'Balasan dari AgenSUSI', body: lastAgent.text.slice(0, 255),
+      refType: 'escalation', refId: escalationId, read: false, at: minutesAgo(lastAgent.minutesAgo),
+    });
+    stats.eskalasi.dibuat += 1;
+  }
+}
+
 async function seedKnowledgeBase(conn) {
   const sync = process.argv.includes('--sync-kb');
   const { created, updated, skipped } = await upsertKbEntries(conn, await readKbFile(), { sync });
@@ -475,6 +556,7 @@ async function main() {
     await seedInvites(conn, ctx);
     await seedVisits(conn, ctx);
     await seedTopics(conn, ctx);
+    await seedEscalations(conn, ctx);
     await seedKnowledgeBase(conn);
     await seedDailyStats(conn);
 

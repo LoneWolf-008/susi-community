@@ -11,6 +11,8 @@ import TentangPage from './pages/TentangPage';
 import RequestPage from './pages/RequestPage';
 import NotFoundPage from './pages/NotFoundPage';
 import DashboardPage from './pages/dashboards/DashboardPage';
+import RuangAgenPage from './pages/RuangAgenPage';
+import { RUANG_AGEN_ROLES } from './lib/chatNavigation';
 import { useAuth } from './context/authContext';
 import { useGoToSection, useNavigateTo, useTransitionNavigate } from './context/transitionContext';
 
@@ -72,6 +74,14 @@ export default function App() {
           element={(
             <ProtectedRoute>
               <DashboardPage onLogout={handleLogout} navigateTo={navigateTo} />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/dashboard/ruang-agen"
+          element={(
+            <ProtectedRoute roles={RUANG_AGEN_ROLES}>
+              <RuangAgenPage navigateTo={navigateTo} />
             </ProtectedRoute>
           )}
         />

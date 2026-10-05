@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { OPEN_NEED_EVENT } from '../../lib/chatNavigation';
+import { OPEN_NEED_EVENT, ruangAgenPath } from '../../lib/chatNavigation';
 import gsap from 'gsap';
 import DashShell from '../../components/common/DashShell';
 import ChatWidget from '../../components/chat/ChatWidget';
@@ -25,6 +25,7 @@ const NAV = [
   { id: 'mading', n: '05', l: 'Mading' },
   { id: 'profil', n: '06', l: 'Profil' },
   { id: 'setting', n: '07', l: 'Pengaturan' },
+  { id: 'ruang-agen', n: '08', l: 'Ruang AgenSUSI' }, // halaman penuh (U6), bukan tab
 ];
 
 export default function DashboardTalent({ user, onLogout, navigateTo }) {
@@ -56,6 +57,10 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
   }, [tab, needId, projectId]);
 
   const onTab = (id) => {
+    if (id === 'ruang-agen') {
+      navigateTo(ruangAgenPath());
+      return;
+    }
     setTab(id);
     setNeedId(null);
     setProjectId(null);
@@ -72,7 +77,8 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
   }, []);
   const openProject = (id) => { setTab('projek'); setNeedId(null); setProjectId(id); };
   const openNotification = (n) => {
-    if (n.ref_type === 'project') openProject(n.ref_id);
+    if (n.ref_type === 'escalation') navigateTo(ruangAgenPath(n.ref_id)); // balasan AgenSUSI (U6)
+    else if (n.ref_type === 'project') openProject(n.ref_id);
     else if (n.ref_type === 'need') openNeed(n.ref_id);
     else if (n.ref_type === 'topic') onTab('mading');
     else if (n.ref_type === 'community') onTab('komunitas'); // keputusan permintaan gabung (U1)

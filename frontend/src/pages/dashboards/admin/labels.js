@@ -14,6 +14,7 @@ export const AUDIT_ACTION = {
   CLAIM_ESCALATION: { label: 'Mengklaim eskalasi', color: 'bg-[#0e7490]' },
   RESOLVE_ESCALATION: { label: 'Menyelesaikan eskalasi', color: 'bg-[#c9ecd9]' },
   CLOSE_ESCALATION: { label: 'Menutup eskalasi', color: 'bg-[#6b7280]' },
+  HANDBACK_ESCALATION: { label: 'Mengembalikan eskalasi ke AI', color: 'bg-[#0e7490]' },
   CREATE_KB: { label: 'Membuat entri KB', color: 'bg-[#12283c]' },
   UPDATE_KB: { label: 'Mengubah entri KB', color: 'bg-[#12283c]' },
   APPROVE_KB: { label: 'Menyetujui entri KB', color: 'bg-[#15803d]' },

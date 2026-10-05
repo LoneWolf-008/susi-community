@@ -421,6 +421,33 @@ export const NEEDS = [
   },
 ];
 
+// U6: percakapan Tanya SUSI yang dialihkan ke AgenSUSI dan sedang ditangani. `session` = UUID tetap
+// (idempoten). Pesan sebelum `handoff` = bagian AI; pesan konfirmasi tiket dibuat otomatis saat
+// `handoff`. Pesan terakhir dari agen belum dibaca pengguna (lencana di Ruang AgenSUSI).
+export const ESCALATIONS = [
+  {
+    session: '5e3d0000-0000-4000-8000-000000000601', user: 'siti', agent: 'budi', status: 'assigned',
+    reasons: ['explicit_request'], score: 100, priority: 'normal', handoffMinutesAgo: 180, assignedMinutesAgo: 150,
+    ai: [
+      {
+        minutesAgo: 186, intent: 'howto',
+        question: 'Hasil katalog dari talenta sudah masuk, tapi foto produknya belum lengkap. Boleh minta revisi dulu sebelum saya verifikasi?',
+        answer: 'Sebelum memverifikasi, periksa hasil kiriman talenta di halaman proyek dan bandingkan dengan definisi selesai yang sudah disepakati. Bila belum sesuai, sampaikan kekurangannya ke talenta lebih dulu, lalu verifikasi setelah hasilnya lengkap.',
+      },
+      {
+        minutesAgo: 182, intent: 'escalation_request',
+        question: 'Sudah saya sampaikan ke talentanya, tapi saya bingung tenggatnya bisa diundur atau tidak. Bisa dibantu orang SUSI langsung?',
+        answer: 'Baik, saya bisa meneruskan percakapan ini ke AgenSUSI, tim pendamping SUSI. Tekan tombol "Hubungi AgenSUSI" agar mereka bisa membantu Anda langsung.',
+      },
+    ],
+    afterHandoff: [
+      { role: 'agent', minutesAgo: 150, text: 'Halo Bu Siti, saya Budi dari AgenSUSI. Saya sudah membaca ringkasannya dan sedang mengecek proyek katalog produknya, ya.' },
+      { role: 'user', minutesAgo: 140, text: 'Terima kasih, Pak. Foto untuk enam model sepatu belum ada di katalognya.' },
+      { role: 'agent', minutesAgo: 20, unread: true, text: 'Sudah saya sampaikan ke Alya. Ia akan melengkapi enam foto itu paling lambat lusa, jadi masih dalam tenggat. Setelah fotonya masuk, Ibu bisa memverifikasi seperti biasa. Kalau ada kendala lagi, balas saja di sini.' },
+    ],
+  },
+];
+
 // R1: undangan melamar dari rekomendasi (talenta tetap memutuskan sendiri).
 export const INVITES = [
   { need: 'n15', talent: 'rizky', by: 'deden', daysAgo: 1 },

@@ -392,6 +392,22 @@ export const escalateSchema = z.object({
 
 export const escalationReplySchema = z.object({ message: text('Balasan', 2000) });
 
+// ===== Ruang AgenSUSI (U6) =====
+
+export const handoffSessionSchema = z.object({ session_id: chatSessionId });
+
+export const handoffRateSchema = z.object({
+  session_id: chatSessionId,
+  // Tanpa nilai = tutup bagian AgenSUSI tanpa menilai.
+  rating: z.union([
+    z.number({ error: 'Penilaian harus angka 1–5' }).int('Penilaian harus angka 1–5').min(1, 'Penilaian minimal 1').max(5, 'Penilaian maksimal 5'),
+    z.null(),
+  ]).optional(),
+});
+
+// "Kembalikan ke AI": pesan opsional untuk pengguna (kosong = pesan bawaan).
+export const handbackSchema = z.object({ message: optText('Pesan untuk pengguna', 2000) });
+
 // ===== Manajer KB admin (T14) =====
 
 export const KB_AUDIENCES = ['all', 'public', 'requester', 'talent', 'liaison'];
