@@ -123,6 +123,25 @@ Status: `AGREEMENT → IN_PROGRESS → AWAITING_VERIFICATION → COMPLETED`, den
 Aksi pemilik proksi (lihat pelamar, pilih, verifikasi, revisi, tarik) memakai endpoint kebutuhan,
 lamaran, dan proyek di atas.
 
+## Chatbot "Tanya SUSI"
+
+Login opsional: tanpa header `Authorization` = anonim. Header yang dikirim tetapi tidak sah →
+401 (klien memperbarui token lalu mengulang), akun ditangguhkan → 403.
+
+| Method | Path | Peran | Keterangan |
+|---|---|---|---|
+| POST | `/chatbot/message` | semua (anonim boleh) | `{ session_id?, message }` (1–500 karakter). Tanpa `session_id` = percakapan baru. → `{ session_id, user_message_id, message: { id, role, content }, source: 'llm'\|'kb'\|'fallback', sources: [{ id, title }] }`. LLM gagal/tanpa key → jawaban entri KB teratas (bukan error). Sesi berisi ≥ 200 pesan → 409 |
+| GET | `/chatbot/session/:id` | pemilik sesi | `?after=<messageId>` untuk polling. → `{ session, messages: [{ id, role: 'user'\|'assistant'\|'agent', content, created_at }] }` |
+| GET | `/chatbot/health` | admin | `{ provider, model, fallback_models, configured, status: 'ok'\|'error'\|'not_configured', credits? }` — memeriksa key lewat `GET /api/v1/key` OpenRouter tanpa memanggil model; key/label tidak pernah dikembalikan |
+
+Akses sesi: sesi milik pengguna hanya untuk pemiliknya (selain itu 404). Sesi anonim dibuka dengan
+`session_id` (UUID acak). Bila pengguna yang sudah masuk melanjutkan sesi anonim, sesi itu
+diklaim menjadi miliknya dan tidak bisa lagi dibuka secara anonim.
+
+Retrieval KB memakai FULLTEXT (`title, keywords, reply`) dengan filter `status = 'active'` dan
+audiens: anonim → `all`, `public`; pengguna → `all` + perannya; admin → semua. Setiap jawaban
+dicatat di `ask_logs` (model, `prompt_version`, token, latensi, biaya, `llm_error`).
+
 ## Admin
 
 | Method | Path | Keterangan |

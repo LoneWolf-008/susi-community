@@ -25,6 +25,7 @@ import settingsRoutes from './routes/settings.js';
 import testimonialsRoutes from './routes/testimonials.js';
 import skillsRoutes from './routes/skills.js';
 import publicRoutes from './routes/public.js';
+import chatbotRoutes from './routes/chatbot.js';
 
 // Folder unggahan dibuat saat boot agar multer tidak gagal di instalasi baru.
 fs.mkdirSync(env.deliveriesDir, { recursive: true });
@@ -73,6 +74,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/testimonials', testimonialsRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 // 404
 app.use((req, res) => {
