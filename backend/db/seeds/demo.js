@@ -61,7 +61,13 @@ export const COMMUNITIES = [
     description: 'Paguyuban 24 pelaku usaha sepatu rumahan di sentra Cibaduyut.',
     leader_name: 'Ibu Siti Rohmah', leader_role: 'Ketua Paguyuban', members_count: 24, established_at: '2015',
     whatsapp: '081200000001', address: 'Jl. Cibaduyut Raya, Bojongloa Kidul, Bandung',
-    lat: -6.947200, lng: 107.594600, members: [{ user: 'siti', role_in: 'PENGURUS' }], // BARAT–SELATAN
+    lat: -6.947200, lng: 107.594600, // BARAT–SELATAN
+    members: [
+      { user: 'siti', role_in: 'PENGURUS' },
+      // U1: talenta bergabung lewat persetujuan pengurus — satu sudah disetujui, satu menunggu.
+      { user: 'nabila', role_in: 'ANGGOTA', status: 'ACTIVE', decidedBy: 'siti', daysAgo: 10, message: 'Saya ingin bantu UMKM sekitar Cibaduyut merapikan pencatatan.' },
+      { user: 'rizky', role_in: 'ANGGOTA', status: 'PENDING', daysAgo: 1, message: 'Saya tinggal dekat Cibaduyut dan ingin ikut bantu digitalisasi UMKM sepatu.' },
+    ],
   },
   {
     key: 'karta', name: 'Karang Taruna RW 08 Antapani', type: 'KARANG TARUNA', createdBy: 'deden',
@@ -74,7 +80,11 @@ export const COMMUNITIES = [
     key: 'pkk', name: 'PKK RW 04 Ujungberung', type: 'PKK', createdBy: 'budi',
     description: 'Didaftarkan AgenSUSI saat kunjungan lapangan; pengurus belum punya akun.',
     leader_name: 'Ibu Euis Kurniasih', leader_role: 'Ketua PKK', members_count: 80, established_at: '2008',
-    whatsapp: null, address: 'Ujungberung, Bandung', lat: -6.912600, lng: 107.701900, members: [], // TIMUR–UTARA
+    whatsapp: null, address: 'Ujungberung, Bandung', lat: -6.912600, lng: 107.701900, // TIMUR–UTARA
+    // Tanpa pengurus berakun (dicatat AgenSUSI): permintaan gabung diputuskan liaison pembuatnya.
+    members: [
+      { user: 'alya', role_in: 'ANGGOTA', status: 'PENDING', daysAgo: 2, message: 'Saya bisa bantu desain poster kegiatan PKK.' },
+    ],
   },
   {
     key: 'kebun', name: 'Komunitas Urban Farming Buahbatu', type: 'LAINNYA', createdBy: 'ujang',
@@ -354,30 +364,44 @@ export const VISITS = [
   },
 ];
 
-// Warna mengikuti NOTE_COLORS di DashboardRequester.jsx.
+// Warna mengikuti NOTE_COLORS di MadingBoard.jsx. `expiresInHours`: sisa masa pajang dari saat seed
+// (null = tanpa batas, seperti topik sebelum U1).
 export const TOPICS = [
   {
-    author: 'siti', community: 'cibaduyut', category: 'TANYA', daysAgo: 2, pos_x: 90, pos_y: 70, rotation: -3, color: '#f4d4d4',
+    author: 'siti', community: 'cibaduyut', category: 'TANYA', daysAgo: 2, expiresInHours: 5 * 24,
+    pos_x: 90, pos_y: 70, rotation: -3, color: '#f4d4d4',
     text: 'Ada yang pernah catat stok barang pakai Google Sheets? Rumusnya bikin pusing, butuh contoh yang sederhana.',
     replies: [
       { author: 'nabila', community: null, daysAgo: 1, text: 'Bisa, Bu. Mulai dari satu sheet: tanggal, barang, masuk, keluar. Totalnya cukup pakai SUMIF.' },
     ],
   },
   {
-    author: 'deden', community: 'karta', category: 'INFO', daysAgo: 5, pos_x: 430, pos_y: 140, rotation: 2, color: '#d8e2ec',
+    author: 'deden', community: 'karta', category: 'INFO', daysAgo: 5, expiresInHours: 25 * 24,
+    pos_x: 430, pos_y: 140, rotation: 2, color: '#d8e2ec',
     text: 'Karang Taruna RW 08 buka kolaborasi lomba 17-an antar-RW. Komunitas lain yang mau ikut, balas di sini ya!',
     replies: [
       { author: 'ujang', community: 'kebun', daysAgo: 4, text: 'Komunitas kebun siap kirim bibit cabai buat hadiah lomba!' },
     ],
   },
   {
-    author: 'nabila', community: null, category: 'DISKUSI', daysAgo: 3, pos_x: 780, pos_y: 90, rotation: -2, color: '#c9ecd9',
+    author: 'nabila', community: null, category: 'DISKUSI', daysAgo: 3, expiresInHours: null,
+    pos_x: 780, pos_y: 90, rotation: -2, color: '#c9ecd9',
     text: 'Tips untuk komunitas yang baru mulai digital: catat transaksi harian dulu, rapikan seminggu sekali. Tidak perlu langsung bikin sistem yang rumit.',
     replies: [],
   },
   {
-    author: 'ujang', community: 'kebun', category: 'TANYA', daysAgo: 1, pos_x: 250, pos_y: 420, rotation: 3, color: '#fdfcf7',
+    author: 'ujang', community: 'kebun', category: 'TANYA', daysAgo: 1, expiresInHours: 6 * 24,
+    pos_x: 250, pos_y: 420, rotation: 3, color: '#fdfcf7',
     text: 'Ada komunitas lain yang sudah pakai grup WA + spreadsheet untuk jadwal piket? Mau belajar caranya.',
     replies: [],
+  },
+  {
+    // Hampir habis masa pajangnya (U1): tampil "berakhir ... lagi" dan bisa diperpanjang pemiliknya.
+    author: 'siti', community: 'cibaduyut', category: 'INFO', daysAgo: 1, expiresInHours: 18,
+    pos_x: 600, pos_y: 360, rotation: -1, color: '#c9ecd9',
+    text: 'Bazar UMKM Cibaduyut Sabtu ini: masih ada 3 stand kosong untuk komunitas lain. Balas di sini kalau mau ikut!',
+    replies: [
+      { author: 'nabila', community: 'cibaduyut', daysAgo: 0.5, text: 'Saya bantu buatkan poster digital bazarnya, Bu.' },
+    ],
   },
 ];
