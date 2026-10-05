@@ -194,6 +194,9 @@ export const withdrawNeedSchema = z.object({ reason: optText('Alasan', 300) });
 
 export const applySchema = z.object({ message: optText('Pesan lamaran', 2000) });
 
+// R1: pemilik kebutuhan mengundang talenta dari rekomendasi.
+export const inviteTalentSchema = z.object({ talent_id: id('Talenta') });
+
 // Saat menerima, kesepakatan (lingkup + definisi selesai) wajib diisi (PRD P0-4).
 export const decideApplicationSchema = z.object({
   decision: enumOf('Keputusan', ['DITERIMA', 'DITOLAK']),
@@ -352,6 +355,8 @@ export const settingsSchema = z.object({
   // Tanya SUSI (T15): izinkan AI (LLM) & simpan riwayat chat.
   allows_ai_chat: flag('Izinkan AI di Tanya SUSI').optional(),
   allows_chat_history_storage: flag('Simpan riwayat chat').optional(),
+  // R1: talenta tampil di rekomendasi untuk pemilik kebutuhan.
+  show_in_recommendations: flag('Tampil di rekomendasi').optional(),
 }).refine(atLeastOneField, 'Tidak ada pengaturan yang diubah');
 
 // ===== Chatbot =====

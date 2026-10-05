@@ -336,6 +336,94 @@ export const NEEDS = [
     skills: ['Google Forms', 'Google Sheets'], moderation: 'APPROVED', status: 'OPEN',
     applications: [],
   },
+  // ===== R1: kebutuhan terbuka dengan keahlian beragam (rekomendasi untuk tiap talenta) =====
+  {
+    key: 'n15', owner: 'deden', community: 'karta', category: 'WEBSITE', createdDaysAgo: 2,
+    title: 'Karang Taruna belum punya halaman profil dan jadwal kegiatan',
+    summary: 'Butuh halaman profil, jadwal kegiatan, dan galeri foto yang mudah diperbarui.',
+    description: 'Info kegiatan Karang Taruna hanya beredar di grup WhatsApp dan cepat tenggelam. Kami ingin satu halaman profil berisi jadwal kegiatan dan galeri foto yang bisa diperbarui pengurus sendiri.',
+    skills: ['HTML & CSS', 'JavaScript', 'React'], moderation: 'APPROVED', status: 'OPEN',
+    applications: [],
+  },
+  {
+    key: 'n16', owner: 'siti', community: 'cibaduyut', category: 'APLIKASI', createdDaysAgo: 4,
+    title: 'Pesanan sepatu custom dicatat di kertas dan sering terselip',
+    summary: 'Pesanan ukuran dan model khusus sering tertukar antar-pengrajin.',
+    description: 'Pesanan sepatu custom (ukuran, model, warna) dicatat di kertas lalu diteruskan ke pengrajin. Kertasnya sering terselip sehingga pesanan tertukar atau terlambat. Kami butuh pencatatan pesanan yang bisa dicek bersama.',
+    skills: ['Laravel', 'PHP', 'MySQL'], moderation: 'APPROVED', status: 'OPEN',
+    applications: [],
+  },
+  {
+    key: 'n17', owner: 'ujang', community: 'kebun', category: 'LAINNYA', createdDaysAgo: 6,
+    title: 'Label kemasan sayur kebun belum seragam',
+    summary: 'Butuh desain label kemasan yang konsisten untuk dijual ke warga.',
+    description: 'Sayur hasil kebun dijual ke warga sekitar dengan label tulisan tangan yang berbeda-beda. Kami ingin label kemasan dan poster harga yang seragam supaya terlihat rapi dan dipercaya pembeli.',
+    skills: ['Desain Poster', 'Canva', 'Branding'], moderation: 'APPROVED', status: 'OPEN',
+    applications: [],
+  },
+  {
+    // Tanpa daftar keahlian: rekomendasi memakai kata kunci judul/deskripsi (cold start).
+    key: 'n18', owner: 'budi', community: 'cijerah', category: 'PENCATATAN', createdDaysAgo: 1,
+    title: 'Data warga RW 03 masih tercatat di buku tulis',
+    summary: 'Pendataan warga belum digital, rekap bulanan memakan waktu lama.',
+    description: 'Pengurus RW 03 mencatat data warga dan iuran di buku tulis. Setiap akhir bulan rekapnya dihitung manual. Pengurus ingin datanya dipindah ke Google Sheets atau Excel supaya rekap dan grafiknya otomatis.',
+    skills: [], moderation: 'APPROVED', status: 'OPEN',
+    applications: [],
+  },
+  // ===== R1: riwayat proyek selesai Nabila (total 3 proyek selesai) =====
+  {
+    key: 'n19', owner: 'ujang', community: 'kebun', category: 'PENCATATAN', createdDaysAgo: 95,
+    title: 'Pembagian hasil panen kebun dihitung manual tiap bulan',
+    summary: 'Rekap kontribusi anggota kebun masih di catatan pribadi koordinator.',
+    description: 'Koordinator menghitung bagian hasil panen tiap anggota dari catatan pribadi. Prosesnya lama dan sering dipertanyakan anggota.',
+    skills: ['Google Sheets', 'Excel'], moderation: 'APPROVED', status: 'COMPLETED',
+    applications: [
+      { talent: 'nabila', status: 'DITERIMA', daysAgo: 93, decidedDaysAgo: 92, message: 'Saya bisa buatkan rekap kontribusi anggota yang menghitung bagian panen otomatis.' },
+    ],
+    project: {
+      talent: 'nabila', status: 'COMPLETED', progress: 100, deadlineInDays: -75,
+      scope: 'Membuat rekap kontribusi anggota dan pembagian hasil panen berbasis spreadsheet.',
+      done_definition: 'Selesai bila koordinator dapat memasukkan data panen sendiri dan bagian tiap anggota terhitung otomatis.',
+      timeline: { created: 92, agreedByCommunity: 92, agreedByTalent: 91, started: 91, done: 80, verified: 79 },
+      deliveries: [{ daysAgo: 80, link_url: 'https://example.com/demo/rekap-panen-v1' }],
+      testimonial: {
+        from: 'ujang', daysAgo: 79,
+        text: 'Pembagian panen sekarang transparan, anggota bisa cek sendiri. Nabila juga mengajari cara memperbarui datanya.',
+      },
+    },
+    notifications: [
+      { user: 'nabila', type: 'verifikasi', title: 'Proyek diverifikasi, reputasi +1', body: 'Komunitas mengonfirmasi proyek Anda', ref: 'project', daysAgo: 79, read: true },
+    ],
+  },
+  {
+    key: 'n20', owner: 'deden', community: 'karta', category: 'PENCATATAN', createdDaysAgo: 120,
+    title: 'Peralatan Karang Taruna yang dipinjam warga tidak tercatat',
+    summary: 'Tenda, kursi, dan sound system sering tidak kembali tepat waktu.',
+    description: 'Peralatan Karang Taruna sering dipinjam warga tanpa catatan, sehingga sulit menagih yang belum kembali.',
+    skills: ['Google Sheets', 'Data Entry'], moderation: 'APPROVED', status: 'COMPLETED',
+    applications: [
+      { talent: 'nabila', status: 'DITERIMA', daysAgo: 118, decidedDaysAgo: 117, message: 'Saya bisa buatkan daftar inventaris dan catatan peminjaman yang mudah diisi pengurus.' },
+    ],
+    project: {
+      talent: 'nabila', status: 'COMPLETED', progress: 100, deadlineInDays: -100,
+      scope: 'Membuat daftar inventaris dan catatan peminjaman peralatan.',
+      done_definition: 'Selesai bila pengurus dapat mencatat peminjaman dan melihat barang yang belum kembali.',
+      timeline: { created: 117, agreedByCommunity: 117, agreedByTalent: 116, started: 116, done: 105, verified: 104 },
+      deliveries: [{ daysAgo: 105, link_url: 'https://example.com/demo/inventaris-karta' }],
+      testimonial: {
+        from: 'deden', daysAgo: 104,
+        text: 'Sejak ada catatan peminjaman, tidak ada lagi tenda yang hilang. Nabila rapi dan cepat tanggap.',
+      },
+    },
+    notifications: [
+      { user: 'nabila', type: 'verifikasi', title: 'Proyek diverifikasi, reputasi +1', body: 'Komunitas mengonfirmasi proyek Anda', ref: 'project', daysAgo: 104, read: true },
+    ],
+  },
+];
+
+// R1: undangan melamar dari rekomendasi (talenta tetap memutuskan sendiri).
+export const INVITES = [
+  { need: 'n15', talent: 'rizky', by: 'deden', daysAgo: 1 },
 ];
 
 export const VISITS = [

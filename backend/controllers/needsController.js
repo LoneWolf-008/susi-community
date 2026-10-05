@@ -7,6 +7,10 @@ import { isNeedOwner } from '../utils/ownership.js';
 import { assertCommunityAccess } from '../utils/communityAccess.js';
 import { audit } from '../utils/activity.js';
 import { closeNeed } from '../services/needService.js';
+import { loadTalents } from '../services/recommendation/index.js';
+import { scoreMatch } from '../services/recommendation/score.js';
+
+const CATALOG_MATCH_LIMIT = 500;
 
 // Kebutuhan hanya boleh diubah sebelum tayang di katalog.
 const EDITABLE_MODERATION = ['PENDING', 'REJECTED'];
@@ -75,19 +79,36 @@ export const getCatalog = async (req, res, next) => {
     }
 
     // my_application_status: status lamaran pengguna ini (null bila belum melamar / bukan talenta).
-    const [rows] = await pool.query(
-      `SELECT n.id, n.title, n.category, n.summary, n.description, n.address,
-              n.lat, n.lng, n.sector, n.source, n.created_at,
+    const select = `SELECT n.id, n.title, n.category, n.summary, n.description, n.address,
+              n.lat, n.lng, n.sector, n.source, n.created_at, n.community_id,
               c.name AS community_name, c.type AS community_type, c.leader_name, c.members_count,
               (SELECT COUNT(*) FROM applications a WHERE a.need_id = n.id) AS applicants,
               (SELECT a.status FROM applications a WHERE a.need_id = n.id AND a.talent_id = ?) AS my_application_status
        FROM needs n
        LEFT JOIN communities c ON c.id = n.community_id
        ${where}
-       ORDER BY n.created_at DESC, n.id DESC
-       LIMIT ? OFFSET ?`,
-      [req.user.id, ...params, pg.limit, pg.offset]
-    );
+       ORDER BY n.created_at DESC, n.id DESC`;
+
+    // R1: ?sort=match untuk talenta ber-keahlian → urut skor kecocokan (dihitung atas seluruh hasil
+    // saringan, lalu dipaginasi). Talenta tanpa keahlian tetap mendapat urutan terbaru.
+    if (req.query.sort === 'match' && req.user.role === 'talent') {
+      const talent = (await loadTalents(pool, [req.user.id])).get(Number(req.user.id));
+      if (talent && talent.skills.length > 0) {
+        const [all] = await pool.query(`${select} LIMIT ${CATALOG_MATCH_LIMIT}`, [req.user.id, ...params]);
+        const scored = (await attachSkills(all))
+          .map((n) => {
+            const m = scoreMatch(talent, { ...n, skills: n.skills.map((s) => s.name) });
+            return {
+              ...n,
+              match: { score: m.score, matched_skills: m.matched_skills, missing_skills: m.missing_skills, reasons: m.reasons, confidence: m.confidence },
+            };
+          })
+          .sort((a, b) => b.match.score - a.match.score || new Date(b.created_at) - new Date(a.created_at));
+        return success(res, { ...paged(scored.slice(pg.offset, pg.offset + pg.limit), scored.length, pg), sort: 'match' });
+      }
+    }
+
+    const [rows] = await pool.query(`${select} LIMIT ? OFFSET ?`, [req.user.id, ...params, pg.limit, pg.offset]);
 
     const [[{ total }]] = await pool.query(
       `SELECT COUNT(*) AS total FROM needs n ${where}`,

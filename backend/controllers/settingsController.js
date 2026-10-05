@@ -1,5 +1,6 @@
 import { pool } from '../config/db.js';
 import { success, fail } from '../utils/response.js';
+import { invalidateRecommendations } from '../services/recommendation/index.js';
 
 export const getMySettings = async (req, res, next) => {
   try {
@@ -22,7 +23,7 @@ export const updateMySettings = async (req, res, next) => {
   try {
     const allowed = [
       'notif_email', 'notif_whatsapp', 'notif_talenta', 'notif_diskusi', 'show_location',
-      'allows_ai_chat', 'allows_chat_history_storage',
+      'allows_ai_chat', 'allows_chat_history_storage', 'show_in_recommendations',
     ];
     const fields = [];
     const values = [];
@@ -43,6 +44,8 @@ export const updateMySettings = async (req, res, next) => {
       `UPDATE user_settings SET ${fields.join(', ')} WHERE user_id = ?`,
       values
     );
+    // Talenta keluar/masuk daftar rekomendasi: hasil yang tersimpan milik pemilik kebutuhan mana pun usang.
+    if (req.body.show_in_recommendations !== undefined) invalidateRecommendations();
 
     const [rows] = await pool.query(`SELECT * FROM user_settings WHERE user_id = ?`, [req.user.id]);
     return success(res, rows[0], 'Pengaturan diperbarui');

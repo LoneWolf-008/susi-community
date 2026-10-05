@@ -1,6 +1,8 @@
 import { pool } from '../config/db.js';
 import { success, fail } from '../utils/response.js';
 import { parsePagination, paged } from '../utils/pagination.js';
+import { findOrCreateSkill } from '../utils/skillNormalize.js';
+import { invalidateRecommendations } from '../services/recommendation/index.js';
 
 export const getProfile = async (req, res, next) => {
   try {
@@ -59,7 +61,7 @@ export const updateProfile = async (req, res, next) => {
     }
 
     // Daftar keahlian diganti utuh bila skill_ids (dari GET /api/skills) dan/atau skills
-    // (nama; dibuat bila belum ada) dikirim.
+    // (nama bebas; dibakukan dulu — "reactjs" → "React" — lalu dibuat bila belum ada) dikirim.
     if (Array.isArray(skill_ids) || Array.isArray(skills)) {
       const ids = new Set();
       if (Array.isArray(skill_ids) && skill_ids.length > 0) {
@@ -71,9 +73,8 @@ export const updateProfile = async (req, res, next) => {
         found.forEach((s) => ids.add(s.id));
       }
       for (const name of skills || []) {
-        await conn.query(`INSERT IGNORE INTO skills (name) VALUES (?)`, [name]);
-        const [[row]] = await conn.query(`SELECT id FROM skills WHERE name = ?`, [name]);
-        ids.add(row.id);
+        const skillId = await findOrCreateSkill(conn, name);
+        if (skillId) ids.add(skillId);
       }
       if (ids.size > 20) {
         await conn.rollback();
@@ -90,6 +91,7 @@ export const updateProfile = async (req, res, next) => {
     }
 
     await conn.commit();
+    invalidateRecommendations(req.user.id);
 
     const [skillRows] = await pool.query(
       `SELECT s.id, s.name FROM talent_skills ts JOIN skills s ON s.id = ts.skill_id
