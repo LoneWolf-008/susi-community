@@ -18,4 +18,7 @@ export const TEST_ENV = {
   PUBLIC_RATE_LIMIT_MAX: '100000',
   VISIT_RATE_LIMIT_MAX: '100000',
   UPLOAD_DIR: TEST_UPLOAD_DIR,
+  // Test tidak pernah memanggil OpenRouter sungguhan (tanpa biaya, tanpa jaringan).
+  LLM_PROVIDER: 'mock',
+  OPENROUTER_API_KEY: '',
 };

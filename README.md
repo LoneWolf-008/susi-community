@@ -153,6 +153,16 @@ fallback SPA untuk Vercel/Netlify.
 | `AUTH_RATE_LIMIT_WINDOW_MS` | | `900000` | Jendela rate limit auth (15 menit) |
 | `PUBLIC_RATE_LIMIT_MAX` | | `60` | Batas `/api/public/*` per IP per menit |
 | `VISIT_RATE_LIMIT_MAX` | | `10` | Batas `POST /api/public/visit` per IP per 15 menit |
+| `LLM_PROVIDER` | | `openrouter` | `openrouter` atau `mock` (jawaban tiruan untuk dev/test tanpa key & biaya) |
+| `OPENROUTER_API_KEY` | | kosong | Key OpenRouter **khusus backend** (tidak pernah dikirim ke FE/log). Kosong → chatbot menjawab dari KB |
+| `OPENROUTER_MODEL` | | `anthropic/claude-haiku-4.5` | Slug model utama |
+| `OPENROUTER_FALLBACK_MODELS` | | kosong | Model cadangan, dipisah koma (dikirim sebagai `models`) |
+| `OPENROUTER_TIMEOUT_MS` | | `12000` | Batas waktu per permintaan LLM (stream: jeda antar-chunk) |
+| `OPENROUTER_REFERER`, `OPENROUTER_TITLE` | | kosong, `SUSI Community` | Atribusi aplikasi di OpenRouter |
+| `OPENROUTER_DATA_COLLECTION` | | `deny` | `deny` = hanya provider yang tidak menyimpan/melatih dengan isi chat |
+| `OPENROUTER_REASONING_EFFORT` | | kosong | Untuk model yang berpikir dulu: `none\|minimal\|low\|medium\|high` |
+| `CHATBOT_MAX_TOKENS` | | `350` | Batas token jawaban |
+| `CHATBOT_DAILY_BUDGET_USD` | | `1` | Anggaran harian LLM (ditegakkan mulai T12) |
 | `MIGRATIONS_DIR` | | `db/migrations` | Hanya untuk pengujian runner migrasi |
 | `TEST_DB_NAME` | | `susi_community_test` | Database untuk `npm test` (harus berakhiran `_test`) |
 
