@@ -42,14 +42,26 @@ Peran: `requester` (komunitas), `talent`, `liaison` (AgenSUSI), `admin`. "Login"
 
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
-| GET | `/needs/catalog` | login | `APPROVED + OPEN`. Filter `category, sector, source, skill (id/nama), search`. Item memuat `skills[]` dan `my_application_status` (status lamaran pengguna ini, atau `null`) |
+| GET | `/needs/catalog` | login | `APPROVED + OPEN`. Filter `category, sector, source, skill (id/nama), search`. Item memuat `skills[]` dan `my_application_status` (status lamaran pengguna ini, atau `null`). `sort=match` (talenta berkeahlian): urut skor kecocokan; tiap item memuat `match { score, matched_skills, missing_skills, reasons, confidence }` dan respons memuat `sort: 'match'` |
 | GET | `/needs/mine` | requester, liaison | Milik sendiri (liaison: kebutuhan Assisted yang ia catat). Memuat `applicants, applicants_waiting, project_id, project_status, skills[]` |
 | GET | `/needs/:id` | login | Belum `APPROVED` hanya untuk pemilik/admin. Pemilik/admin juga menerima `project_id, project_status` (proyek terbaru, bisa `CANCELLED`). Semua menerima `my_application_status` |
 | POST | `/needs` | requester, liaison | `title, description, category?, summary?, address?, lat?, lng?, community_id?, skill_ids?[]`. Requester harus anggota komunitas. Masuk antrean moderasi (`PENDING`) |
 | PATCH | `/needs/:id` | pemilik | Hanya saat `PENDING`/`REJECTED`; dari `REJECTED` kembali `PENDING` |
 | POST | `/needs/:id/withdraw` | pemilik | `reason?`. Tutup lunak (`CLOSED`); 409 bila sudah ada proyek aktif |
 | DELETE | `/needs/:id` | pemilik | Sama dengan withdraw (tidak pernah menghapus baris) |
+| POST | `/needs/:id/invite` | pemilik efektif | `talent_id`. Undang talenta untuk melamar (R1). Kebutuhan harus `APPROVED + OPEN`; talenta aktif dan bersedia tampil di rekomendasi (selain itu 409); maks. 5 undangan per kebutuhan; bukan pemilik → 403. → 201 `{ invite, invites: { used, limit } }`. Talenta diberi notifikasi "Undangan melamar"; undangan menjadi `ACCEPTED` saat ia melamar |
 | GET | `/skills` | login | `[{ id, name }]` untuk pilihan keahlian |
+
+## Rekomendasi (R1)
+
+Skor deterministik 0–100 (`services/recommendation/score.js`). Rekomendasi hanya mengurutkan dan
+menjelaskan; manusia tetap memilih (lihat `docs/PRD-addendum-rekomendasi.md`). Hasil di-cache
+60 detik per pengguna.
+
+| Method | Path | Peran | Keterangan |
+|---|---|---|---|
+| GET | `/recommendations/needs` | talent | Kebutuhan `OPEN + APPROVED` yang belum dilamar dan belum punya proyek aktif. Minimal satu keahlian cocok dan `score ≥ min_score` (bawaan 20, `?min_score=0..100`). Kebutuhan yang mengundang talenta selalu tampil paling atas (`invited: true`). Paginasi `page, limit`. Item: kolom kebutuhan + `skills[]`, `score, matched_skills[], missing_skills[], reasons[], confidence (high/medium/low)`. Talenta tanpa keahlian → `items: []` dan `hint` ajakan melengkapi profil |
+| GET | `/recommendations/talents?need_id=` | pemilik efektif (requester/liaison), admin | `{ need, items, invites: { used, limit: 5 } }`. `items`: semua pelamar dulu (`applied: true`, `application_status`), lalu maks. 10 talenta lain yang bersedia tampil, berakun aktif, dan punya keahlian cocok. Kolom: `talent_id, name, avatar_url, level, skills[], completed_projects, certified, invite_status, score, matched_skills[], missing_skills[], reasons[], confidence`. Tanpa email/telepon. Bukan pemilik → 403 |
 
 ## Lamaran
 
@@ -110,7 +122,7 @@ keanggotaan ACTIVE (atau liaison/admin).
 
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
-| GET/PATCH | `/talent/profile` | talent | GET: `user, profile (reputation_points, level, next_level_target), skills[], projects[]` (+ `community_name, community_verified_at`). PATCH: `bio?, phone?, extra_info?, skill_ids?[], skills?[] (nama)` |
+| GET/PATCH | `/talent/profile` | talent | GET: `user, profile (reputation_points, level, next_level_target), skills[], projects[]` (+ `community_name, community_verified_at`). PATCH: `bio?, phone?, extra_info?, skill_ids?[], skills?[] (nama)`. Nama keahlian bebas dibakukan (`reactjs`/`React.js` → `React`, `js` → `JavaScript`) dan memakai keahlian yang sudah ada bila kuncinya sama |
 | GET | `/talent/top` | login | Peringkat reputasi |
 | GET | `/talent/:id/testimonials` | login | Testimoni publik (disetujui & `is_public`) |
 | GET | `/testimonials/mine` | login | Testimoni yang saya terima |
@@ -118,7 +130,7 @@ keanggotaan ACTIVE (atau liaison/admin).
 | GET | `/notifications` | login | `unread_only=true` opsional |
 | GET | `/notifications/unread-count` | login | `{ count }`. Dasbor mem-polling tiap 30 detik (berhenti saat tab peramban tidak aktif) |
 | PATCH | `/notifications/:id/read` · `/notifications/read-all` · DELETE `/notifications/:id` | login | |
-| GET/PATCH | `/settings` | login | `notif_email, notif_whatsapp, notif_talenta, notif_diskusi, show_location, allows_ai_chat, allows_chat_history_storage` (boolean). `notif_talenta`/`notif_diskusi` = 0 → notifikasi bertipe `talenta`/`diskusi` tidak dibuat; `show_location` = 0 → titik & sektor komunitas yang didaftarkan pengguna itu disembunyikan di peta publik (komunitasnya tetap terdaftar); `allows_ai_chat` & `allows_chat_history_storage` → privasi Tanya SUSI (lihat bagian Chatbot). Email & WhatsApp belum punya kanal pengiriman |
+| GET/PATCH | `/settings` | login | `notif_email, notif_whatsapp, notif_talenta, notif_diskusi, show_location, allows_ai_chat, allows_chat_history_storage, show_in_recommendations` (boolean). `notif_talenta`/`notif_diskusi` = 0 → notifikasi bertipe `talenta`/`diskusi` tidak dibuat; `show_location` = 0 → titik & sektor komunitas yang didaftarkan pengguna itu disembunyikan di peta publik (komunitasnya tetap terdaftar); `allows_ai_chat` & `allows_chat_history_storage` → privasi Tanya SUSI (lihat bagian Chatbot); `show_in_recommendations` = 0 → talenta tidak muncul di rekomendasi pemilik kebutuhan dan tidak bisa diundang (tetap bisa melamar). Email & WhatsApp belum punya kanal pengiriman |
 
 ## Liaison (AgenSUSI)
 
