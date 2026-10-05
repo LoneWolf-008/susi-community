@@ -9,10 +9,13 @@ import { SkeletonCard } from '../../../components/ui/Skeleton';
 import ErrorState from '../../../components/ui/ErrorState';
 import EmptyState from '../../../components/ui/EmptyState';
 import Pagination from '../../../components/ui/Pagination';
+import { MatchBadge } from '../../../components/recommendation/MatchBits';
+import RecommendationsSection from './RecommendationsSection';
 
 const PAGE_SIZE = 10;
 const SECTORS = ['BARAT–UTARA', 'BARAT–SELATAN', 'TIMUR–UTARA', 'TIMUR–SELATAN'];
 const NO_FILTERS = { category: '', sector: '', skill: '' };
+const SORTS = [{ id: 'match', label: 'Paling cocok' }, { id: 'new', label: 'Terbaru' }];
 
 function NeedCard({ need, onOpen }) {
   const applied = need.my_application_status;
@@ -23,6 +26,12 @@ function NeedCard({ need, onOpen }) {
         <span className="chip-mono">{NEED_CATEGORY[need.category] || need.category}</span>
         <span className="font-mono text-[9px] opacity-50 text-right">{timeAgo(need.created_at).toUpperCase()} · {need.applicants} PELAMAR</span>
       </div>
+      {(need.match || need.my_invite_status === 'SENT') && (
+        <div className="flex flex-wrap gap-2 mb-2">
+          {need.match && <MatchBadge score={need.match.score} />}
+          {need.my_invite_status === 'SENT' && <span className="rounded-full bg-[#e62b2b] text-white px-3 py-1 font-mono text-[10px] font-black">✉ DIUNDANG</span>}
+        </div>
+      )}
       <h4 className="font-black text-lg leading-tight mb-1">{need.title}</h4>
       <p className="font-mono text-[10px] opacity-60 mb-2">{need.community_name || 'Tanpa komunitas'}{need.sector ? ` · ${need.sector}` : ''}</p>
       <p className="text-xs text-[#12283c]/60 leading-relaxed mb-4 line-clamp-3">{need.summary || need.description}</p>
@@ -42,21 +51,28 @@ function NeedCard({ need, onOpen }) {
 /**
  * Katalog kebutuhan terbuka (GET /needs/catalog) dengan filter, pencarian, dan paginasi.
  * `version` dinaikkan shell untuk memuat ulang (mis. setelah melamar) tanpa mereset filter.
+ * R2: rekomendasi di atas (bila tanpa filter) dan urutan bawaan "Paling cocok" untuk talenta
+ * berkeahlian (`sort=match`); talenta tanpa keahlian otomatis mendapat urutan terbaru.
  */
-export default function CatalogTab({ first, stats, onOpen, version = 0 }) {
+export default function CatalogTab({ first, stats, onOpen, onCompleteProfile, version = 0 }) {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(NO_FILTERS);
+  const [sort, setSort] = useState('match');
   const q = useDebouncedValue(search.trim(), 350);
-  // Halaman kembali ke 1 setiap filter/pencarian berubah (diturunkan, tanpa effect).
-  const filterKey = JSON.stringify([filters, q]);
+  // Halaman kembali ke 1 setiap filter/pencarian/urutan berubah (diturunkan, tanpa effect).
+  const filterKey = JSON.stringify([filters, q, sort]);
   const [paging, setPaging] = useState({ key: filterKey, page: 1 });
   const page = paging.key === filterKey ? paging.page : 1;
 
   const skillsQ = useApi((signal) => api.get('/skills', { signal }), []);
   const { data, loading, error, refetch } = useApi(
-    (signal) => api.get('/needs/catalog', { signal, query: { page, limit: PAGE_SIZE, search: q, ...filters } }),
-    [page, filters, q, version],
+    (signal) => api.get('/needs/catalog', {
+      signal, query: { page, limit: PAGE_SIZE, search: q, ...filters, sort: sort === 'match' ? 'match' : undefined },
+    }),
+    [page, filters, q, sort, version],
   );
+  // Server hanya mengurutkan per kecocokan bila talenta punya keahlian.
+  const matchUnavailable = sort === 'match' && data && data.sort !== 'match';
   const items = data?.items || [];
   const filtered = Boolean(q) || Object.values(filters).some(Boolean);
   const setFilter = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
@@ -105,6 +121,20 @@ export default function CatalogTab({ first, stats, onOpen, version = 0 }) {
           </div>
         ))}
       </div>
+
+      {!filtered && <RecommendationsSection version={version} onOpen={onOpen} onCompleteProfile={onCompleteProfile} />}
+
+      <div className="dash-item flex items-center justify-between flex-wrap gap-3 mb-4">
+        <h2 className="text-2xl font-black tracking-tight">Semua kebutuhan terbuka</h2>
+        <div className="flex gap-2" role="radiogroup" aria-label="Urutan katalog">
+          {SORTS.map((s) => (
+            <button type="button" key={s.id} role="radio" aria-checked={sort === s.id} onClick={() => setSort(s.id)} className={`rounded-full px-4 min-h-[44px] text-[11px] font-black uppercase tracking-wider transition-colors ${sort === s.id ? 'bg-[#12283c] text-[#f2efe6]' : 'border border-[#12283c]/20 hover:border-[#12283c]'}`}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {matchUnavailable && <p className="dash-item font-mono text-[10px] opacity-70 mb-4">Urutan "Paling cocok" aktif setelah Anda menambahkan keahlian di Profil — sementara ditampilkan yang terbaru.</p>}
 
       {error && <ErrorState error={error} onRetry={refetch} />}
       {loading && !data && !error && <div className="grid grid-cols-1 md:grid-cols-2 gap-5"><SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>}

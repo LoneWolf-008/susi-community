@@ -9,12 +9,14 @@ import { SkeletonCard } from '../ui/Skeleton';
 import ErrorState from '../ui/ErrorState';
 import EmptyState from '../ui/EmptyState';
 import ChooseTalentModal from './ChooseTalentModal';
+import { MatchBadge, WhyMatch, RecommendationNote } from '../recommendation/MatchBits';
 
 /**
  * Daftar pelamar beserta rekam jejaknya (PRD P0-3/P0-6) untuk pemilik kebutuhan
- * (requester, atau liaison sebagai pemilik proksi).
+ * (requester, atau liaison sebagai pemilik proksi). R2: `matches` (hasil GET
+ * /recommendations/talents) menambahkan skor kecocokan; pelamar diurutkan dari yang paling cocok.
  */
-export default function ApplicantsPanel({ need, onChanged }) {
+export default function ApplicantsPanel({ need, matches, onChanged }) {
   const toast = useToast();
   const { data, loading, error, refetch } = useApi(
     (signal) => api.get(`/applications/for-need/${need.id}`, { signal, query: { limit: 50 } }),
@@ -22,7 +24,8 @@ export default function ApplicantsPanel({ need, onChanged }) {
   );
   const [choosing, setChoosing] = useState(null);
   const [rejecting, setRejecting] = useState(null);
-  const items = data?.items || [];
+  const matchOf = new Map((matches || []).filter((m) => m.applied).map((m) => [Number(m.talent_id), m]));
+  const items = [...(data?.items || [])].sort((a, b) => (matchOf.get(Number(b.talent_id))?.score ?? -1) - (matchOf.get(Number(a.talent_id))?.score ?? -1));
   const waiting = items.filter((a) => a.status === 'MENUNGGU');
 
   const reject = async (app) => {
@@ -43,7 +46,8 @@ export default function ApplicantsPanel({ need, onChanged }) {
       <div className="flex items-end justify-between flex-wrap gap-3 mb-5">
         <div>
           <h3 className="text-xl font-black">Pelamar</h3>
-          <p className="label-mono mt-1">NILAI DARI REKAM JEJAK & TESTIMONI</p>
+          <p className="label-mono mt-1">NILAI DARI REKAM JEJAK & TESTIMONI{matchOf.size > 0 ? ' · URUT DARI YANG PALING COCOK' : ''}</p>
+          {matchOf.size > 0 && <div className="mt-1"><RecommendationNote /></div>}
         </div>
         <span className="chip-mono border-0 bg-[#12283c] text-[#f2efe6]">{waiting.length} MENUNGGU</span>
       </div>
@@ -59,7 +63,9 @@ export default function ApplicantsPanel({ need, onChanged }) {
       )}
 
       <div className="space-y-4">
-        {items.map((a) => (
+        {items.map((a) => {
+          const m = matchOf.get(Number(a.talent_id));
+          return (
           <article key={a.id} className={`rounded-xl border p-5 ${a.status === 'MENUNGGU' ? 'border-[#12283c]/20' : 'border-[#12283c]/10 opacity-70'}`}>
             <div className="flex items-start gap-4 flex-wrap">
               <span className="w-12 h-12 rounded-full bg-[#12283c] text-[#f2efe6] flex items-center justify-center font-black shrink-0">{initialOf(a.talent_name)}</span>
@@ -67,6 +73,9 @@ export default function ApplicantsPanel({ need, onChanged }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <h4 className="font-black text-lg leading-tight">{a.talent_name}</h4>
                   <StatusChip status={applicationStatus(a.status)} />
+                  {m && <MatchBadge score={m.score} />}
+                  {m?.certified && <span className="rounded-full border border-[#0f766e] text-[#0f766e] px-2.5 py-0.5 font-mono text-[9px] font-black">✓ TERSERTIFIKASI SUSI</span>}
+                  {m?.invite_status === 'ACCEPTED' && <span className="font-mono text-[9px] font-bold opacity-60">MELAMAR SETELAH DIUNDANG</span>}
                 </div>
                 <p className="font-mono text-[10px] opacity-60 mt-1">
                   {TALENT_LEVEL[a.level] || 'Talenta Muda'} · {a.reputation_points ?? 0} POIN · {a.projects_completed} PROYEK SELESAI · MELAMAR {timeAgo(a.created_at).toUpperCase()}
@@ -75,6 +84,7 @@ export default function ApplicantsPanel({ need, onChanged }) {
               </div>
             </div>
 
+            {m && <WhyMatch reasons={m.reasons} matched={m.matched_skills} confidence={m.confidence} />}
             {a.message && <p className="mt-4 text-sm leading-relaxed bg-[#12283c]/5 rounded-lg p-3">“{a.message}”</p>}
 
             {a.skills.length > 0 && (
@@ -106,7 +116,8 @@ export default function ApplicantsPanel({ need, onChanged }) {
               </div>
             )}
           </article>
-        ))}
+          );
+        })}
       </div>
 
       {choosing && (
