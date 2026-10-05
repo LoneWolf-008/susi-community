@@ -130,7 +130,9 @@ Login opsional: tanpa header `Authorization` = anonim. Header yang dikirim tetap
 
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
-| POST | `/chatbot/message` | semua (anonim boleh) | `{ session_id?, message }` (1–500 karakter). Tanpa `session_id` = percakapan baru. → `{ session_id, user_message_id, message: { id, role, content }, source: 'llm'\|'kb'\|'fallback', sources: [{ id, title }] }`. LLM gagal/tanpa key → jawaban entri KB teratas (bukan error). Sesi berisi ≥ 200 pesan → 409 |
+| POST | `/chatbot/message` | semua (anonim boleh) | `{ session_id?, message }` (1–500 karakter). Tanpa `session_id` = percakapan baru. → `{ session_id, user_message_id, message: { id, role, content }, intent, source, sources: [{ id, title }], escalation_suggested }`. Sesi berisi ≥ 200 pesan → 409 |
+| POST | `/chatbot/stream` | semua (anonim boleh) | Body sama dengan `/message`; jawaban lewat SSE (lihat di bawah). Galat sebelum stream dimulai (validasi, sesi, 409, 429) tetap JSON biasa |
+| POST | `/chatbot/feedback` | pemilik sesi (anonim: pemegang `session_id`) | `{ session_id, message_id, value: 1\|-1 }` (👍/👎 untuk jawaban asisten) → `ask_logs.feedback`; boleh diubah. Pesan bukan jawaban/beda sesi/sesi orang lain → 404 |
 | GET | `/chatbot/session/:id` | pemilik sesi | `?after=<messageId>` untuk polling. → `{ session, messages: [{ id, role: 'user'\|'assistant'\|'agent', content, created_at }] }` |
 | GET | `/chatbot/health` | admin | `{ provider, model, fallback_models, configured, status: 'ok'\|'error'\|'not_configured', credits? }` — memeriksa key lewat `GET /api/v1/key` OpenRouter tanpa memanggil model; key/label tidak pernah dikembalikan |
 
@@ -138,9 +140,44 @@ Akses sesi: sesi milik pengguna hanya untuk pemiliknya (selain itu 404). Sesi an
 `session_id` (UUID acak). Bila pengguna yang sudah masuk melanjutkan sesi anonim, sesi itu
 diklaim menjadi miliknya dan tidak bisa lagi dibuka secara anonim.
 
-Retrieval KB memakai FULLTEXT (`title, keywords, reply`) dengan filter `status = 'active'` dan
-audiens: anonim → `all`, `public`; pengguna → `all` + perannya; admin → semua. Setiap jawaban
-dicatat di `ask_logs` (model, `prompt_version`, token, latensi, biaya, `llm_error`).
+**Nilai respons.** `intent`: `faq`, `howto`, `status_data`, `complaint`, `escalation_request`,
+`smalltalk`, `out_of_scope`, serta `injection`/`abusive` untuk pesan yang ditolak pra-pemeriksaan.
+`source`: `kb` (entri KB langsung, tanpa LLM), `llm`, `cache` (jawaban LLM yang sama sebelumnya),
+`data` (ringkasan data akun tanpa LLM), `rule` (jawaban tetap: sapaan, penolakan, di luar topik,
+ajakan masuk), `fallback` ("belum tahu"). `escalation_suggested = true` → tampilkan tombol
+"Hubungi AgenSUSI" (permintaan eksplisit, jawaban tidak ditemukan, atau LLM gagal).
+
+**Streaming.** Event SSE (`fetch` + `ReadableStream`; `EventSource` hanya mendukung GET):
+
+| Event | Data |
+|---|---|
+| `start` | `{ session_id, user_message_id }` — dikirim pertama, sebelum jawaban |
+| `delta` | `{ content }` — potongan teks, ditempel berurutan |
+| `done` | Isi sama dengan respons `/message` + `replace`. Bila `replace = true`, ganti seluruh teks yang sudah tampil dengan `message.content` (LLM gagal di tengah jalan atau keluaran diblokir) |
+| `error` | `{ message, session_id }` — galat tak terduga setelah stream dimulai |
+
+Klien yang menutup koneksi membatalkan permintaan ke LLM; jawaban sebagian tetap disimpan.
+
+**Pipeline (T12).** Pesan disaring dulu: PII (email, nomor HP, deretan ≥ 10 digit) disamarkan
+sebelum disimpan dan dikirim ke LLM; upaya injeksi prompt dan pesan yang hanya berisi kata kasar
+dijawab tetap tanpa LLM. Intent data pribadi ("status proyek saya", "lamaran saya", "notifikasi
+saya", "poin saya") hanya untuk pengguna yang masuk dan hanya membaca data milik `req.user.id`;
+anonim diminta masuk. Retrieval memakai FULLTEXT (`title, keywords, reply`) dengan kueri yang
+dibakukan (slang & sinonim), filter `status = 'active'` dan audiens (anonim → `all`, `public`;
+pengguna → `all` + perannya; admin → semua), lalu diurutkan ulang dengan ambang relevansi.
+Entri yang mencakup penuh pertanyaan dijawab langsung tanpa LLM; jawaban LLM disimpan di cache
+memori (kunci = pertanyaan baku + audiens). LLM menerima prompt sistem (`PROMPT_VERSION`), `<kb>`,
+`<user_data>`, dan 6 giliran terakhir. Keluarannya disaring: tautan di luar host `FRONTEND_URL`,
+`wa.me`, dan `CHATBOT_ALLOWED_DOMAINS` dihapus; kebocoran prompt diganti jawaban penolakan.
+Tanpa key, LLM gagal, atau anggaran harian habis → jawaban KB (mode hemat diberi catatan).
+
+**Kuota.** Per menit: 12 per akun; anonim 6 per IP + sesi dan 30 per IP. Per hari: 100 per
+akun; anonim 20 per sesi dan 300 per IP. Melewati batas → 429 dengan pesan ramah. Semua angka
+bisa diatur lewat env `CHATBOT_*`.
+
+Setiap jawaban dicatat di `ask_logs`: `intent`, `kb_entry_id`, `model`, `prompt_version`, token,
+latensi, `cost_usd`, `cache_hit`, `llm_error` (nama galat LLM, `OutputBlocked`,
+`BudgetExceeded`, `ClientAborted`), dan `feedback`.
 
 ## Admin
 

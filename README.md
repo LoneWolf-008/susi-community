@@ -77,7 +77,8 @@ bukan lewat phpMyAdmin.
 | `npm run db:migrate` | Jalankan migrasi tertunda; tercatat di tabel `schema_migrations` |
 | `npm run db:status` | Daftar migrasi yang sudah dan belum dijalankan |
 | `npm run db:reset` | **Menghapus semua tabel**, lalu `db:init`. Ditolak bila `NODE_ENV=production` |
-| `npm run seed` | Isi data demo. Idempoten; ditolak di production kecuali `-- --force` |
+| `npm run seed` | Isi data demo, termasuk basis pengetahuan chatbot dari `backend/db/seeds/kb.json`. Idempoten; ditolak di production kecuali `-- --force` |
+| `npm run seed -- --sync-kb` | Seperti `seed`, tetapi entri KB yang sudah ada ditimpa isi `kb.json` terbaru (per `slug`; suntingan admin ikut tertimpa) |
 
 Database hasil impor dump phpMyAdmin (tanpa `schema_migrations`) ditolak oleh
 `db:init`. Kosongkan dulu dengan `db:reset` atau pakai database baru.
@@ -162,7 +163,13 @@ fallback SPA untuk Vercel/Netlify.
 | `OPENROUTER_DATA_COLLECTION` | | `deny` | `deny` = hanya provider yang tidak menyimpan/melatih dengan isi chat |
 | `OPENROUTER_REASONING_EFFORT` | | kosong | Untuk model yang berpikir dulu: `none\|minimal\|low\|medium\|high` |
 | `CHATBOT_MAX_TOKENS` | | `350` | Batas token jawaban |
-| `CHATBOT_DAILY_BUDGET_USD` | | `1` | Anggaran harian LLM (ditegakkan mulai T12) |
+| `CHATBOT_DAILY_BUDGET_USD` | | `1` | Anggaran LLM per hari (USD). Habis → mode KB-saja sampai hari berganti; `0` = LLM dimatikan |
+| `CHATBOT_CACHE_TTL_HOURS`, `CHATBOT_CACHE_MAX` | | `6`, `500` | Cache jawaban LLM di memori (`0` jam = mati) |
+| `CHATBOT_RATE_LIMIT_PER_MIN` | | `12` | Pesan chatbot per menit per akun |
+| `CHATBOT_ANON_RATE_LIMIT_PER_MIN`, `CHATBOT_ANON_IP_RATE_LIMIT_PER_MIN` | | `6`, `30` | Anonim per menit: per IP + sesi chat, dan plafon per IP |
+| `CHATBOT_DAILY_LIMIT_USER` | | `100` | Pesan chatbot per hari per akun |
+| `CHATBOT_DAILY_LIMIT_ANON`, `CHATBOT_DAILY_LIMIT_ANON_IP` | | `20`, `300` | Anonim per hari: per sesi chat, dan plafon per IP (naikkan untuk demo dengan satu Wi-Fi) |
+| `CHATBOT_ALLOWED_DOMAINS` | | kosong | Domain tambahan yang boleh muncul sebagai tautan di jawaban (host `FRONTEND_URL` & `wa.me` selalu boleh) |
 | `MIGRATIONS_DIR` | | `db/migrations` | Hanya untuk pengujian runner migrasi |
 | `TEST_DB_NAME` | | `susi_community_test` | Database untuk `npm test` (harus berakhiran `_test`) |
 
