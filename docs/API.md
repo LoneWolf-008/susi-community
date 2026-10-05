@@ -151,11 +151,12 @@ lamaran, dan proyek di atas.
 
 | Method | Path | Keterangan |
 |---|---|---|
-| GET | `/liaison/escalations` | `?status=open` (default: pending + assigned) `\|pending\|assigned\|resolved\|closed\|all`, `mine=true`, `page/limit`. Item: `id, session_id, status, priority (normal\|high), score, reasons[], summary, summary_source (llm\|rule), contact, user {id, name, role} \| null, assigned_to {id, name} \| null, stale, resolution, kb_entry_id, created_at, assigned_at, resolved_at, last_active_at`. Juga `counts {pending, assigned, mine, stale}`. Tiket terbuka: prioritas tinggi lalu terlama dulu |
-| GET | `/liaison/escalations/:id` | Detail + `messages[]` transkrip sesi (≤ 100 terakhir; pesan pengguna sudah disamarkan PII-nya) |
+| GET | `/liaison/escalations` | `?status=open` (default: pending + assigned) `\|pending\|assigned\|resolved\|closed\|cancelled\|all`, `mine=true`, `page/limit`. Item: `id, session_id, status, priority (normal\|high), score, reasons[], summary, summary_source (llm\|rule), contact, user {id, name, role} \| null, assigned_to {id, name} \| null, stale, resolution, kb_entry_id, unread, last_message {role, preview} \| null, handoff_message_id, handed_back, rating, created_at, assigned_at, resolved_at, last_active_at`. Juga `counts {pending, assigned, mine, stale}`. Tiket terbuka: prioritas tinggi lalu terlama dulu. `unread` = pesan pengguna di bagian AgenSUSI yang belum dilihat agen (tiket terbuka saja) |
+| GET | `/liaison/escalations/:id` | Detail + `messages[]` transkrip sesi (≤ 100 terakhir; pesan pengguna sudah disamarkan PII-nya). Pesan dengan `id < handoff_message_id` = bagian AI. Dibuka oleh AgenSUSI yang menangani → `unread` direset |
 | PATCH | `/liaison/escalations/:id/claim` | `pending → assigned` ke pemanggil. Sudah diklaim orang lain → 409; klaim ulang oleh pemiliknya → 200 |
 | POST | `/liaison/escalations/:id/reply` | `message` (≤ 2000) → pesan `role: 'agent'` di sesi pengguna (dibaca lewat polling sesi); pengguna terdaftar diberi notifikasi. Harus sudah diklaim (pending → 409), oleh pemanggil (lainnya → 403; admin boleh) |
 | PATCH | `/liaison/escalations/:id/resolve` | `resolution` (10–2000), `outcome?: resolved\|closed`, `save_as_kb?`, `kb_title?`, `kb_keywords?[]`. `save_as_kb` → entri `kb_entries` berstatus **draft** (`source = Eskalasi #id`) untuk ditinjau admin; tidak dipakai chatbot sebelum disetujui. Admin boleh menutup tiket pending tanpa klaim |
+| PATCH | `/liaison/escalations/:id/handback` | "Kembalikan ke AI" (U6). `message?` (≤ 2000; kosong = pesan bawaan) tampil di percakapan pengguna sebagai pesan AgenSUSI. Tiket → `resolved` dengan `handed_back = true`; sesi pengguna kembali ke mode AI; pengguna terdaftar diberi notifikasi. Aturan akses sama dengan `resolve`. Tiket yang dibatalkan pengguna (`cancelled`) → 409 |
 
 Saat tiket dibuat, semua liaison aktif menerima notifikasi `type = 'eskalasi'`
 (`ref_type = 'escalation'`). Ringkasan tiket ≤ 80 kata dibuat LLM dari transkrip bersamaran (PII
@@ -175,10 +176,27 @@ Login opsional: tanpa header `Authorization` = anonim. Header yang dikirim tetap
 | POST | `/chatbot/feedback` | pemilik sesi (anonim: pemegang `session_id`) | `{ session_id, message_id, value: 1\|-1 }` (👍/👎 untuk jawaban asisten) → `ask_logs.feedback`; boleh diubah. Pesan bukan jawaban/beda sesi/sesi orang lain → 404 |
 | POST | `/chatbot/escalate` | pemilik sesi (anonim: pemegang `session_id`) | Tombol "Hubungi AgenSUSI". `{ session_id, contact? }`; `contact` (email/WhatsApp) **wajib untuk anonim**. → 201 `{ escalation: { id, status, priority, created_at }, already_open: false, available, message }` (`message` = konfirmasi yang juga tersimpan di sesi). Sesi yang sudah punya tiket terbuka → 200 `{ escalation, already_open: true, message: null }`. `available = false` bila tidak ada liaison aktif atau di luar jam layanan: tiket tetap dibuat, tampilkan WhatsApp resmi. Pengguna masuk yang mengeskalasi sesi anonim mengklaimnya. Sesi tanpa tanya-jawab → 400. Dihitung kuota chatbot |
 | GET | `/chatbot/suggestions` | semua (anonim boleh) | `{ suggestions: string[] }`: 4 saran pertanyaan sesuai peran (anonim → saran publik). Setiap saran diuji terjawab langsung oleh KB |
-| GET | `/chatbot/session/:id` | pemilik sesi | `?after=<messageId>` untuk polling. → `{ session, messages: [{ id, role: 'user'\|'assistant'\|'agent', content, created_at }], escalation: { id, status, created_at } \| null }` (tiket terakhir sesi; balasan AgenSUSI = `role: 'agent'`) |
+| GET | `/chatbot/session/:id` | pemilik sesi | `?after=<messageId>` untuk polling. → `{ session, messages: [{ id, role: 'user'\|'assistant'\|'agent', content, created_at }], escalation: { id, status, created_at } \| null, handoff }` (tiket terakhir sesi; balasan AgenSUSI = `role: 'agent'`) |
+| POST | `/chatbot/handoff/cancel` | pemilik sesi (anonim: pemegang `session_id`) | "Kembali ke asisten AI" (U6). `{ session_id }`. Tiket terbuka → `cancelled`, pesan konfirmasi tersimpan di sesi, AgenSUSI yang menangani diberi notifikasi. → `{ cancelled, message \| null, handoff }`. Tanpa tiket terbuka → 200 `cancelled: false` |
+| POST | `/chatbot/handoff/rate` | pemilik sesi | `{ session_id, rating?: 1–5 \| null }`. Setelah tiket `resolved`: simpan penilaian (sekali) dan tutup bagian AgenSUSI (`handoff.status → none`). Tanpa `rating` = tutup saja. Tiket terakhir belum selesai → 409 |
+| POST | `/chatbot/handoff/read` | pemilik sesi | `{ session_id }` → semua balasan AgenSUSI di sesi dianggap terbaca (`handoff.unread = 0`) |
+| GET | `/chatbot/handoffs` | login | Ruang AgenSUSI: tiket di percakapan milik pengguna (≤ 50; yang terbuka dulu). Item: `id, session_id, status, handoff, agent {name, avatar} \| null, summary, handed_back, rating, unread, last_message {role, preview} \| null, created_at, resolved_at, last_active_at`. Juga `unread_total` |
 | DELETE | `/chatbot/session/:id` | pemilik sesi (anonim: pemegang `session_id`) | Hapus satu percakapan: pesan, tiket eskalasinya (tiket terbuka ikut dibatalkan), dan notifikasi tiket itu. Baris `ask_logs` dianonimkan (pertanyaan dikosongkan, `user_id` dilepas). → `{ deleted: 1 }`; sesi orang lain/tidak ada → 404 |
 | DELETE | `/chatbot/history` | login | Hapus seluruh percakapan milik akun dengan aturan yang sama, termasuk melepas `ask_logs` lama dari akun. → `{ deleted: <jumlah sesi> }` |
 | GET | `/chatbot/health` | admin | `{ provider, model, fallback_models, configured, status: 'ok'\|'error'\|'not_configured', credits? }` — memeriksa key lewat `GET /api/v1/key` OpenRouter tanpa memanggil model; key/label tidak pernah dikembalikan |
+
+**Handoff ke AgenSUSI (U6).** `/message`, `/stream` (event `done`), `/escalate`, dan
+`/session/:id` memuat `handoff: { status, ticket_id, agent: { name, avatar } | null, eta_text,
+summary, handed_back, rating, unread, since_message_id }`. `status`: `none` (tanpa tiket / dibatalkan
+/ ditutup / sudah ditutup pengguna), `requested` (menunggu, tetapi tidak ada AgenSUSI bertugas: di luar
+jam layanan atau tanpa liaison aktif), `waiting` (menunggu diklaim), `assigned` (ditangani),
+`resolved` (selesai, menunggu penilaian). `eta_text` mengikuti `CHATBOT_SERVICE_HOURS` (hanya untuk
+`requested`/`waiting`). `summary` = ringkasan yang dikirim ke AgenSUSI. `since_message_id` = pesan
+pertama bagian AgenSUSI. Selama `requested`/`waiting`/`assigned`, `/message` dan `/stream`
+**tidak memanggil LLM dan tidak menulis `ask_logs`**: pesan disimpan untuk AgenSUSI (juga bila riwayat
+chat dimatikan, PII tetap disamarkan) dan respons berisi `message: null`, `intent = source =
+'handoff'`. Pesan pertama yang belum dibaca memberi notifikasi ke AgenSUSI yang menangani. Setelah
+`resolved`, pesan berikutnya dijawab AI lagi (tiket otomatis ditutup pengguna).
 
 Akses sesi: sesi milik pengguna hanya untuk pemiliknya (selain itu 404). Sesi anonim dibuka dengan
 `session_id` (UUID acak). Bila pengguna yang sudah masuk melanjutkan sesi anonim, sesi itu

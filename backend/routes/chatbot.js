@@ -4,7 +4,9 @@ import { authenticate, optionalAuth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/role.js';
 import { validate } from '../middleware/validate.js';
 import { chatbotLimiters } from '../middleware/rateLimit.js';
-import { chatMessageSchema, chatFeedbackSchema, escalateSchema } from '../validators/schemas.js';
+import {
+  chatMessageSchema, chatFeedbackSchema, escalateSchema, handoffSessionSchema, handoffRateSchema,
+} from '../validators/schemas.js';
 
 const router = Router();
 
@@ -15,6 +17,11 @@ router.post('/stream', optionalAuth, chatbotLimiters, validate(chatMessageSchema
 router.post('/feedback', optionalAuth, validate(chatFeedbackSchema), ctrl.postFeedback);
 // Eskalasi ke AgenSUSI (T13): dihitung kuota chatbot agar tiket tidak bisa dibanjiri.
 router.post('/escalate', optionalAuth, chatbotLimiters, validate(escalateSchema), ctrl.escalate);
+// Ruang AgenSUSI (U6): kembali ke AI, nilai bantuan, tandai dibaca, daftar tiket milik pengguna.
+router.post('/handoff/cancel', optionalAuth, validate(handoffSessionSchema), ctrl.cancelHandoff);
+router.post('/handoff/rate', optionalAuth, validate(handoffRateSchema), ctrl.rateHandoff);
+router.post('/handoff/read', optionalAuth, validate(handoffSessionSchema), ctrl.readHandoff);
+router.get('/handoffs', authenticate, ctrl.listHandoffs);
 router.get('/session/:id', optionalAuth, ctrl.getSession);
 // Privasi (T15): hapus satu percakapan (pemilik / pemegang id sesi anonim) atau seluruh riwayat akun.
 router.delete('/session/:id', optionalAuth, ctrl.deleteSession);

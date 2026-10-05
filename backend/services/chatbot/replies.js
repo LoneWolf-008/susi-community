@@ -23,6 +23,12 @@ export const REPLIES = {
 // Ditambahkan ke jawaban KB saat anggaran LLM harian habis (mode hemat), bukan pesan galat.
 export const BUDGET_NOTE = 'Catatan: Tanya SUSI sedang dalam mode hemat, jadi jawaban ini diambil langsung dari panduan SUSI.';
 
+/** U6: pengguna membatalkan permintaan AgenSUSI dan kembali ke asisten AI. */
+export const handoffCancelledReply = (id) => `Permintaan ke AgenSUSI (tiket #${id}) dibatalkan. Anda kembali ke asisten AI; silakan lanjut bertanya.`;
+
+/** U6: AgenSUSI mengembalikan percakapan ke asisten AI (bila agen tidak menulis pesannya sendiri). */
+export const HANDBACK_REPLY = 'Percakapan ini saya kembalikan ke asisten AI Tanya SUSI. Bila masih butuh bantuan, minta AgenSUSI lagi kapan saja.';
+
 /** Pesan di sesi setelah tiket eskalasi dibuat (T13). */
 export function escalationCreatedReply({ id, available, anonymous }) {
   const where = anonymous ? 'di percakapan ini atau lewat kontak yang Anda berikan' : 'di percakapan ini';
