@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useToast } from '../../context/toastContext';
 import { requestOpenNeed, requestOpenOwnerNeed } from '../../lib/chatNavigation';
+import CertifiedBadge from '../common/CertifiedBadge';
 
 // Kartu terstruktur di jawaban Tanya SUSI (R3): kebutuhan yang cocok untuk talenta (Lihat & lamar)
 // dan talenta yang cocok untuk pemilik kebutuhan (Lihat, Undang melamar). Sumbernya mesin
@@ -50,6 +51,7 @@ function TalentCard({ t, card, onNavigate }) {
         <div className="min-w-0">
           <p className="text-xs font-black leading-snug break-words">{card.title}</p>
           <p className={`font-mono text-[9px] ${t.muted} break-words`}>UNTUK: {card.need_title}</p>
+          {card.certified && <CertifiedBadge className="mt-1" />}
         </div>
         <span className="shrink-0 rounded-full bg-[#c9ecd9] text-[#12283c] px-2 py-0.5 font-mono text-[9px] font-black">{card.score}%</span>
       </div>

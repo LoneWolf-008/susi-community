@@ -83,6 +83,7 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
     else if (n.ref_type === 'topic') onTab('mading');
     else if (n.ref_type === 'community') onTab('komunitas'); // keputusan permintaan gabung (U1)
     else if (n.ref_type === 'application') onTab('histori');
+    else if (n.ref_type === 'certificate') onTab('profil'); // keputusan sertifikasi (U5)
     else onTab('projek');
   };
 

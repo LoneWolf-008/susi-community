@@ -5,6 +5,7 @@ import { useToast } from '../../context/toastContext';
 import { applicationStatus, TALENT_LEVEL } from '../../lib/statusMap';
 import { timeAgo, initialOf } from '../../lib/format';
 import StatusChip from '../common/StatusChip';
+import CertifiedBadge from '../common/CertifiedBadge';
 import { SkeletonCard } from '../ui/Skeleton';
 import ErrorState from '../ui/ErrorState';
 import EmptyState from '../ui/EmptyState';
@@ -74,7 +75,7 @@ export default function ApplicantsPanel({ need, matches, onChanged }) {
                   <h4 className="font-black text-lg leading-tight">{a.talent_name}</h4>
                   <StatusChip status={applicationStatus(a.status)} />
                   {m && <MatchBadge score={m.score} />}
-                  {m?.certified && <span className="rounded-full border border-[#0f766e] text-[#0f766e] px-2.5 py-0.5 font-mono text-[9px] font-black">✓ TERSERTIFIKASI SUSI</span>}
+                  {m?.certified && <CertifiedBadge />}
                   {m?.invite_status === 'ACCEPTED' && <span className="font-mono text-[9px] font-bold opacity-60">MELAMAR SETELAH DIUNDANG</span>}
                 </div>
                 <p className="font-mono text-[10px] opacity-60 mt-1">
