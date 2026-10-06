@@ -18,13 +18,16 @@
     "eval:chatbot": "node tests/chatbot/runEval.js",
     "chat:retention": "node utils/chatRetention.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "pack:cpanel": "node scripts/pack-cpanel.mjs",
+    "make-admin-sql": "node scripts/make-admin-sql.mjs",
+    "install-sql": "node scripts/build-install-sql.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20 <25"
   },
   "dependencies": {
-    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

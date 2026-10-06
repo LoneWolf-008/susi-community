@@ -88,7 +88,7 @@ describe('Prompt sistem (T12.3)', () => {
   });
 
   it('memuat persona, aturan inti, dan versi tercatat', () => {
-    expect(PROMPT_VERSION).toBe('cs2');
+    expect(PROMPT_VERSION).toBe('cs3');
     expect(prompt).toMatch(/Jangan menambah detail apa pun yang tidak tertulis di sumber tersebut/);
     expect(prompt).toMatch(/Lebih baik mengaku belum tahu daripada melengkapi dengan perkiraan/);
     expect(prompt).toMatch(/Tanpa emoji\. Pakai kata baku: "tidak" \(bukan "gak"/);

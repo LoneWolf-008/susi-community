@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { env } from '../config/env.js';
 import { pool } from '../config/db.js';
 import { success, created, fail } from '../utils/response.js';

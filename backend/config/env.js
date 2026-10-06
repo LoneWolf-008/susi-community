@@ -86,6 +86,8 @@ export function validateEnv(source) {
     }
   };
   oneOf('COOKIE_SAMESITE', ['lax', 'none']);
+  oneOf('SERVE_FRONTEND', ['true', 'false']);
+  oneOf('LLM_TRANSPORT', ['fetch', 'https']);
   oneOf('LLM_PROVIDER', LLM_PROVIDERS);
   oneOf('OPENROUTER_DATA_COLLECTION', ['allow', 'deny']);
   oneOf('OPENROUTER_REASONING_EFFORT', REASONING_EFFORTS);
@@ -145,8 +147,13 @@ const lower = (raw, fallback) => (isBlank(raw) ? fallback : String(raw).trim().t
 export const env = Object.freeze({
   nodeEnv: process.env.NODE_ENV || 'development',
   isProduction: process.env.NODE_ENV === 'production',
-  port: Number(process.env.PORT) || 3009,
+  // Angka = port TCP. Di Passenger/LiteSpeed (cPanel) PORT bisa berupa path socket: diteruskan apa adanya
+  // ke listen() (Passenger juga mengambil alih listen() pertama, apa pun argumennya).
+  port: isBlank(process.env.PORT) ? 3009 : /^\d+$/.test(process.env.PORT.trim()) ? Number(process.env.PORT) : process.env.PORT.trim(),
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY ?? '1'),
+  // Satu origin (mis. cPanel): Express juga menyajikan hasil build frontend dari FRONTEND_DIST.
+  serveFrontend: lower(process.env.SERVE_FRONTEND, 'false') === 'true',
+  frontendDist: path.resolve(BACKEND_DIR, process.env.FRONTEND_DIST || '../frontend/dist'),
   frontendUrls: process.env.FRONTEND_URL.split(',').map((s) => s.trim()).filter(Boolean),
   // Cookie refresh: lax = satu origin (bawaan). none = frontend & API beda domain; Secure dipaksa dan
   // /auth/refresh & /auth/logout hanya menerima Origin yang tercantum di FRONTEND_URL (lihat docs/DEPLOY.md).
@@ -182,6 +189,9 @@ export const env = Object.freeze({
   // Key OpenRouter hanya dibaca di sini dan dipakai klien LLM di backend; tidak pernah dikirim ke FE.
   llm: Object.freeze({
     provider: lower(process.env.LLM_PROVIDER, 'openrouter'),
+    // fetch (bawaan) atau https (node:https, tanpa undici/WebAssembly; untuk hosting yang membatasi memori
+    // dan memunculkan "WebAssembly ... Out of memory" pada fetch).
+    transport: lower(process.env.LLM_TRANSPORT, 'fetch'),
     openrouter: Object.freeze({
       apiKey: isBlank(process.env.OPENROUTER_API_KEY) ? null : process.env.OPENROUTER_API_KEY.trim(),
       model: isBlank(process.env.OPENROUTER_MODEL) ? 'anthropic/claude-haiku-4.5' : process.env.OPENROUTER_MODEL.trim(),

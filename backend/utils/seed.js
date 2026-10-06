@@ -13,7 +13,7 @@
 //   ADMIN_EMAIL, ADMIN_PASSWORD  akun admin
 //   SEED_USER_PASSWORD           password semua akun demo lain (liaison, requester, talenta)
 import { env } from '../config/env.js';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import mysql from 'mysql2/promise';
 import { recomputeReputation } from './reputation.js';
 import { readKbFile, upsertKbEntries } from './kbSeed.js';

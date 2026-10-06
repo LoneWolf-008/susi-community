@@ -27,3 +27,6 @@ Thumbs.db
 # Artefak tes E2E
 test-results/
 playwright-report/
+
+# Paket deploy cPanel (npm run pack:cpanel)
+dist-cpanel/

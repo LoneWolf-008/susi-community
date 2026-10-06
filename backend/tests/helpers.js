@@ -1,6 +1,6 @@
 // Helper & factory untuk test integrasi. Data dibuat langsung lewat SQL agar setiap
 // test hanya menguji perilaku yang sedang diperiksa.
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { pool } from '../config/db.js';
 import { app } from '../app.js';

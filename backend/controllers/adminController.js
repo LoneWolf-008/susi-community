@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { pool } from '../config/db.js';
 import { success, created, fail } from '../utils/response.js';
 import { parsePagination, paged } from '../utils/pagination.js';

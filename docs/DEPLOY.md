@@ -1,7 +1,11 @@
 # Deploy SUSI Community
 
 Susunan: **frontend** statis (Vite build, mis. Vercel), **backend** Express (mis. Railway/Render), dan
-**MySQL 8 / MariaDB**. Backend tidak menyajikan frontend; keduanya di-deploy terpisah.
+**MySQL 8 / MariaDB**. Secara bawaan backend tidak menyajikan frontend dan keduanya di-deploy terpisah.
+
+**Hosting cPanel (satu origin):** dengan `SERVE_FRONTEND=true`, Express ikut menyajikan `frontend/dist`.
+Panduan langkah demi langkahnya ada di [DEPLOY-CPANEL.md](DEPLOY-CPANEL.md), dan paketnya dibuat dengan
+`npm run pack:cpanel`.
 
 ## 1. Pilih cara frontend memanggil API
 
