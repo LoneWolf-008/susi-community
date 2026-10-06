@@ -78,7 +78,7 @@ export default function PenggunaTab({ currentUserId, onChanged }) {
       {items.length > 0 && (
         <div className={`dash-item card-light p-7 transition-opacity ${loading ? 'opacity-60' : ''}`}>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="table-stack w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-[#12283c]/15">
                   {['NAMA', 'PERAN', 'BERGABUNG', 'REPUTASI', 'STATUS', ''].map((h, i) => <th key={i} className="py-3 pr-4 label-mono">{h}</th>)}
@@ -87,22 +87,22 @@ export default function PenggunaTab({ currentUserId, onChanged }) {
               <tbody className="divide-y divide-[#12283c]/10">
                 {items.map((u) => (
                   <tr key={u.id} className="hover:bg-[#12283c]/5 transition-colors">
-                    <td className="py-4 pr-4">
+                    <td className="py-4 pr-4" data-label="Nama">
                       <p className="font-bold">{u.name}</p>
                       <p className="font-mono text-[10px] opacity-60 break-all">{u.email}</p>
                     </td>
-                    <td className="py-4 pr-4"><span className="chip-mono">{ROLE_LABELS[u.role] || u.role}</span></td>
-                    <td className="py-4 pr-4 text-xs opacity-70 whitespace-nowrap">
+                    <td className="py-4 pr-4" data-label="Peran"><span className="chip-mono">{ROLE_LABELS[u.role] || u.role}</span></td>
+                    <td className="py-4 pr-4 text-xs opacity-70 whitespace-nowrap" data-label="Bergabung">
                       {formatDate(u.created_at)}
                       <span className="block font-mono text-[9px] opacity-70">{u.last_login_at ? `MASUK ${timeAgo(u.last_login_at).toUpperCase()}` : 'BELUM PERNAH MASUK'}</span>
                     </td>
-                    <td className="py-4 pr-4 font-mono text-xs">{u.role === 'talent' ? `${u.reputation_points ?? 0} · ${(TALENT_LEVEL[u.level] || '').toUpperCase()}` : '—'}</td>
-                    <td className="py-4 pr-4"><StatusChip status={statusChip(u.status)} /></td>
+                    <td className="py-4 pr-4 font-mono text-xs" data-label="Reputasi">{u.role === 'talent' ? `${u.reputation_points ?? 0} · ${(TALENT_LEVEL[u.level] || '').toUpperCase()}` : '—'}</td>
+                    <td className="py-4 pr-4" data-label="Status"><StatusChip status={statusChip(u.status)} /></td>
                     <td className="py-4 text-right">
                       {Number(u.id) === Number(currentUserId) ? (
                         <span className="font-mono text-[9px] opacity-50">AKUN ANDA</span>
                       ) : (
-                        <button type="button" onClick={() => toggle(u)} disabled={busyId === u.id} className={`chip-mono transition-colors ${u.status === 'AKTIF' ? 'text-[#12283c] hover:bg-[#12283c] hover:text-[#f2efe6]' : 'text-[#e62b2b] hover:bg-[#e62b2b] hover:text-white'}`}>
+                        <button type="button" onClick={() => toggle(u)} disabled={busyId === u.id} className={`chip-mono min-h-[40px] transition-colors ${u.status === 'AKTIF' ? 'text-[#12283c] hover:bg-[#12283c] hover:text-[#f2efe6]' : 'text-[#e62b2b] hover:bg-[#e62b2b] hover:text-white'}`}>
                           {busyId === u.id ? '…' : u.status === 'AKTIF' ? 'TANGGUHKAN' : 'AKTIFKAN'}
                         </button>
                       )}

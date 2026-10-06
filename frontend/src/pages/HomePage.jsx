@@ -93,7 +93,7 @@ export default function HomePage({ navigateTo, onAsk }) {
       {/* ===== 1. HERO — dengan 5 layer kedalaman ===== */}
       <section
         ref={heroRef}
-        className="relative min-h-screen flex items-center justify-center overflow-hidden px-6 pt-36 pb-44"
+        className="relative min-h-dvh flex items-center justify-center overflow-hidden px-6 pt-36 pb-44"
         style={{ background: 'radial-gradient(120% 90% at 50% 40%, #2a4d74 0%, #1b3a5c 45%, #12283c 75%, #0e2233 100%)' }}
       >
         {/* LAYER 1 — Vignette radial (fokus mata ke tengah) */}

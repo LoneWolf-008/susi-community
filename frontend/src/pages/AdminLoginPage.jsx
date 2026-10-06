@@ -58,7 +58,7 @@ export default function AdminLoginPage() {
   const inputCls = 'w-full border-b-2 border-white/20 bg-transparent p-3 text-sm font-medium outline-none focus:border-[#FF5733] transition-colors placeholder:text-white/30';
 
   return (
-    <div ref={rootRef} className="min-h-screen bg-black text-white flex items-center justify-center px-6 py-16 relative overflow-hidden">
+    <div ref={rootRef} className="min-h-dvh bg-black text-white flex items-center justify-center px-6 py-16 relative overflow-hidden">
       {/* Background Grid & Elemen Geometris */}
       <div
         className="absolute inset-0 opacity-[0.05]"

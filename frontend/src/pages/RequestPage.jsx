@@ -103,7 +103,7 @@ export default function RequestPage({ user, navigateTo }) {
 
   if (created) {
     return (
-      <div ref={rootRef} className="min-h-screen bg-[#f2efe6] text-[#12283c] flex items-center justify-center px-6">
+      <div ref={rootRef} className="min-h-dvh bg-[#f2efe6] text-[#12283c] flex items-center justify-center px-6">
         <div className="text-center max-w-xl">
           <div className="req-item inline-flex w-24 h-24 rounded-full bg-[#c9ecd9] items-center justify-center text-5xl font-black mb-8">✓</div>
           <h1 className="req-item text-5xl md:text-6xl font-black tracking-tight mb-4">Kebutuhan tercatat!</h1>
@@ -121,7 +121,7 @@ export default function RequestPage({ user, navigateTo }) {
   }
 
   return (
-    <div ref={rootRef} className="min-h-screen bg-[#f2efe6] text-[#12283c]">
+    <div ref={rootRef} className="min-h-dvh bg-[#f2efe6] text-[#12283c]">
       <div className="fixed top-0 left-0 right-0 h-16 bg-[#f2efe6]/90 backdrop-blur-md border-b border-[#12283c]/10 z-50">
         <div className="h-full px-5 lg:px-8 flex items-center gap-4">
           <button type="button" onClick={() => navigateTo('dashboard')} className="chip-mono hover:text-[#e62b2b] transition-colors">← DASBOR</button>

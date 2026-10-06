@@ -6,6 +6,8 @@ import { TransitionContext } from '../../context/transitionContext';
 
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+// Efek logo mengikuti kursor hanya untuk mouse (bukan layar sentuh).
+const finePointer = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
 
 // Layar transisi antar halaman (dipindah dari App.jsx). Overlay merah naik menutup layar,
 // rute berganti di balik overlay, lalu overlay navy turun membuka halaman baru.
@@ -54,7 +56,7 @@ export default function TransitionProvider({ children }) {
   }, []);
 
   const onOverlayMove = (e) => {
-    if (!logoRef.current) return;
+    if (!logoRef.current || !finePointer() || prefersReducedMotion()) return;
     gsap.to(logoRef.current, {
       x: (e.clientX / window.innerWidth - 0.5) * 30,
       y: (e.clientY / window.innerHeight - 0.5) * 30,

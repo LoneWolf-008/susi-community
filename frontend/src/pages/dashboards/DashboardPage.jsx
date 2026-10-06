@@ -17,7 +17,7 @@ export default function DashboardPage({ onLogout, navigateTo }) {
   const Dashboard = BY_ROLE[user?.role];
   if (!Dashboard) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-6 text-center">
+      <main className="min-h-dvh flex items-center justify-center px-6 text-center">
         <p className="font-mono text-xs font-bold tracking-widest opacity-60">PERAN AKUN TIDAK DIKENALI.</p>
       </main>
     );

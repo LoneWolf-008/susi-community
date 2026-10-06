@@ -41,7 +41,7 @@ export default function App() {
   const isStandalone = STANDALONE_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   return (
-    <div className="min-h-screen bg-[#0e2233] text-[#f2efe6] antialiased selection:bg-[#e62b2b] selection:text-white overflow-x-hidden">
+    <div className="min-h-dvh bg-[#0e2233] text-[#f2efe6] antialiased selection:bg-[#e62b2b] selection:text-white overflow-x-hidden">
       {/* Grain global ala Think Co */}
       <div className="noise-overlay" />
 

@@ -55,7 +55,7 @@ export default function AuditTab() {
               const act = auditAction(a.action);
               const meta = metaText(a.meta);
               return (
-                <li key={a.id} className="py-3 flex gap-4 items-start">
+                <li key={a.id} className="py-3 flex flex-wrap sm:flex-nowrap gap-x-3 sm:gap-x-4 gap-y-1 items-start">
                   <span className={`mt-1.5 w-2 h-2 shrink-0 rotate-45 ${act.color}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold leading-tight">
@@ -64,7 +64,7 @@ export default function AuditTab() {
                     {a.title && <p className="text-xs text-[#12283c]/60 mt-0.5">{a.title}</p>}
                     {meta && <p className="font-mono text-[9px] opacity-50 mt-0.5">{meta}</p>}
                   </div>
-                  <span className="font-mono text-[10px] opacity-50 shrink-0 text-right">{formatDateTime(a.created_at)}</span>
+                  <span className="font-mono text-[10px] opacity-50 shrink-0 w-full sm:w-auto pl-5 sm:pl-0 sm:text-right">{formatDateTime(a.created_at)}</span>
                 </li>
               );
             })}

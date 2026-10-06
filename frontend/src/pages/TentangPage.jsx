@@ -178,7 +178,7 @@ export default function TentangPage() {
     <div ref={rootRef} className="bg-[#f2efe6] text-[#12283c] overflow-hidden">
 
       {/* ============ 02 · THE WHY (QUOTES) ============ */}
-      <section className="relative min-h-screen flex items-center justify-center border-y-2 border-[#12283c]/10 px-6 lg:px-12 bg-[#12283c] text-[#f2efe6]">
+      <section className="relative min-h-dvh flex items-center justify-center border-y-2 border-[#12283c]/10 px-6 lg:px-12 bg-[#12283c] text-[#f2efe6]">
         <div className="max-w-[1100px] w-full mx-auto">
           <blockquote className="manifesto-quote text-3xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1]">
             "Produk yang baik

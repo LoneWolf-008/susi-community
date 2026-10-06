@@ -2,7 +2,8 @@ import { useEffect, useId, useRef } from 'react';
 
 /**
  * Modal dasar: overlay, Esc menutup, fokus awal ke dialog dan kembali ke pemicu saat ditutup,
- * Tab tetap di dalam dialog. Isi bebas lewat children.
+ * Tab tetap di dalam dialog. Isi bebas lewat children. Di layar < 640 px tampil sebagai bottom sheet
+ * (U3): menempel di bawah, maks. 90dvh dengan gulir internal, padding safe-area.
  */
 export default function Modal({ title, eyebrow, onClose, children, size = 'max-w-2xl', busy = false }) {
   const dialogRef = useRef(null);
@@ -47,7 +48,7 @@ export default function Modal({ title, eyebrow, onClose, children, size = 'max-w
 
   return (
     <div
-      className="fixed inset-0 z-[500] bg-[#0e2233]/90 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[500] bg-[#0e2233]/90 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
       onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
     >
       <div
@@ -56,14 +57,14 @@ export default function Modal({ title, eyebrow, onClose, children, size = 'max-w
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`bg-[#12283c] text-[#f2efe6] w-full ${size} border border-white/10 rounded-2xl p-6 md:p-8 relative max-h-[90vh] overflow-y-auto outline-none`}
+        className={`bg-[#12283c] text-[#f2efe6] w-full ${size} border border-white/10 rounded-t-2xl sm:rounded-2xl px-5 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 md:p-8 relative max-h-[90dvh] overflow-y-auto overscroll-contain outline-none`}
       >
         <button
           type="button"
           onClick={onClose}
           disabled={busy}
           aria-label="Tutup"
-          className="absolute top-4 right-4 w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-xl font-black hover:bg-[#e62b2b] hover:border-[#e62b2b] transition-colors disabled:opacity-40"
+          className="absolute top-4 right-4 w-11 h-11 rounded-full border border-white/20 flex items-center justify-center text-xl font-black hover:bg-[#e62b2b] hover:border-[#e62b2b] transition-colors disabled:opacity-40"
         >
           ×
         </button>

@@ -65,7 +65,7 @@ export default function LaporanTab({ summaryQ, cards, loading, error, onRetry })
           {!loading && !error && cards.length === 0 && <p className="text-sm text-[#12283c]/60">Belum ada. Kebutuhan yang Anda catat dari kunjungan akan terdaftar di sini.</p>}
           {sorted.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="table-stack w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-[#12283c]/15">
                     {['KOMUNITAS', 'DICATAT', 'KEBUTUHAN', 'STATUS'].map((h, i) => <th key={h} className={`py-3 pr-4 label-mono ${i === 3 ? 'text-right' : ''}`}>{h}</th>)}
@@ -74,10 +74,10 @@ export default function LaporanTab({ summaryQ, cards, loading, error, onRetry })
                 <tbody className="divide-y divide-[#12283c]/10">
                   {sorted.map((c) => (
                     <tr key={c.need.id}>
-                      <td className="py-4 pr-4 font-bold">{c.need.community_name || '—'}</td>
-                      <td className="py-4 pr-4 text-xs opacity-70 whitespace-nowrap">{formatDate(c.need.created_at)}</td>
-                      <td className="py-4 pr-4 text-xs opacity-70">{c.need.title}</td>
-                      <td className="py-4 text-right"><StatusChip status={statusOf(c)} /></td>
+                      <td className="py-4 pr-4 font-bold" data-label="Komunitas">{c.need.community_name || '—'}</td>
+                      <td className="py-4 pr-4 text-xs opacity-70 whitespace-nowrap" data-label="Dicatat">{formatDate(c.need.created_at)}</td>
+                      <td className="py-4 pr-4 text-xs opacity-70" data-label="Kebutuhan">{c.need.title}</td>
+                      <td className="py-4 text-right" data-label="Status"><StatusChip status={statusOf(c)} /></td>
                     </tr>
                   ))}
                 </tbody>

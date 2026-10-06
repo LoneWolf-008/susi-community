@@ -56,7 +56,7 @@ export default function VerifyCertificatePage() {
   const valid = data?.status === 'VALID';
 
   return (
-    <main className="min-h-screen px-4 pt-28 pb-16 flex justify-center">
+    <main className="min-h-dvh px-4 pt-28 pb-16 flex justify-center">
       <div className="w-full max-w-xl">
         <p className="font-mono text-[10px] font-bold tracking-[0.3em] text-[#f2efe6]/50 mb-4">VERIFIKASI SERTIFIKAT SUSI</p>
         <div className="rounded-2xl bg-[#f2efe6] text-[#12283c] p-6 md:p-10 shadow-2xl">

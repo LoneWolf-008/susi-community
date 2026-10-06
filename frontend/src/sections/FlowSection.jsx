@@ -100,7 +100,7 @@ export default function FlowSection({ navigateTo }) {
       </div>
 
       {/* ===== END: SATU GRADIENT UTUH krem → peach → merah → maroon → navy (mulus ke footer) ===== */}
-      <div ref={endRef} className="relative min-h-screen flex items-center justify-center px-6 overflow-hidden">
+      <div ref={endRef} className="relative min-h-dvh flex items-center justify-center px-6 overflow-hidden">
         <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #f2efe6 0%, #e8b7ae 12%, #e62b2b 34%, #c2232b 55%, #57141d 80%, #0e2233 100%)' }} />
         <div className="absolute inset-0 opacity-15 mix-blend-overlay pointer-events-none" style={{ backgroundImage: NOISE, backgroundSize: '240px 240px' }} />
         <div className="absolute -top-16 -right-16 w-72 h-72 border-2 border-dashed border-[#f2efe6]/25 rounded-full rot-slow pointer-events-none" />

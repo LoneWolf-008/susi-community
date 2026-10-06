@@ -187,7 +187,7 @@ export default function ChatWidget({ variant = 'floating', open: openProp = fals
         onClick={() => setFloatingOpen(true)}
         aria-label={chat.unread > 0 ? `Buka Tanya SUSI, ${chat.unread} balasan AgenSUSI belum dibaca` : 'Buka Tanya SUSI'}
         aria-haspopup="dialog"
-        className={`${open ? 'hidden' : 'flex'} group fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[400] w-14 h-14 rounded-full bg-[#e62b2b] hover:bg-[#12283c] text-white items-center justify-center shadow-[0_10px_30px_rgba(230,43,43,0.4)] transition-colors`}
+        className={`chat-launcher ${open ? 'hidden' : 'flex'} group fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[400] w-14 h-14 rounded-full bg-[#e62b2b] hover:bg-[#12283c] text-white items-center justify-center shadow-[0_10px_30px_rgba(230,43,43,0.4)] transition-colors`}
       >
         <Sparkles className="w-6 h-6 fill-current" strokeWidth={2.5} aria-hidden="true" />
         {chat.unread > 0 && (
