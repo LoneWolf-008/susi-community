@@ -64,10 +64,37 @@ function useDialogFocus(open, dialogRef, inputRef, onClose) {
   }, [open, dialogRef, inputRef]);
 }
 
+/**
+ * U3: di layar kecil, tinggi & posisi panel mengikuti visualViewport (area yang tersisa saat keyboard
+ * virtual terbuka), sehingga kolom tulis tidak tertutup keyboard. null = pakai CSS biasa (100dvh).
+ */
+function useKeyboardSafeViewport(active) {
+  const [box, setBox] = useState(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!active || !vv) return undefined;
+    const small = window.matchMedia('(max-width: 639px)');
+    const update = () => setBox(small.matches ? { height: Math.round(vv.height), top: Math.round(vv.offsetTop) } : null);
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    small.addEventListener('change', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+      small.removeEventListener('change', update);
+      setBox(null);
+    };
+  }, [active]);
+  return box;
+}
+
 export default function ChatWidget({ variant = 'floating', open: openProp = false, onClose, seed }) {
   const overlay = variant === 'overlay';
   const [floatingOpen, setFloatingOpen] = useState(false);
   const open = overlay ? openProp : floatingOpen;
+  const viewport = useKeyboardSafeViewport(open);
+  const viewportStyle = viewport ? { height: viewport.height, top: viewport.top, bottom: 'auto' } : undefined;
   const [activated, setActivated] = useState(open);
   if (open && !activated) setActivated(true);
 
@@ -149,6 +176,7 @@ export default function ChatWidget({ variant = 'floating', open: openProp = fals
         aria-labelledby={titleId}
         className="fixed inset-0 z-[600] overflow-hidden"
         style={{
+          ...viewportStyle,
           transition: 'transform 0.65s cubic-bezier(0.22,1,0.36,1), opacity 0.45s ease',
           transform: visible ? 'translateY(0)' : 'translateY(100%)',
           opacity: visible ? 1 : 0,
@@ -187,7 +215,7 @@ export default function ChatWidget({ variant = 'floating', open: openProp = fals
         onClick={() => setFloatingOpen(true)}
         aria-label={chat.unread > 0 ? `Buka Tanya SUSI, ${chat.unread} balasan AgenSUSI belum dibaca` : 'Buka Tanya SUSI'}
         aria-haspopup="dialog"
-        className={`${open ? 'hidden' : 'flex'} group fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[400] w-14 h-14 rounded-full bg-[#e62b2b] hover:bg-[#12283c] text-white items-center justify-center shadow-[0_10px_30px_rgba(230,43,43,0.4)] transition-colors`}
+        className={`chat-launcher ${open ? 'hidden' : 'flex'} group fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[400] w-14 h-14 rounded-full bg-[#e62b2b] hover:bg-[#12283c] text-white items-center justify-center shadow-[0_10px_30px_rgba(230,43,43,0.4)] transition-colors`}
       >
         <Sparkles className="w-6 h-6 fill-current" strokeWidth={2.5} aria-hidden="true" />
         {chat.unread > 0 && (
@@ -205,6 +233,7 @@ export default function ChatWidget({ variant = 'floating', open: openProp = fals
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
+          style={viewportStyle}
           className="fixed z-[400] inset-0 sm:inset-auto sm:right-6 sm:bottom-6 sm:w-[400px] h-dvh sm:h-[min(600px,calc(100dvh-3rem))] flex flex-col sm:rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.35)] sm:border border-[#12283c]/15 bg-[#f2efe6]"
         >
           {panel(false)}

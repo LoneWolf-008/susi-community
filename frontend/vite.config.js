@@ -23,5 +23,21 @@ export default defineConfig(({ mode }) => {
       port: 4173,
       proxy,
     },
+    build: {
+      // Chunk peta MapLibre (MapView, ± 1,05 MB) memang besar dan hanya dimuat saat peta tampil;
+      // batas dinaikkan untuk chunk itu agar peringatan tidak menyesatkan. Chunk lain jauh di bawahnya.
+      chunkSizeWarningLimit: 1100,
+      rolldownOptions: {
+        output: {
+          // Pustaka besar yang jarang berubah dipisah dari bundle utama (cache peramban tetap awet).
+          codeSplitting: {
+            groups: [
+              { name: 'gsap', test: /node_modules[\\/]gsap[\\/]/ },
+              { name: 'react-icons', test: /node_modules[\\/]react-icons[\\/]/ },
+            ],
+          },
+        },
+      },
+    },
   }
 })

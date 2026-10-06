@@ -109,7 +109,7 @@ export default function AuthPage() {
   );
 
   return (
-    <div ref={rootRef} className="min-h-screen bg-[#0e2233] text-[#f2efe6] flex items-center justify-center px-4 py-16"
+    <div ref={rootRef} className="min-h-dvh bg-[#0e2233] text-[#f2efe6] flex items-center justify-center px-4 py-16"
       style={{ background: 'radial-gradient(90% 90% at 50% 10%, #1b3a5c 0%, #0e2233 60%, #0b1b2b 100%)' }}>
       <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
         {/* PANEL KIRI (GRADIEN NAVY→MAROON) */}

@@ -11,6 +11,8 @@ import TransitionProvider from './components/routing/TransitionProvider';
 import './index.css';
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin); // ✅ sekali di sini, berlaku global
+// U3: pengguna yang meminta gerak minimal → semua animasi GSAP selesai hampir seketika.
+if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) gsap.globalTimeline.timeScale(20);
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

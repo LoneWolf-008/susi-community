@@ -261,7 +261,7 @@ export default function ChatPanel({ chat, suggestions, dark = false, anonymous, 
         </div>
       )}
 
-      <form onSubmit={submit} className={`px-4 sm:px-5 py-3 border-t ${t.divider} shrink-0`}>
+      <form onSubmit={submit} className={`px-4 sm:px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t ${t.divider} shrink-0`}>
         <div className={`flex items-center gap-2 rounded-2xl pl-4 pr-1.5 py-1.5 transition-colors ${t.input}`}>
           <label htmlFor={`${titleId}-input`} className="sr-only">{handoffActive ? 'Pesan untuk AgenSUSI' : 'Pertanyaan untuk Tanya SUSI'}</label>
           <input

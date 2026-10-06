@@ -2,10 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-@font-face { font-family: 'Coolvetica'; src: url('/fonts/Coolvetica.otf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Nexa'; src: url('/fonts/Nexa.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Outfit'; src: url('/fonts/Outfit.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Poppins'; src: url('/fonts/Poppins.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'Coolvetica'; src: url('/fonts/Coolvetica.woff2') format('woff2'); font-display: swap; }
+@font-face { font-family: 'Nexa'; src: url('/fonts/Nexa.woff2') format('woff2'); font-display: swap; }
+@font-face { font-family: 'Outfit'; src: url('/fonts/Outfit.woff2') format('woff2'); font-display: swap; }
+@font-face { font-family: 'Poppins'; src: url('/fonts/Poppins.woff2') format('woff2'); font-display: swap; }
 
 :root {
   --navy: #12283c;
@@ -88,5 +88,38 @@ h1, h2, h3 { letter-spacing: -0.02em; }
     width: 297mm !important; height: 210mm !important; max-width: none !important; aspect-ratio: auto !important;
     margin: 0 !important; box-shadow: none !important; break-inside: avoid; break-after: avoid;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+}
+
+/* ===== U3: tampilan mobile ===== */
+
+/* Tabel bertumpuk di bawah 640 px: tiap baris jadi kartu, label kolom dari data-label. */
+@media (max-width: 639px) {
+  .table-stack thead { display: none; }
+  .table-stack, .table-stack tbody, .table-stack tr, .table-stack td { display: block; width: 100%; }
+  .table-stack tr { padding: .75rem 0; }
+  .table-stack td { padding: .2rem 0 !important; text-align: left !important; white-space: normal !important; }
+  .table-stack td[data-label]::before {
+    content: attr(data-label); display: block; margin-bottom: 2px;
+    font-family: 'Outfit', monospace; font-size: 9px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; opacity: .5;
+  }
+}
+
+/* Layar sentuh: input ≥ 16 px agar iOS tidak memperbesar halaman, tombol chip ≥ 44 px. */
+@media (pointer: coarse) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea { font-size: max(16px, 1rem) !important; }
+  button.chip-mono, a.chip-mono { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+}
+
+/* Peluncur Tanya SUSI berada di atas bilah navigasi bawah dasbor (DashShell memasang data-bottom-nav). */
+@media (max-width: 767px) {
+  html[data-bottom-nav] .chat-launcher { bottom: calc(4.75rem + env(safe-area-inset-bottom)); }
+}
+
+/* Hormati prefers-reduced-motion (animasi GSAP dipercepat di main.jsx). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important; scroll-behavior: auto !important;
   }
 }
