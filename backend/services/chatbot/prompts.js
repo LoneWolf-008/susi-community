@@ -3,7 +3,9 @@
 import crypto from 'node:crypto';
 
 // r3.1: konteks pribadi <user_profile> & <recommendations> + aturan karier (R3).
-export const PROMPT_VERSION = 'r3.1';
+// r3.2: isi prompt sama; aturan intent (intent.js) mendahulukan skill-gap karier atas rekomendasi
+//       proyek dan mengenali "kenapa proyek <judul panjang> cocok buat saya" (eval live 2026-10-06).
+export const PROMPT_VERSION = 'r3.2';
 
 // Kanari acak per proses: bila muncul di jawaban, prompt sedang dibocorkan (lihat outputFilter).
 const CANARY = `[[susi:${crypto.randomBytes(6).toString('hex')}]]`;
