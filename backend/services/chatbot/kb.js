@@ -95,6 +95,11 @@ export function rankEntries(text, entries) {
  *   reply:string, audience:string, score:number, lexical:number, coverage:number}>>}
  */
 export async function searchKb(db, text, { audiences, limit = 3 }) {
+  return selectRelevant(await searchKbRanked(db, text, { audiences }), limit);
+}
+
+/** Kandidat FULLTEXT yang sudah diurutkan rankEntries, tanpa ambang (lihat selectRelevant/selectNear). */
+export async function searchKbRanked(db, text, { audiences }) {
   const query = expandForSearch(text);
   if (!query) return [];
   const [rows] = await db.query(
@@ -107,12 +112,20 @@ export async function searchKb(db, text, { audiences, limit = 3 }) {
      LIMIT ${CANDIDATE_LIMIT}`,
     [query, audiences, query],
   );
-  return selectRelevant(rankEntries(text, rows), limit);
+  return rankEntries(text, rows);
 }
 
 /** Terapkan ambang ke hasil rankEntries (dipisah agar bisa diuji tanpa DB). */
 export function selectRelevant(ranked, limit = 3) {
   if (!ranked[0] || ranked[0].coverage < MIN_COVERAGE) return [];
+  return ranked.filter((e) => e.coverage >= CONTEXT_COVERAGE).slice(0, limit);
+}
+
+/**
+ * Entri yang hanya sebagian cocok (di bawah MIN_COVERAGE): bukan "sumber" jawaban, tetapi ikut sebagai
+ * <kb_terkait> agar LLM pemandu/CS bisa memakainya bila memang relevan.
+ */
+export function selectNear(ranked, limit = 3) {
   return ranked.filter((e) => e.coverage >= CONTEXT_COVERAGE).slice(0, limit);
 }
 

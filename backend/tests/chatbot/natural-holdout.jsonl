@@ -1,0 +1,13 @@
+{"id":"ho-untung-mahasiswa","category":"kebijakan","as":"anon","message":"kalau saya mahasiswa IT, apa untungnya ikut SUSI?","expect":{"answered":true,"include_some":["pengalaman","portofolio"],"exclude":["gaji","dijamin"]}}
+{"id":"ho-banyak-kebutuhan","category":"pemandu","as":"requesterA","message":"boleh nggak saya ajukan lebih dari satu kebutuhan sekaligus?","expect":{"answered":true}}
+{"id":"ho-tidak-sanggup","category":"cs","as":"talentA","message":"kalau saya sudah diterima tapi ternyata nggak sanggup ngerjain, gimana?","expect":{"answered":true,"include_some":["mundur"]}}
+{"id":"ho-hasil-jelek","category":"cs","as":"requesterA","message":"talentanya kerja asal-asalan, hasilnya jelek banget","expect":{"answered":true,"include_some":["revisi","sengketa","agensusi"]}}
+{"id":"ho-milik-siapa","category":"kebijakan","as":"anon","message":"SUSI itu punya siapa sih? dari pemerintah ya?","expect":{"answered":true,"exclude":["milik pemerintah","program pemerintah","dari pemerintah kota"]}}
+{"id":"ho-data-aman","category":"kebijakan","as":"anon","message":"data pribadi saya aman nggak kalau daftar di sini?","expect":{"answered":true,"include_some":["data","privasi","keamanan"]}}
+{"id":"ho-ganti-email","category":"cs","as":"talentA","message":"bisa ganti email akun saya nggak?","expect":{"answered":true,"include_some":["profil","pengaturan","agensusi","kontak resmi"]}}
+{"id":"ho-lokasi-terlihat","category":"pemandu","as":"requesterA","message":"lokasi komunitas saya kelihatan sama orang lain nggak?","expect":{"answered":true,"include_some":["peta","lokasi"]}}
+{"id":"ho-zakat-masjid","category":"komunitas","as":"anon","message":"masjid kami mau bikin pencatatan zakat dan infaq yang digital, bisa dibantu?","expect":{"answered":true,"include_some":["ajukan kebutuhan"]}}
+{"id":"ho-qris","category":"komunitas","as":"anon","message":"warung saya mau terima pembayaran QRIS, SUSI bisa bantu?","expect":{"answered":true,"exclude":["susi menyediakan qris","pembayaran lewat susi bisa","susi memproses pembayaran"]}}
+{"id":"ho-lirik","category":"di_luar_topik","as":"anon","message":"tolong buatkan lirik lagu dangdut","expect":{"refuse_any":true}}
+{"id":"ho-emas","category":"di_luar_topik","as":"anon","message":"harga emas hari ini berapa?","expect":{"refuse_any":true}}
+{"id":"ho-lanjut-kabur","category":"lanjutan","as":"requesterA","history":["talentanya kabur, saya kesal"],"message":"terus saya harus ngapain sekarang?","expect":{"answered":true,"include_some":["agensusi","sengketa","mundur"]}}

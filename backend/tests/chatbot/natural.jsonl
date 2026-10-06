@@ -1,0 +1,31 @@
+{"id":"nav-mulai","category":"pemandu","as":"anon","message":"saya baru pertama kali buka SUSI, harus mulai dari mana?","expect":{"answered":true,"include_some":["daftar","masuk"]}}
+{"id":"nav-lihat-pelamar","category":"pemandu","as":"requesterA","message":"di mana saya bisa lihat siapa saja yang melamar ke kebutuhan saya?","expect":{"answered":true,"include_some":["beranda","detail kebutuhan","pelamar"]}}
+{"id":"nav-ditolak","category":"pemandu","as":"requesterA","message":"kebutuhan saya ditolak admin, terus saya harus gimana?","expect":{"answered":true,"include_some":["perbaiki","kirim ulang","moderasi"]}}
+{"id":"nav-muncul-rekomendasi","category":"pemandu","as":"talentA","message":"gimana caranya biar saya muncul di rekomendasi komunitas?","expect":{"answered":true,"include_some":["tampilkan saya di rekomendasi","keahlian"]}}
+{"id":"nav-kirim-hasil","category":"pemandu","as":"talentA","message":"menu buat ngirim hasil kerja ada di mana ya?","expect":{"answered":true,"include_some":["proyek saya","kirim hasil"]}}
+{"id":"nav-verifikasi-hasil","category":"pemandu","as":"requesterA","message":"cara verifikasi hasil kerja talenta gimana?","expect":{"answered":true,"include_some":["verifikasi"]}}
+{"id":"nav-sertifikat-kapan","category":"pemandu","as":"talentA","message":"kapan saya bisa dapat sertifikat dari SUSI?","expect":{"answered":true,"include_some":["3 proyek","tiga proyek"],"exclude":["diakui pemerintah","sertifikat negara"]}}
+{"id":"nav-cek-sertifikat","category":"pemandu","as":"anon","message":"gimana cara ngecek sertifikat talenta itu asli atau bukan?","expect":{"answered":true,"include_some":["verifikasi","kode"]}}
+{"id":"nav-matikan-ai","category":"pemandu","as":"requesterA","message":"saya tidak mau AI membaca data saya, matikannya di mana?","expect":{"answered":true,"include_some":["pengaturan"]}}
+{"id":"nav-gabung-komunitas","category":"pemandu","as":"talentA","message":"saya mau ikut komunitas karang taruna di sini, caranya?","expect":{"answered":true,"include_some":["ajukan gabung"]}}
+{"id":"cs-lupa-password","category":"cs","as":"anon","message":"saya lupa password akun SUSI, gimana dong?","expect":{"answered":true,"include_some":["kontak resmi","agensusi","tentang kami"],"exclude":["klik lupa password","reset kata sandi lewat email"]}}
+{"id":"cs-tidak-bisa-login","category":"cs","as":"anon","message":"akun saya tidak bisa login padahal passwordnya sudah benar","expect":{"answered":true,"include_some":["15 menit","ditangguhkan","kontak resmi","agensusi"]}}
+{"id":"cs-talenta-hilang","category":"cs","as":"requesterA","message":"talenta yang saya pilih sudah seminggu tidak ada kabar, saya harus apa?","expect":{"answered":true,"include_some":["agensusi","sengketa","mundur"]}}
+{"id":"cs-nomor-wa","category":"cs","as":"anon","message":"ada nomor WA SUSI yang bisa dihubungi?","expect":{"answered":true,"include_some":["tentang kami"]}}
+{"id":"cs-notif","category":"cs","as":"talentA","message":"notifikasi lamaran saya kok tidak muncul ya?","expect":{"answered":true,"include_some":["pengaturan","lonceng","notifikasi"]}}
+{"id":"cs-salah-peran","category":"cs","as":"requesterA","message":"saya daftar mau jadi talenta tapi kok masuknya ke dasbor komunitas?","expect":{"answered":true,"include_some":["peran","agensusi","kontak resmi"]}}
+{"id":"info-bayar","category":"kebijakan","as":"anon","message":"pakai SUSI bayar nggak sih?","expect":{"answered":true,"include_some":["gratis","tidak memungut","tidak ada pembayaran"],"exclude":["biaya pendaftaran","tarif per proyek"]}}
+{"id":"info-gaji","category":"kebijakan","as":"anon","message":"talenta di SUSI dapat gaji berapa?","expect":{"answered":true,"exclude":["juta","per bulan dibayar","dijamin","rp "]}}
+{"id":"info-jakarta","category":"kebijakan","as":"anon","message":"SUSI ada di Jakarta juga nggak?","expect":{"answered":true,"include_some":["bandung"],"exclude":["tersedia di jakarta","sudah hadir di jakarta"]}}
+{"id":"info-durasi","category":"kebijakan","as":"anon","message":"setelah kebutuhan diajukan biasanya berapa lama sampai ada talenta yang mengerjakan?","expect":{"answered":true,"exclude":["dijamin","pasti dalam","paling lama 1","paling lambat"]}}
+{"id":"info-playstore","category":"kebijakan","as":"anon","message":"aplikasinya ada di play store?","expect":{"answered":true,"include_some":["website"],"exclude":["tersedia di play store","unduh di play store"]}}
+{"id":"kom-stok","category":"komunitas","as":"anon","message":"bisa bantu bikin pencatatan stok untuk UMKM saya?","expect":{"answered":true,"include_some":["ajukan kebutuhan"]}}
+{"id":"kom-iuran","category":"komunitas","as":"requesterA","message":"warga di RT kami sering telat bayar iuran, ada saran?","expect":{"answered":true,"include_some":["saran umum"],"exclude":["denda wajib","laporkan ke polisi"]}}
+{"id":"kom-promosi","category":"komunitas","as":"anon","message":"jualan saya sepi, gimana cara promosi online?","expect":{"answered":true,"include_some":["saran umum"]}}
+{"id":"kom-website-karta","category":"komunitas","as":"requesterA","message":"karang taruna kami mau bikin website kegiatan, mulai dari mana?","expect":{"answered":true,"include_some":["ajukan kebutuhan"]}}
+{"id":"kom-posyandu","category":"komunitas","as":"requesterA","message":"pengurus PKK susah koordinasi jadwal posyandu, ada ide?","expect":{"answered":true,"include_some":["saran umum"]}}
+{"id":"kom-selisih-kas","category":"komunitas","as":"anon","message":"kas toko saya sering selisih tiap akhir bulan, solusinya apa?","expect":{"answered":true,"include_some":["saran umum"],"exclude":["pinjaman","investasi"]}}
+{"id":"oos-rendang","category":"di_luar_topik","as":"anon","message":"resep rendang padang dong","expect":{"refuse_any":true}}
+{"id":"oos-piala","category":"di_luar_topik","as":"anon","message":"siapa juara piala dunia 2022?","expect":{"refuse_any":true}}
+{"id":"oos-pr","category":"di_luar_topik","as":"anon","message":"bantu kerjakan PR matematika anak saya dong","expect":{"refuse_any":true}}
+{"id":"lanjut-durasi","category":"lanjutan","as":"anon","history":["bagaimana cara mengajukan kebutuhan komunitas?"],"message":"terus setelah itu nunggu berapa lama?","expect":{"answered":true,"exclude":["dijamin","pasti dalam"]}}

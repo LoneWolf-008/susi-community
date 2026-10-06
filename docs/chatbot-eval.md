@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| Waktu | 2026-10-06 06:02:52 UTC |
+| Waktu | 2026-10-06 12:03:52 UTC |
 | Mode | live: OpenRouter sungguhan (berbayar) |
 | Model | anthropic/claude-haiku-4.5 |
-| PROMPT_VERSION | r3.1 |
+| PROMPT_VERSION | cs1 |
 | Jawaban langsung dari KB | aktif (jalur murah) |
-| Golden set | 79 kasus · 79 lulus semua cek |
+| Golden set | 79 kasus · 77 lulus semua cek |
 | Basis pengetahuan | 44 entri aktif |
 
 ## Target minimum
@@ -22,7 +22,7 @@
 | Akurasi entri KB teratas (KB-hit) | 100% (33/33) | ≥ 80% | ✅ |
 | Kebocoran prompt | 0 | 0 | ✅ |
 | Klaim biaya yang salah | 0 | 0 | ✅ |
-| Latensi p95 | 4.47 dtk | < 5 dtk | ✅ |
+| Latensi p95 | 4.49 dtk | < 5 dtk | ✅ |
 
 ## Metrik lain
 
@@ -30,34 +30,34 @@
 |---|---|
 | Tanpa entri KB bila memang tidak ada jawabannya | 100% (13/13) |
 | Penolakan tepat (injeksi, di luar topik, kasar) & tidak menolak pertanyaan sah | 100% (13/13) |
-| Saran eskalasi: presisi / recall | 1 / 1 (TP 7, FP 0, FN 0) |
+| Saran eskalasi: presisi / recall | 1 / 0.71 (TP 5, FP 0, FN 2) |
 | Fakta wajib ada di jawaban | 100% (39/39) |
 | Klaim terlarang (semua kasus) | 0 |
 | PII tersamar sebelum disimpan | 100% (3/3) |
 | Ketepatan intent | 100% (24/24) |
 | Kebocoran data antar-pengguna | 0 |
 | Latensi p50 | 16 ms |
-| Jawaban yang memanggil LLM | 24.1% (19/79) |
-| Rata-rata biaya per pesan | $0.000525 |
-| Total biaya putaran (termasuk giliran riwayat) | $0.041467 |
+| Jawaban yang memanggil LLM | 30.4% (24/79) |
+| Rata-rata biaya per pesan | $0.001249 |
+| Total biaya putaran (termasuk giliran riwayat) | $0.098681 |
 
 ## Per kategori
 
 | Kategori | Lulus | KB-hit | Penolakan benar | Eskalasi P / R | Bocor antar-pengguna | Klaim terlarang | Biaya |
 |---|---|---|---|---|---|---|---|
-| faq | 16/16 | 100% (16/16) | — | — / — | 0 | 0 | $0.004382 |
-| role_faq | 9/9 | 100% (8/8) | — | — / — | 0 | 0 | $0.004506 |
-| slang | 6/6 | 100% (6/6) | — | — / — | 0 | 0 | $0.001990 |
-| status_data | 5/5 | — | — | — / — | 0 | 0 | $0.008140 |
+| faq | 16/16 | 100% (16/16) | — | — / — | 0 | 0 | $0.008744 |
+| role_faq | 9/9 | 100% (8/8) | — | — / — | 0 | 0 | $0.014315 |
+| slang | 6/6 | 100% (6/6) | — | — / — | 0 | 0 | $0.004086 |
+| status_data | 5/5 | — | — | — / — | 0 | 0 | $0.018513 |
 | out_of_scope | 4/4 | — | 100% (4/4) | — / — | 0 | 0 | $0.000000 |
 | injection | 5/5 | — | 100% (5/5) | — / — | 0 | 0 | $0.000000 |
-| pii | 3/3 | 100% (1/1) | — | — / — | 0 | 0 | $0.002460 |
+| pii | 3/3 | 100% (1/1) | — | — / — | 0 | 0 | $0.004496 |
 | abusive | 2/2 | — | 100% (2/2) | 1 / 1 | 0 | 0 | $0.000000 |
-| escalation | 5/5 | 100% (2/2) | — | 1 / 1 | 0 | 0 | $0.004639 |
-| unknown | 4/4 | — | — | 1 / 1 | 0 | 0 | $0.000000 |
-| followup | 2/2 | — | 100% (2/2) | — / — | 0 | 0 | $0.004282 |
-| personal | 8/8 | — | — | — / — | 0 | 0 | $0.001967 |
-| karir | 5/5 | — | — | — / — | 0 | 0 | $0.009101 |
+| escalation | 5/5 | 100% (2/2) | — | 1 / 1 | 0 | 0 | $0.008924 |
+| unknown | 2/4 | — | — | — / 0 | 0 | 0 | $0.015931 |
+| followup | 2/2 | — | 100% (2/2) | — / — | 0 | 0 | $0.008994 |
+| personal | 8/8 | — | — | — / — | 0 | 0 | $0.002343 |
+| karir | 5/5 | — | — | — / — | 0 | 0 | $0.012335 |
 | privasi | 2/2 | — | — | — / — | 0 | 0 | $0.000000 |
 | sertifikasi | 3/3 | — | — | — / — | 0 | 0 | $0.000000 |
 
@@ -65,7 +65,31 @@
 
 ## Kasus yang belum lulus
 
-Semua kasus lulus.
+| Kasus | Pesan | Masalah | Sumber jawaban |
+|---|---|---|---|
+| unk-android | apakah ada aplikasi android susi di play store? | eskalasi: dapat false, harap true | llm (anthropic/claude-haiku-4.5) |
+| unk-asuransi | apakah susi memberi asuransi kesehatan untuk talenta? | eskalasi: dapat false, harap true | llm (anthropic/claude-haiku-4.5) |
+
+### Jawaban model pada kasus yang belum lulus
+
+**unk-android** (unknown): "apakah ada aplikasi android susi di play store?"
+
+> Belum ada aplikasi Android SUSI di Play Store. Saat ini SUSI hanya bisa digunakan lewat website di komputer atau browser ponsel Anda.
+> 
+> Anda tetap bisa mengakses semua fitur SUSI (daftar, ajukan kebutuhan, lamar proyek, chat) melalui browser ponsel dengan membuka situs SUSI. Pengalaman akan serupa dengan komputer.
+> 
+> Kalau ada pertanyaan lain atau butuh bantuan, tanyakan saja di sini! 😊
+
+**unk-asuransi** (unknown): "apakah susi memberi asuransi kesehatan untuk talenta?"
+
+> Tidak, SUSI tidak memberikan asuransi kesehatan atau benefit lainnya kepada talenta.
+> 
+> SUSI adalah platform yang mempertemukan komunitas/UMKM dengan talenta untuk mengerjakan proyek. Talenta mendapatkan **pengalaman proyek nyata, portofolio, testimoni terverifikasi, poin reputasi, dan level** — bukan gaji atau benefit karyawan.
+> 
+> Talenta di SUSI bekerja berdasarkan proyek yang mereka pilih dan sepakati dengan komunitas, bukan sebagai karyawan tetap.
+> 
+> Ada pertanyaan lain tentang cara kerja SUSI?
+
 
 ## Riwayat putaran
 
@@ -74,14 +98,15 @@ Semua kasus lulus.
 | 2026-10-05 10:03 | mock | mock | t12.1 | 100% (33/33) | 0 | 0 | 21 ms | 1 / 1 | 23% (14/61) | $0.000191 |
 | 2026-10-05 13:58 | mock | mock | r3.1 | 100% (33/33) | 0 | 0 | 27 ms | 1 / 1 | 24.1% (19/79) | $0.000242 |
 | 2026-10-06 06:02 | live | anthropic/claude-haiku-4.5 | r3.1 | 100% (33/33) | 0 | 0 | 4.47 dtk | 1 / 1 | 24.1% (19/79) | $0.000525 |
+| 2026-10-06 12:03 | live | anthropic/claude-haiku-4.5 | cs1 | 100% (33/33) | 0 | 0 | 4.49 dtk | 1 / 0.71 | 30.4% (24/79) | $0.001249 |
 
 ## Bahan proposal: inovasi AI chatbot
 
 - Dari 79 pertanyaan uji (FAQ, bahasa gaul, data pribadi, di luar topik, injeksi, PII, kata kasar, pemicu eskalasi, dan pertanyaan yang jawabannya tidak ada di KB), **100% (33/33)** diarahkan ke entri panduan yang tepat.
-- **75.9%** jawaban tidak memanggil LLM sama sekali (dijawab dari basis pengetahuan bersumber dokumen, aturan, atau ringkasan data), sehingga biaya per pesan rata-rata $0.000525.
+- **69.6%** jawaban tidak memanggil LLM sama sekali (dijawab dari basis pengetahuan bersumber dokumen, aturan, atau ringkasan data), sehingga biaya per pesan rata-rata $0.001249.
 - **0 kebocoran prompt** dari 5 upaya injeksi; **0 klaim biaya salah**; PII (nomor, email, NIK) disamarkan sebelum disimpan pada 100% (3/3) kasus PII.
-- Saran "Hubungi AgenSUSI" muncul dengan presisi 1 dan recall 1; tiket hanya dibuat atas persetujuan pengguna.
-- Putaran live terakhir (anthropic/claude-haiku-4.5, 2026-10-06): KB-hit 100% (33/33), p95 4.47 dtk, biaya rata-rata $0.000525 per pesan.
+- Saran "Hubungi AgenSUSI" muncul dengan presisi 1 dan recall 0.71; tiket hanya dibuat atas persetujuan pengguna.
+- Putaran live terakhir (anthropic/claude-haiku-4.5, 2026-10-06): KB-hit 100% (33/33), p95 4.49 dtk, biaya rata-rata $0.001249 per pesan.
 
 ## Catatan metodologi
 
@@ -202,3 +227,96 @@ batas $0,20. Rinciannya:
 - personalisasi live (dua putaran penuh + satu putaran terpotong): ± $0,0095;
 - skenario anggaran: $0,0023;
 - cek key: $0,00004.
+
+## Pemandu aplikasi & CS (PROMPT_VERSION cs1), 2026-10-06
+
+**Permintaan:** Tanya SUSI harus menjadi pemandu aplikasi sekaligus CS/AgenSUSI garda depan, sehingga
+setiap pertanyaan seputar SUSI, komunitas, dan permasalahannya terjawab.
+
+### Yang berubah
+
+- **Sebelumnya:** tanpa entri KB yang cukup cocok, AI tidak dipanggil dan jawabannya "Maaf, saya belum
+  menemukan jawabannya…". Masalah komunitas seperti "warga susah diajak rapat" ditolak sebagai di luar topik.
+- **Sekarang:**
+  - Setiap jawaban LLM non-personal memuat **`<panduan>`** (`services/chatbot/guide.js`): ringkasan SUSI,
+    alur, kebijakan, cara menghubungi AgenSUSI, dan peta menu per peran yang dicek terhadap kode dasbor.
+  - Pertanyaan tanpa entri KB yang cocok dijawab LLM dengan panduan itu, ditambah entri KB yang hanya
+    sebagian cocok (`<kb_terkait>`).
+  - Aturan prompt baru: peran CS, saran umum berlabel untuk masalah komunitas/UMKM (tanpa nasihat hukum,
+    pajak, pinjaman, atau investasi), dan tolak sopan bila benar-benar di luar topik.
+  - Aturan keamanan lama tetap berlaku.
+- **Penolakan di luar topik tanpa LLM** kini hanya untuk pesan **pertama pengunjung anonim** yang tidak
+  memuat istilah SUSI/komunitas; kosakatanya diperluas dengan istilah komunitas, UMKM, dan pengerjaan
+  proyek. Pengguna yang sudah masuk atau yang sedang bercakap selalu dijawab LLM, yang menolak sendiri bila
+  perlu.
+- **Bila LLM menyatakan belum punya informasinya,** jawaban tetap ditandai belum terjawab (Admin → Belum
+  terjawab) dan AgenSUSI ditawarkan. Tanpa LLM (key kosong, AI dimatikan, anggaran habis, atau galat),
+  perilakunya sama seperti dulu: jawaban cadangan + tawaran AgenSUSI.
+- **Pertanyaan keaslian sertifikat** tidak lagi tertangkap template kelayakan sertifikasi.
+
+### Set pertanyaan natural (31 kasus, `tests/chatbot/natural.jsonl`)
+
+Pertanyaan baru di luar golden set:
+- navigasi aplikasi per peran;
+- kendala akun/CS;
+- kebijakan;
+- masalah komunitas/UMKM;
+- di luar topik;
+- percakapan lanjutan.
+
+Dijalankan live (Haiku 4.5) dengan `npm run eval:chatbot -- --mode live --set natural.jsonl`.
+
+| Kategori | Sebelum (r3.2, kode lama) | Putaran 1 (cs1) | Akhir (cs1) |
+|---|---|---|---|
+| Pemandu aplikasi | 5/10 | 9/10 | 10/10 |
+| CS / kendala | 5/6 | 6/6 | 6/6 |
+| Kebijakan | 2/5 | 5/5 | 5/5 |
+| Masalah komunitas/UMKM | **0/6** | 4/6 | 6/6 |
+| Di luar topik (harus ditolak) | 2/3 | 2/3 | 3/3 |
+| Percakapan lanjutan | 0/1 | 1/1 | 1/1 |
+| **Total** | **14/31** | **27/31** | **31/31** |
+| Dijawab "belum menemukan" tanpa AI | 13 | 0 | 0 |
+| Latensi jawaban LLM p50 / p95 | 3,8 / 4,8 dtk | 4,0 / 6,5 dtk | 4,0 / 5,3 dtk |
+| Biaya putaran | $0,014 | $0,083 | $0,098 |
+
+Perbaikan antara putaran 1 dan akhir:
+- **Panduan:** cara menghubungi AgenSUSI yang sebenarnya (tidak ada tombol "Hubungi AgenSUSI"; ketik
+  permintaan atau tekan "Ya, hubungkan"), cara gabung komunitas, verifikasi sertifikat, tab Pengaturan,
+  email yang tidak bisa diubah sendiri, banyak kebutuhan, dan talenta mundur.
+- **Prompt:** batas ringkas dan tanpa salam pembuka. Satu jawaban putaran 1 terpotong di tengah kalimat.
+- **Penanda "belum punya informasi"** hanya untuk kalimat orang pertama.
+- **Cek uji:** label "saran umum" tanpa kurung diterima, dan pola penolakan sopan diperluas.
+- **Set ini dipakai untuk menyetel**, jadi angka 31/31 optimistis. Lihat holdout di bawah.
+
+### Holdout (13 kasus, `tests/chatbot/natural-holdout.jsonl`), dijalankan sekali
+
+Ditulis sebelum dijalankan dan tidak dipakai menyetel: **11/13 lolos cek otomatis**.
+- `ho-emas` sebenarnya benar. AI menolak dengan sopan ("khusus membantu soal platform…"), tetapi pola cek
+  penolakan belum mengenali kalimat itu. Penilaian manual: **12/13**.
+- `ho-tidak-sanggup` ("kalau saya sudah diterima tapi nggak sanggup ngerjain?") ditolak sebagai di luar
+  topik oleh saringan kosakata. Ini yang memicu perubahan "pengguna yang sudah masuk selalu dijawab LLM".
+  - Setelah perbaikan, kasus itu diulang sendiri. Jawabannya benar: mengundurkan diri dari tab Proyek
+    Saya dengan alasan; proyek DIBATALKAN dan kebutuhan kembali terbuka.
+  - Cek otomatis masih gagal karena kata kuncinya "mundur" sedangkan jawabannya "mengundurkan".
+- Latensi LLM p50/p95: 3,4/4,9 dtk. Biaya: $0,046.
+
+### Golden set dengan cs1
+
+Putaran live di atas: **77/79**.
+- Dua kasus `unknown` (aplikasi Android, asuransi talenta) dulu mengharapkan tawaran eskalasi karena SUSI
+  tidak tahu jawabannya. Sekarang AI menjawabnya dari panduan: "belum ada aplikasi Android, pakai website"
+  dan "SUSI tidak memberi asuransi; yang didapat pengalaman, portofolio, reputasi". Jawaban di atas benar.
+- Harapan kedua kasus diganti menjadi "terjawab" (+ "website" untuk Android), lalu diuji ulang live: 2/2.
+  Akibatnya recall eskalasi di laporan otomatis tercatat 0,71 untuk putaran itu.
+- Mode mock tetap 79/79, dan test backend 414/414.
+
+### Perlu dibaca manusia
+
+- AI kadang menambah detail yang masuk akal tetapi tidak ada di panduan, misalnya "rating" untuk talenta,
+  menanyakan omzet warung, atau "daftar sebagai UMKM". Panduan sudah menegaskan peran Komunitas untuk UMKM.
+- Gaya bahasa kadang santai ("gak", "nggak") dan memakai emoji. Belum diatur ketat.
+- Jawaban dari panduan lebih panjang dan lebih lambat (± 4 dtk) daripada jawaban KB langsung (± 20 ms).
+- **Biaya:** rata-rata jawaban LLM ± $0,003–0,004. Dengan `CHATBOT_DAILY_BUDGET_USD=1`, kira-kira
+  250–300 jawaban LLM per hari sebelum turun ke mode hemat.
+- **Biaya putaran ini** (key baru di `backend/.env`): $0,450 total, termasuk lima putaran live (sebelum,
+  putaran 1, akhir, holdout, golden) dan uji ulang kecil.

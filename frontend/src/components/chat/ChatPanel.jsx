@@ -13,7 +13,7 @@ import { useToast } from '../../context/toastContext';
 // U6: saat percakapan dialihkan, panel berubah menjadi "Ruang AgenSUSI" (identitas agen, status,
 // AI dijeda, ringkasan untuk agen, kembali ke AI, penilaian setelah selesai).
 
-const GREETING = 'Halo! Saya **Tanya SUSI**, asisten AI SUSI Community. Tanyakan cara kerja SUSI, cara mengajukan kebutuhan atau melamar proyek, atau minta dihubungkan dengan AgenSUSI.';
+const GREETING = 'Halo! Saya **Tanya SUSI**, asisten AI SUSI Community. Tanyakan apa saja seputar SUSI: cara memakai aplikasi, mengajukan kebutuhan atau melamar proyek, kendala akun, sampai masalah komunitas atau usaha Anda. Butuh orang? Minta dihubungkan dengan AgenSUSI.';
 
 function TypingDots() {
   return (

@@ -115,12 +115,13 @@ describe('Tanya SUSI: fondasi chatbot (T11, disesuaikan T12)', () => {
     }
   });
 
-  it('pertanyaan seputar SUSI tanpa entri KB → jawaban cadangan yang menawarkan AgenSUSI, tanpa memanggil LLM', async () => {
-    setLLMForTests(fakeLlm(async () => { throw new Error('LLM tidak boleh dipanggil'); }));
+  it('pertanyaan seputar SUSI tanpa entri KB → LLM pemandu; LLM gagal → jawaban cadangan yang menawarkan AgenSUSI', async () => {
+    setLLMForTests(fakeLlm(async () => { throw new LLMUnavailable('x'); }));
     const res = await send({ message: 'apakah ada fitur lupa password?' });
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({ source: 'fallback', sources: [], escalation_suggested: true });
     expect(res.body.data.message.content).toBe(FALLBACK_REPLY);
+    expect(await one(`SELECT llm_error FROM ask_logs WHERE message_id = ?`, [res.body.data.message.id])).toEqual({ llm_error: 'LLMUnavailable' });
   });
 
   it('tanpa key OpenRouter → jawaban KB tanpa memanggil jaringan', async () => {
