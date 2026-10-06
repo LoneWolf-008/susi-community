@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { env } from '../config/env.js';
 import { pool } from '../config/db.js';
 import { success, created, fail } from '../utils/response.js';
 import {
@@ -14,18 +15,16 @@ import {
 const REFRESH_COOKIE = 'susi_refresh_token';
 const SELF_REGISTER_ROLES = ['requester', 'talent'];
 
+// SameSite & Secure dari COOKIE_SAMESITE (config/env.js); atribut yang sama dipakai saat menghapus
+// agar peramban mau menimpa cookie SameSite=None.
+const cookieOptions = () => ({ httpOnly: true, secure: env.cookie.secure, sameSite: env.cookie.sameSite, path: '/' });
+
 const setRefreshCookie = (res, token) => {
-  res.cookie(REFRESH_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: '/',
-  });
+  res.cookie(REFRESH_COOKIE, token, { ...cookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });
 };
 
 const clearRefreshCookie = (res) => {
-  res.clearCookie(REFRESH_COOKIE, { path: '/' });
+  res.clearCookie(REFRESH_COOKIE, cookieOptions());
 };
 
 const buildUserPayload = (u) => ({

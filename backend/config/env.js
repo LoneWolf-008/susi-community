@@ -85,6 +85,7 @@ export function validateEnv(source) {
       errors.push(`${key} harus salah satu dari: ${allowed.join(', ')}`);
     }
   };
+  oneOf('COOKIE_SAMESITE', ['lax', 'none']);
   oneOf('LLM_PROVIDER', LLM_PROVIDERS);
   oneOf('OPENROUTER_DATA_COLLECTION', ['allow', 'deny']);
   oneOf('OPENROUTER_REASONING_EFFORT', REASONING_EFFORTS);
@@ -147,6 +148,12 @@ export const env = Object.freeze({
   port: Number(process.env.PORT) || 3009,
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY ?? '1'),
   frontendUrls: process.env.FRONTEND_URL.split(',').map((s) => s.trim()).filter(Boolean),
+  // Cookie refresh: lax = satu origin (bawaan). none = frontend & API beda domain; Secure dipaksa dan
+  // /auth/refresh & /auth/logout hanya menerima Origin yang tercantum di FRONTEND_URL (lihat docs/DEPLOY.md).
+  cookie: Object.freeze((() => {
+    const sameSite = lower(process.env.COOKIE_SAMESITE, 'lax');
+    return { sameSite, secure: sameSite === 'none' || process.env.NODE_ENV === 'production' };
+  })()),
   db: Object.freeze({
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT),
