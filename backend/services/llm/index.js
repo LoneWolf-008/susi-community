@@ -3,6 +3,7 @@
 import { env } from '../../config/env.js';
 import { createOpenRouterClient } from './openrouter.js';
 import { createMockClient } from './mock.js';
+import { httpsFetch } from './httpsTransport.js';
 
 let instance = null;
 
@@ -10,7 +11,11 @@ export function getLLM() {
   if (!instance) {
     instance = env.llm.provider === 'mock'
       ? createMockClient()
-      : createOpenRouterClient({ ...env.llm.openrouter });
+      : createOpenRouterClient({
+        ...env.llm.openrouter,
+        // LLM_TRANSPORT=https: node:https tanpa undici/WebAssembly (lihat httpsTransport.js).
+        ...(env.llm.transport === 'https' ? { fetchImpl: httpsFetch } : {}),
+      });
   }
   return instance;
 }

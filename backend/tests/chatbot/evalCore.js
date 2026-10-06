@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { LEAK_MARKERS } from '../../services/chatbot/prompts.js';
 import { syncKbIndex } from '../../services/chatbot/kb.js';
 import { readKbFile, upsertKbEntries } from '../../utils/kbSeed.js';
