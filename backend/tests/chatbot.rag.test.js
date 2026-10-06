@@ -134,17 +134,46 @@ describe('Tanya SUSI: RAG, guardrail, optimasi biaya (T12)', () => {
         .toEqual({ matched: 0, intent: 'out_of_scope' });
     });
 
-    it('pertanyaan seputar SUSI yang tidak ada di KB → "belum tahu" + tawaran eskalasi (tidak menebak)', async () => {
-      setLLMForTests(forbiddenLlm);
+    it('pertanyaan seputar SUSI/komunitas tanpa entri KB → LLM pemandu & CS dengan <panduan>; "belum punya informasi" → tawaran eskalasi', async () => {
+      const { client, calls } = recordingLlm((messages) => (/game/.test(messages.at(-1).content)
+        ? 'Maaf, saya belum punya informasi soal itu. Silakan hubungi AgenSUSI.'
+        : '(saran umum) Catat rapat di satu grup, lalu ajukan kebutuhan di SUSI.'));
+      setLLMForTests(client);
+
+      const unknown = await send({ message: 'apakah bisa bikin game di aplikasi susi?' });
+      expect(unknown.body.data).toMatchObject({ source: 'llm', escalation_suggested: true, sources: [] });
+      const system = calls[0][0].content;
+      expect(system).toContain('<panduan>');
+      expect(system).toContain('Ruang AgenSUSI');
+      expect(system).not.toContain('<entry');
+      expect(await one(`SELECT matched FROM ask_logs WHERE message_id = ?`, [unknown.body.data.message.id])).toEqual({ matched: 0 });
+
+      // Masalah komunitas (dulu ditolak sebagai di luar topik) dijawab; terjawab → tanpa tawaran eskalasi.
+      const problem = await send({ message: 'warga di RT kami susah diajak rapat, ada saran?' });
+      expect(problem.body.data).toMatchObject({ source: 'llm', escalation_suggested: false, sources: [] });
+      expect(await one(`SELECT matched FROM ask_logs WHERE message_id = ?`, [problem.body.data.message.id])).toEqual({ matched: 1 });
+
+      // Pengguna yang sudah masuk: tanpa istilah SUSI pun diteruskan ke LLM (yang menolak sendiri bila di luar
+      // topik); pesan pertama anonim tanpa istilah SUSI tetap ditolak aturan (lihat test "di luar topik").
+      const loggedIn = await send({ message: 'resep nasi goreng yang enak' }, talentA.auth);
+      expect(loggedIn.body.data).toMatchObject({ source: 'llm' });
+      expect(calls).toHaveLength(3);
+    });
+
+    it('tanpa LLM (AI dimatikan/tanpa key) pertanyaan tanpa entri KB tetap mendapat jawaban cadangan + AgenSUSI', async () => {
+      setLLMForTests(createOpenRouterClient({ apiKey: null, model: 'anthropic/claude-haiku-4.5', fetchImpl: async () => { throw new Error('tidak boleh'); } }));
       const res = await send({ message: 'apakah bisa bikin game di aplikasi susi?' });
       expect(res.body.data).toMatchObject({ source: 'fallback', escalation_suggested: true, sources: [] });
       expect(res.body.data.message.content).toBe(FALLBACK_REPLY);
     });
 
-    it('filter audiens: entri khusus AgenSUSI tidak sampai ke anonim', async () => {
-      setLLMForTests(forbiddenLlm);
+    it('filter audiens: entri khusus AgenSUSI tidak sampai ke anonim (termasuk konteks LLM pemandu)', async () => {
+      const { client, calls } = recordingLlm('Itu tugas AgenSUSI; silakan hubungi AgenSUSI.');
+      setLLMForTests(client);
       const anon = await send({ message: 'cara mencatat kunjungan lapangan' });
       expect(anon.body.data.sources.map((s) => s.id)).not.toContain(kb['agensusi-kunjungan'].id);
+      expect(calls.flat().map((m) => m.content).join('\n')).not.toContain(kb['agensusi-kunjungan'].reply);
+      setLLMForTests(forbiddenLlm);
       const asLiaison = await send({ message: 'cara mencatat kunjungan lapangan' }, liaison.auth);
       expect(asLiaison.body.data).toMatchObject({ source: 'kb' });
       expect(asLiaison.body.data.message.content).toBe(kb['agensusi-kunjungan'].reply);

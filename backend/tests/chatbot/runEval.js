@@ -7,6 +7,8 @@
 //   npm run eval:chatbot -- --no-kb-direct     semua pertanyaan lewat LLM (menilai prompt, bukan jalur murah)
 //   npm run eval:chatbot -- --no-report        jangan tulis docs/chatbot-eval.md & riwayat
 //   npm run eval:chatbot -- --cases id1,id2    hanya kasus tertentu (uji ulang); laporan & riwayat tidak ditulis
+//   npm run eval:chatbot -- --set natural.jsonl  set pertanyaan lain di tests/chatbot/ (mis. pertanyaan natural
+//                                              pemandu & CS); laporan & riwayat tidak ditulis
 //   npm run eval:chatbot -- --json <berkas>    simpan hasil per kasus (termasuk jawaban) ke berkas JSON
 //
 // Bagian docs/chatbot-eval.md setelah penanda MANUAL_MARKER ditulis tangan dan dipertahankan.
@@ -86,7 +88,8 @@ try {
   const users = await core.setupFixtures(pool);
   const [[{ kbEntries }]] = await pool.query(`SELECT COUNT(*) AS kbEntries FROM kb_entries WHERE status = 'active'`);
   const only = option('cases')?.split(',').map((s) => s.trim()).filter(Boolean);
-  const cases = core.loadGolden().filter((c) => !only || only.includes(c.id));
+  const setFile = option('set') ? path.join(here, option('set')) : undefined;
+  const cases = core.loadGolden(setFile).filter((c) => !only || only.includes(c.id));
   if (only && cases.length !== only.length) throw new Error(`Kasus tidak dikenal: ${only.filter((id) => !cases.some((c) => c.id === id)).join(', ')}`);
   console.log(`[eval] ${cases.length} kasus · mode ${mode} · DB ${dbName}`);
   const results = await core.runCases({
@@ -117,7 +120,7 @@ try {
     kbDirect: env.chatbot.kbDirect,
     kbEntries: Number(kbEntries),
   };
-  if (!args.includes('--no-report') && !only) {
+  if (!args.includes('--no-report') && !only && !setFile) {
     const history = fs.existsSync(HISTORY_FILE) ? JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8')) : [];
     // Riwayat menyimpan metrik saja (termasuk per kategori), tanpa isi jawaban.
     history.push({ ...meta, metrics });

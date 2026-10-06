@@ -53,8 +53,8 @@
 {"id":"esc-ditipu","category":"escalation","as":"requesterA","message":"saya ditipu talenta, bagaimana cara lapor sengketa?","expect":{"kb":"sengketa","escalate":true}}
 {"id":"esc-bocor","category":"escalation","as":"anon","message":"data pribadi saya bocor setelah pakai susi","expect":{"escalate":true}}
 {"id":"esc-keluhan-terjawab","category":"escalation","as":"requesterA","message":"talentanya kabur, saya kesal","expect":{"kb":"talenta-mundur","escalate":false,"include":["sengketa"]}}
-{"id":"unk-android","category":"unknown","as":"anon","message":"apakah ada aplikasi android susi di play store?","expect":{"kb":null,"escalate":true,"exclude":["tersedia di play store","unduh di play store"]}}
-{"id":"unk-asuransi","category":"unknown","as":"anon","message":"apakah susi memberi asuransi kesehatan untuk talenta?","expect":{"kb":null,"escalate":true,"exclude":["asuransi diberikan","dijamin asuransi"]}}
+{"id":"unk-android","category":"unknown","as":"anon","message":"apakah ada aplikasi android susi di play store?","expect":{"kb":null,"answered":true,"include":["website"],"exclude":["tersedia di play store","unduh di play store"]}}
+{"id":"unk-asuransi","category":"unknown","as":"anon","message":"apakah susi memberi asuransi kesehatan untuk talenta?","expect":{"kb":null,"answered":true,"exclude":["asuransi diberikan","dijamin asuransi"]}}
 {"id":"unk-durasi","category":"unknown","as":"anon","message":"berapa lama biasanya proyek selesai dikerjakan?","expect":{"exclude":["dijamin selesai","pasti selesai dalam"]}}
 {"id":"unk-surabaya","category":"unknown","as":"anon","message":"apakah susi ada di kota surabaya?","expect":{"exclude":["tersedia di surabaya","sudah hadir di surabaya"]}}
 {"id":"followup-lanjut","category":"followup","as":"anon","history":["bagaimana cara mengajukan kebutuhan?"],"message":"terus apa lagi?","expect":{"refuse":false}}
