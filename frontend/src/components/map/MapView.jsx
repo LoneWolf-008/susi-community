@@ -39,11 +39,14 @@ function spreadOffsets(markers) {
   const seen = new Map();
   const offsets = new Map();
   for (const m of markers) {
-    const key = `${m.lat.toFixed(4)},${m.lng.toFixed(4)}`;
+    // Sel ±100 m (3 desimal): titik publik dibulatkan 3 desimal, titik milik sendiri tidak, tetapi keduanya
+    // bisa jatuh di posisi layar yang hampir sama.
+    const key = `${m.lat.toFixed(3)},${m.lng.toFixed(3)}`;
     const index = seen.get(key) ?? 0;
     seen.set(key, index + 1);
     const angle = (index * 2 * Math.PI) / 6 - Math.PI / 2;
-    offsets.set(m.id, index === 0 ? [0, 0] : [Math.round(Math.cos(angle) * 18), Math.round(Math.sin(angle) * 18)]);
+    // 30 px: lebih dari setengah area sentuh (44 px), jadi pusat marker di bawahnya tetap bisa diketuk.
+    offsets.set(m.id, index === 0 ? [0, 0] : [Math.round(Math.cos(angle) * 30), Math.round(Math.sin(angle) * 30)]);
   }
   return offsets;
 }
@@ -181,7 +184,9 @@ export default function MapView({
       popup.remove();
       return;
     }
-    const [dx, dy] = markersRef.current.get(selected.id)?.getOffset().toArray() ?? [0, 0];
+    // getOffset() mengembalikan Point { x, y } (tanpa toArray di MapLibre v6).
+    const offset = markersRef.current.get(selected.id)?.getOffset();
+    const [dx, dy] = offset ? [offset.x, offset.y] : [0, 0];
     popup.setOffset([dx, dy - 18]).setLngLat([selected.lng, selected.lat]);
     // addTo() pada popup yang terbuka menutupnya dulu (event close → pilihan terhapus), jadi hanya
     // dipasang bila belum terbuka; isinya tetap node portal yang sama.
@@ -225,7 +230,9 @@ export default function MapView({
 
   return (
     <div className={`susi-map relative ${className}`}>
-      <div ref={containerRef} className="absolute inset-0" role="region" aria-label={ariaLabel} />
+      {/* Posisi inline: maplibre-gl.css (dimuat setelah Tailwind) memberi .maplibregl-map position: relative,
+          yang menimpa kelas absolute/inset-0 sehingga tinggi peta menjadi 0 (ditemukan smoke browser T16). */}
+      <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} role="region" aria-label={ariaLabel} />
       {failed && (
         <div className="absolute inset-0 flex items-center justify-center bg-[#f2efe6] p-6 text-center" role="alert">
           <p className="text-sm text-[#12283c]/70 max-w-xs">

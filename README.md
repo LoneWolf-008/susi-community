@@ -79,6 +79,9 @@ bukan lewat phpMyAdmin.
 | `npm run db:reset` | **Menghapus semua tabel**, lalu `db:init`. Ditolak bila `NODE_ENV=production` |
 | `npm run seed` | Isi data demo, termasuk basis pengetahuan chatbot dari `backend/db/seeds/kb.json`. Idempoten; ditolak di production kecuali `-- --force` |
 | `npm run seed -- --sync-kb` | Seperti `seed`, tetapi entri KB yang sudah ada ditimpa isi `kb.json` terbaru (per `slug`; suntingan admin ikut tertimpa) |
+| `npm run demo:reset` | **Siap demo dalam satu perintah** (± 7 detik): `db:reset` (buat DB bila belum ada, semua migrasi) + `seed` + sinkron KB. Menghapus semua data di `DB_NAME` |
+| `npm run demo:login` | Cek login semua akun demo (LULUS/GAGAL). Argumen opsional: URL API, mis. `-- http://localhost:3009/api` |
+| `npm run smoke:api` | Smoke API lintas peran: jalur A & B (ajukan → … → testimoni publik), gabung komunitas, rekomendasi + undang, sertifikasi, handoff AgenSUSI. Membuat data baru: jalankan di DB sekali pakai lalu `demo:reset` |
 | `npm run chat:retention` | Jalankan retensi riwayat Tanya SUSI sekali (server juga menjalankannya harian) |
 | `npm run eval:chatbot` | Evaluasi Tanya SUSI terhadap golden set (`tests/chatbot/golden.jsonl`) di database sekali pakai `susi_community_eval` (`EVAL_DB_NAME`, wajib berakhiran `_eval` karena isinya dikosongkan); menulis `docs/chatbot-eval.md`. Mode bawaan `mock` (tanpa biaya). `-- --mode live` memakai OpenRouter sungguhan (**berbayar**, key dari environment) |
 
@@ -91,13 +94,14 @@ Database hasil impor dump phpMyAdmin (tanpa `schema_migrations`) ditolak oleh
 |---|---|---|---|
 | Admin | nilai `ADMIN_EMAIL` (default `admin@susi.test`) | `ADMIN_PASSWORD` | Moderasi, sengketa, pengguna |
 | Liaison (AgenSUSI) | `budi@susi.test` | `SEED_USER_PASSWORD` | Pemilik proksi kebutuhan jalur Assisted |
-| Requester | `siti@umkm.test` | `SEED_USER_PASSWORD` | Paguyuban UMKM Sepatu Cibaduyut; proyek menunggu verifikasi |
+| Requester | `siti@umkm.test` | `SEED_USER_PASSWORD` | Paguyuban UMKM Sepatu Cibaduyut; proyek menunggu verifikasi; tiket AgenSUSI berjalan (Ruang AgenSUSI) |
 | Requester | `deden@karta.test` | `SEED_USER_PASSWORD` | Karang Taruna RW 08 Antapani |
 | Requester | `ujang@kebun.test` | `SEED_USER_PASSWORD` | Urban Farming Buahbatu; proyek bersengketa |
 | Talenta | `rizky@talenta.test` | `SEED_USER_PASSWORD` | Fresh graduate |
-| Talenta | `nabila@talenta.test` | `SEED_USER_PASSWORD` | 1 proyek selesai (jalur Assisted) |
-| Talenta | `fajar@talenta.test` | `SEED_USER_PASSWORD` | 1 proyek selesai |
+| Talenta | `nabila@talenta.test` | `SEED_USER_PASSWORD` | 3 proyek selesai: layak mengajukan sertifikasi |
+| Talenta | `fajar@talenta.test` | `SEED_USER_PASSWORD` | 2 proyek selesai (belum layak sertifikasi) |
 | Talenta | `alya@talenta.test` | `SEED_USER_PASSWORD` | Mahasiswa DKV |
+| Talenta | `dewi@talenta.test` | `SEED_USER_PASSWORD` | Tersertifikasi SUSI (Desain); pengajuan Website menunggu |
 
 Isi seed: 8 komunitas di empat sektor Bandung, 14 kebutuhan (MANDIRI dan AGENSUSI,
 2 menunggu moderasi, 1 ditolak), dan satu proyek untuk tiap status: `AGREEMENT`,
