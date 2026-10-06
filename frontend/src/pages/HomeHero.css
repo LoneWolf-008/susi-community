@@ -1,0 +1,73 @@
+/* Hero landing: kolase foto komunitas hitam-putih sebagai latar penuh.
+   Lapisan dari bawah: warna fallback → gambar (.hero-bg) → penggelap (.hero-shade) → teks.
+   Semua parameter yang bisa disetel ada di sini. Kontras teks diuji per viewport oleh
+   scripts/hero-contrast.mjs (lihat docs/progress/HERO.md). */
+
+.hero {
+  /* Fallback bila gambar belum/gagal dimuat: teks tetap terbaca di atas warna ini. */
+  --hero-fallback: #0b0f14;
+  /* Gambar */
+  --hero-img-brightness: 0.55;
+  --hero-img-contrast: 1.08;
+  --hero-img-position: 50% 50%;
+  /* Penggelap (teks rata tengah): lapisan rata + radial di belakang blok teks */
+  --hero-shade-flat: 0.6;
+  --hero-shade-core: 0.55;
+  --hero-shade-core-size: 75% 62%;
+  --hero-shade-core-at: 50% 48%;
+  --hero-vignette: 0.55;
+  /* Gradasi bawah menyatu ke section berikutnya (tanpa garis tepi keras) */
+  --hero-fade-to: #0e2233;
+  --hero-fade-height: 24%;
+  /* Teks */
+  --hero-text: #f5f2e8;
+  --hero-accent: #e62b2b;
+  --hero-muted: rgba(242, 239, 230, 0.78);
+  --hero-text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
+  /* Gerak */
+  --hero-zoom-from: 1.04;
+  --hero-zoom-to: 1.1;
+  --hero-zoom-duration: 28s;
+
+  background-color: var(--hero-fallback);
+}
+
+/* Mobile: teks menutupi hampir seluruh lebar → penggelap dikuatkan ± 0,15. */
+@media (max-width: 767px) {
+  .hero {
+    --hero-shade-flat: 0.75;
+    --hero-shade-core: 0.7;
+  }
+}
+
+.hero-bg {
+  object-position: var(--hero-img-position);
+  filter: grayscale(1) brightness(var(--hero-img-brightness)) contrast(var(--hero-img-contrast));
+  transform: scale(var(--hero-zoom-from));
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+.hero-bg.is-loaded { opacity: 1; }
+
+/* Zoom sangat pelan hanya untuk mouse & bila gerak tidak dibatasi (transform: tanpa layout shift). */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .hero-bg.is-loaded { animation: hero-zoom var(--hero-zoom-duration) ease-out forwards; }
+}
+@keyframes hero-zoom {
+  from { transform: scale(var(--hero-zoom-from)); }
+  to { transform: scale(var(--hero-zoom-to)); }
+}
+
+.hero-shade {
+  background:
+    linear-gradient(180deg, transparent calc(100% - var(--hero-fade-height)), var(--hero-fade-to) 100%),
+    radial-gradient(var(--hero-shade-core-size) at var(--hero-shade-core-at), rgba(8, 8, 8, var(--hero-shade-core)) 0%, rgba(8, 8, 8, 0) 100%),
+    radial-gradient(ellipse at center, transparent 55%, rgba(8, 8, 8, var(--hero-vignette)) 100%),
+    rgba(8, 8, 8, var(--hero-shade-flat));
+}
+
+.hero-title { color: var(--hero-text); text-shadow: var(--hero-text-shadow); }
+.hero-title .hero-accent { color: var(--hero-accent); text-shadow: var(--hero-text-shadow), 0 0 40px rgba(230, 43, 43, 0.35); }
+.hero-muted { color: var(--hero-muted); }
+.hero-muted .hero-muted-line { background-color: var(--hero-muted); }
+.hero-muted .hero-muted-arrow { border-color: var(--hero-muted); }
