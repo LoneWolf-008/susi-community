@@ -294,9 +294,9 @@
       "title": "Peta komunitas dan privasi lokasi",
       "category": "fitur",
       "audience": "all",
-      "keywords": ["peta", "map", "lokasi", "sembunyikan lokasi", "titik komunitas", "koordinat", "alamat", "tampilkan lokasi", "cari komunitas"],
-      "reply": "Menu Komunitas & Peta menampilkan komunitas terdaftar di Bandung beserta jumlah kebutuhan terbuka dan proyek selesainya. Di peta publik, titik lokasi dibulatkan sekitar 100 meter sehingga alamat persis tidak ditampilkan. Titik komunitas yang Anda daftarkan juga bisa disembunyikan lewat Pengaturan (tampilkan lokasi); komunitasnya tetap terdaftar.",
-      "source": "SDD-addendum F7 (Peta Komunitas); API.md §Publik (/public/communities) & §Pengaturan (show_location)"
+      "keywords": ["peta", "map", "lokasi", "sembunyikan lokasi", "titik komunitas", "koordinat", "alamat", "tampilkan lokasi", "cari komunitas", "penanda", "marker", "warna peta"],
+      "reply": "Menu Komunitas & Peta menampilkan komunitas terdaftar di Bandung beserta jumlah kebutuhan terbuka dan proyek selesainya. Warna penanda di peta: merah untuk komunitas lain, hijau mint untuk komunitas Anda, dan kuning untuk kebutuhan terbuka; ketuk penanda untuk melihat detail dan tautan rute di Google Maps. Di peta publik, titik lokasi dibulatkan sekitar 100 meter sehingga alamat persis tidak ditampilkan. Titik komunitas yang Anda daftarkan juga bisa disembunyikan lewat Pengaturan (tampilkan lokasi); komunitasnya tetap terdaftar. Saat mengisi formulir, titik lokasi bisa diperbaiki dengan menggeser penanda di peta.",
+      "source": "SDD-addendum F7 (Peta Komunitas); docs/progress/U2.md (warna penanda & penanda geser); API.md §Publik (/public/communities) & §Pengaturan (show_location)"
     },
     {
       "slug": "mading",

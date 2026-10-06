@@ -1,0 +1,35 @@
+/* Peta SUSI (U2): marker, pin geser, dan popup. Ikut chunk peta (dimuat malas bersama maplibre-gl.css). */
+
+/* Tombol marker: area sentuh 36 px, titik berwarna di dalamnya (transform posisi dipasang MapLibre
+   pada elemen luar, jadi bentuk/rotasi hanya di elemen dalam). */
+.susi-marker {
+  width: 36px; height: 36px; padding: 0; border: 0; background: transparent; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.susi-marker__dot {
+  width: 20px; height: 20px; border-radius: 9999px; border: 3px solid #fff;
+  box-shadow: 0 2px 6px rgba(18, 40, 60, .45); transition: transform .15s ease;
+}
+.susi-marker:hover .susi-marker__dot, .susi-marker[aria-pressed="true"] .susi-marker__dot { transform: scale(1.25); }
+.susi-marker:focus-visible { outline: 3px solid #12283c; outline-offset: -2px; border-radius: 9999px; }
+.susi-marker--community .susi-marker__dot { background: #e62b2b; }
+.susi-marker--own .susi-marker__dot { background: #c9ecd9; border-color: #12283c; }
+.susi-marker--need .susi-marker__dot { background: #f2a900; border-radius: 4px; transform: rotate(45deg) scale(.85); }
+.susi-marker--need:hover .susi-marker__dot, .susi-marker--need[aria-pressed="true"] .susi-marker__dot { transform: rotate(45deg) scale(1.05); }
+.susi-marker--hq .susi-marker__dot { background: #12283c; border-color: #e62b2b; }
+
+/* Pin yang bisa digeser (formulir lokasi). */
+.susi-pin { width: 44px; height: 44px; display: flex; align-items: flex-end; justify-content: center; cursor: grab; }
+.susi-pin:active { cursor: grabbing; }
+.susi-pin__head {
+  width: 26px; height: 26px; margin-bottom: 18px; background: #e62b2b; border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 3px 8px rgba(18, 40, 60, .45);
+}
+
+/* Popup bergaya kartu SUSI; lebar dibatasi agar muat di layar 360 px. */
+.susi-map .maplibregl-popup-content {
+  border-radius: 14px; padding: 12px 14px; color: #12283c; font-family: inherit;
+  box-shadow: 0 12px 30px rgba(18, 40, 60, .25);
+}
+.susi-map .maplibregl-popup-close-button { width: 32px; height: 32px; font-size: 20px; line-height: 1; color: #12283c; border-radius: 9999px; }
+.susi-map .maplibregl-ctrl-attrib { font-size: 10px; }

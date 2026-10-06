@@ -16,12 +16,15 @@ import MatchingTalentsPanel from './MatchingTalentsPanel';
 import DeliveriesList from '../project/DeliveriesList';
 import ProjectTimeline from '../project/ProjectTimeline';
 import DisputePanel, { OpenDisputeForm } from '../project/DisputePanel';
+import LocationPicker from '../map/LocationPicker';
+import { toPoint } from '../../lib/map';
 
 const CATEGORIES = Object.keys(NEED_CATEGORY);
 
 function EditNeedForm({ need, onSaved, onCancel }) {
   const toast = useToast();
   const [form, setForm] = useState({ title: need.title, category: need.category, summary: need.summary || '', description: need.description });
+  const [coords, setCoords] = useState(() => toPoint(need)); // U2: titik bisa diperbaiki dengan menggeser penanda
   const [saving, setSaving] = useState(false);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -29,7 +32,7 @@ function EditNeedForm({ need, onSaved, onCancel }) {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.patch(`/needs/${need.id}`, { ...form, summary: form.summary || null });
+      await api.patch(`/needs/${need.id}`, { ...form, summary: form.summary || null, ...(coords ? { lat: coords.lat, lng: coords.lng } : {}) });
       toast.success(need.moderation_status === 'REJECTED' ? 'Diperbaiki dan dikirim ulang ke moderasi' : 'Kebutuhan diperbarui');
       onSaved();
     } catch (err) {
@@ -51,6 +54,10 @@ function EditNeedForm({ need, onSaved, onCancel }) {
       </div>
       <div><label className="field-label" htmlFor="edit-summary">Ringkasan singkat</label><input id="edit-summary" value={form.summary} onChange={set('summary')} className="input-line" maxLength={300} /></div>
       <div><label className="field-label" htmlFor="edit-desc">Cerita masalahnya</label><textarea id="edit-desc" value={form.description} onChange={set('description')} className="input-line h-32 resize-none" maxLength={5000} required /></div>
+      <div>
+        <p className="field-label">Lokasi {coords ? `· ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` : '(opsional)'}</p>
+        <LocationPicker point={coords} onChange={setCoords} label="Peta lokasi kebutuhan" className="h-[240px] sm:h-[300px]" />
+      </div>
       <div className="flex gap-3">
         <button type="button" onClick={onCancel} className="btn-pill btn-ghost-dark !py-3 flex-1 text-xs">Batal</button>
         <button type="submit" disabled={saving} className="btn-pill btn-red !py-3 flex-1 text-xs disabled:opacity-60">{saving ? 'Menyimpan…' : 'Simpan & kirim ulang'}</button>

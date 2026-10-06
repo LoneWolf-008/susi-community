@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import GoogleMapsEmbed from '../components/common/GoogleMapsEmbed';
+import LazyMap from '../components/map/LazyMap';
+import { directionsUrl } from '../lib/map';
 import { MessagesSquare, Mails, Map, Copy, ArrowRight } from 'lucide-react';
 import fotoHasby from '../assets/hasby.jpg';
 import fotoEzra from '../assets/ezra.jpg';
@@ -68,6 +69,7 @@ export default function TentangPage() {
   const rootRef = useRef(null);
   const contactRef = useRef(null);
   const [contactOpen, setContactOpen] = useState(false);
+  const [hqOpen, setHqOpen] = useState(false); // popup marker kantor SUSI di peta
   const [copiedKey, setCopiedKey] = useState('');
 
   // WhatsApp & email hanya tampil bila sudah diatur (VITE_CONTACT_*), bukan nomor contoh.
@@ -236,12 +238,26 @@ export default function TentangPage() {
 
           <div className="lg:col-span-6">
             <div className="relative aspect-square md:aspect-[4/5] bg-[#12283c] border border-white/10 overflow-hidden">
-              <div className="absolute inset-0 z-0"><GoogleMapsEmbed lat={HQ.lat} lng={HQ.lng} zoom={15} title="Google Maps SMKN 4 Bandung" /></div>
-              <div className="absolute bottom-4 right-4 z-[500] font-mono text-[10px] font-bold text-white/70 bg-[#0e2233]/80 backdrop-blur px-3 py-1.5">
-                GOOGLE MAPS
+              <div className="absolute inset-0 z-0">
+                <LazyMap
+                  className="w-full h-full"
+                  ariaLabel="Peta lokasi tim SUSI di SMKN 4 Bandung"
+                  markers={[{ id: 'hq', lat: HQ.lat, lng: HQ.lng, variant: 'hq', label: 'Tim SUSI · SMKN 4 Bandung' }]}
+                  selectedId={hqOpen ? 'hq' : null}
+                  onSelect={(id) => setHqOpen(id === 'hq')}
+                  renderPopup={() => (
+                    <div className="text-[13px] leading-snug text-[#12283c]">
+                      <p className="font-black">Tim SUSI · SMKN 4 Bandung</p>
+                      <p className="text-[12px] opacity-70 mt-0.5">{HQ.addr}</p>
+                      <a href={CONTACT.mapsDirectionsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-[36px] font-mono text-[10px] font-bold text-[#e62b2b] underline">RUTE DI GOOGLE MAPS ↗</a>
+                    </div>
+                  )}
+                  center={HQ}
+                  zoom={15}
+                />
               </div>
-              <a href="https://www.google.com/maps/dir/?api=1&destination=SMKN+4+Bandung" target="_blank" rel="noreferrer" className="absolute bottom-4 left-4 z-[500] font-mono text-[10px] font-bold text-white bg-[#0e2233]/80 backdrop-blur px-3 py-1.5 hover:bg-[#e62b2b]">
-                BUKA RUTE ↗
+              <a href={CONTACT.mapsDirectionsUrl || directionsUrl(HQ)} target="_blank" rel="noopener noreferrer" className="absolute bottom-4 left-4 z-[500] min-h-[36px] inline-flex items-center font-mono text-[10px] font-bold text-white bg-[#0e2233]/80 backdrop-blur px-3 py-1.5 hover:bg-[#e62b2b]">
+                RUTE DI GOOGLE MAPS ↗
               </a>
             </div>
           </div>

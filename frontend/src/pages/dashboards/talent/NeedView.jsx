@@ -5,7 +5,8 @@ import { useToast } from '../../../context/toastContext';
 import { NEED_CATEGORY, NEED_SOURCE, applicationStatus } from '../../../lib/statusMap';
 import { initialOf, timeAgo } from '../../../lib/format';
 import StatusChip, { TagChip } from '../../../components/common/StatusChip';
-import GoogleMapsEmbed from '../../../components/common/GoogleMapsEmbed';
+import LazyMap from '../../../components/map/LazyMap';
+import { directionsUrl } from '../../../lib/map';
 import { SkeletonCard } from '../../../components/ui/Skeleton';
 import ErrorState from '../../../components/ui/ErrorState';
 
@@ -102,9 +103,15 @@ export default function NeedView({ needId, liveKey = 0, focusApply = false, onBa
             </div>
             {point ? (
               <>
-                <div className="relative z-0 rounded-xl border border-[#12283c]/15 h-[240px] overflow-hidden"><GoogleMapsEmbed lat={point.lat} lng={point.lng} title={`Peta lokasi ${need.title}`} /></div>
+                <LazyMap
+                  className="h-[220px] sm:h-[260px] rounded-xl border border-[#12283c]/15 overflow-hidden"
+                  ariaLabel={`Peta lokasi ${need.title}`}
+                  markers={[{ id: 'need', ...point, variant: 'need', label: `Lokasi ${need.title}` }]}
+                  center={point}
+                  zoom={15}
+                />
                 {need.address && <p className="font-mono text-[10px] opacity-60 mt-3">📍 {need.address}</p>}
-                <a href={`https://www.google.com/maps/dir/?api=1&destination=${point.lat},${point.lng}`} target="_blank" rel="noreferrer" className="inline-block mt-2 font-mono text-[10px] font-bold text-[#e62b2b] underline">BUKA RUTE GOOGLE MAPS ↗</a>
+                <a href={directionsUrl(point)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-[36px] mt-1 font-mono text-[10px] font-bold text-[#e62b2b] underline">RUTE DI GOOGLE MAPS ↗</a>
               </>
             ) : <p className="text-sm text-[#12283c]/60">Lokasi belum ditandai. Detail tempat bisa disepakati setelah Anda terpilih.</p>}
           </div>

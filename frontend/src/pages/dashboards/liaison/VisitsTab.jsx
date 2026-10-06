@@ -5,7 +5,7 @@ import { useToast } from '../../../context/toastContext';
 import { visitStatus } from '../../../lib/statusMap';
 import { formatDate } from '../../../lib/format';
 import StatusChip from '../../../components/common/StatusChip';
-import GoogleMapsEmbed from '../../../components/common/GoogleMapsEmbed';
+import LazyMap from '../../../components/map/LazyMap';
 import { SkeletonCard } from '../../../components/ui/Skeleton';
 import ErrorState from '../../../components/ui/ErrorState';
 import EmptyState from '../../../components/ui/EmptyState';
@@ -113,6 +113,10 @@ export default function VisitsTab({ onRecord, onChanged }) {
   const items = data?.items || [];
   const focused = items.find((v) => v.id === focusId) || items.find((v) => visitPoint(v));
   const point = visitPoint(focused);
+  const markers = items.flatMap((v) => {
+    const p = visitPoint(v);
+    return p ? [{ id: v.id, ...p, variant: 'community', label: `Kunjungan ${visitName(v)}` }] : [];
+  });
   const changed = () => { refetch(); onChanged?.(); };
 
   return (
@@ -165,14 +169,29 @@ export default function VisitsTab({ onRecord, onChanged }) {
           {data && <Pagination page={page} limit={PAGE_SIZE} total={data.total} onPage={(p) => setPaging({ status, page: p })} />}
         </div>
         <div className="col-span-12 lg:col-span-5">
-          <div className="dash-item lg:sticky lg:top-24 relative h-[420px] rounded-xl border border-[#12283c]/15 overflow-hidden">
-            <div className="absolute inset-0 z-0">
-              <GoogleMapsEmbed lat={point?.lat} lng={point?.lng} query="Bandung, Indonesia" zoom={point ? 16 : 12} title={focused ? `Peta ${visitName(focused)}` : 'Peta kunjungan'} />
-            </div>
-            {focused && (
-              <p className="absolute bottom-3 left-3 right-3 z-10 card-light px-4 py-3 font-mono text-[10px] font-bold">
-                {visitName(focused)}{focused.sector ? ` · ${focused.sector}` : ''}{point ? '' : ' · LOKASI BELUM DITANDAI'}
-              </p>
+          <div className="dash-item lg:sticky lg:top-24">
+            <LazyMap
+              className="h-[320px] sm:h-[420px] rounded-xl border border-[#12283c]/15 overflow-hidden"
+              ariaLabel="Peta kunjungan"
+              markers={markers}
+              selectedId={point ? focused?.id : null}
+              onSelect={(id) => { if (id) setFocusId(id); }}
+              renderPopup={(m) => {
+                const v = items.find((x) => x.id === m.id);
+                if (!v) return null;
+                return (
+                  <div className="text-[13px] leading-snug">
+                    <p className="font-mono text-[9px] font-black tracking-wider text-[#e62b2b]">{visitStatus(v.status).label} · {formatDate(v.scheduled_date)} {timeLabel(v.scheduled_time)}</p>
+                    <p className="font-black mt-1 break-words">{visitName(v)}</p>
+                    {v.address && <p className="text-[12px] opacity-70 mt-0.5 break-words">{v.address}</p>}
+                    <a href={routeUrl(v)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-[36px] font-mono text-[10px] font-bold text-[#e62b2b] underline">RUTE DI GOOGLE MAPS ↗</a>
+                  </div>
+                );
+              }}
+              fit
+            />
+            {focused && !point && (
+              <p className="mt-2 card-light px-4 py-3 font-mono text-[10px] font-bold">{visitName(focused)} · LOKASI BELUM DITANDAI</p>
             )}
           </div>
         </div>
