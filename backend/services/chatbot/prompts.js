@@ -11,7 +11,8 @@ import crypto from 'node:crypto';
 //      gaya bahasa sopan & hangat, tanpa emoji, "tidak" bukan "gak", kalimat pendek.
 // cs3: isi prompt sama; guide.js diperketat (Tentang Kami hanya kontak & lokasi, label status persis UI,
 //      panduan tidak memuat data jumlah/riwayat proyek).
-export const PROMPT_VERSION = 'cs3';
+// cs4: isi prompt sama; guide.js mengikuti Beranda Komunitas & navigasi mobile baru (U10).
+export const PROMPT_VERSION = 'cs4';
 
 // Kanari acak per proses: bila muncul di jawaban, prompt sedang dibocorkan (lihat outputFilter).
 const CANARY = `[[susi:${crypto.randomBytes(6).toString('hex')}]]`;

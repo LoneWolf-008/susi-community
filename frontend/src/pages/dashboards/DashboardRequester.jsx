@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { House, Newspaper, Users } from 'lucide-react';
 import { OPEN_OWNER_NEED_EVENT, ruangAgenPath } from '../../lib/chatNavigation';
 import gsap from 'gsap';
 import DashShell from '../../components/common/DashShell';
@@ -19,10 +20,16 @@ import { buildBoard } from './requester/board';
 const NAV = [
   { id: 'beranda', n: '01', l: 'Beranda' },
   { id: 'komunitas', n: '02', l: 'Mading' },
-  { id: 'map', n: '03', l: 'Komunitas & Peta' },
+  { id: 'map', n: '03', l: 'Komunitas & Peta', m: 'Komunitas' },
   { id: 'profile', n: '04', l: 'Profil' },
   { id: 'setting', n: '05', l: 'Pengaturan' },
   { id: 'ruang-agen', n: '06', l: 'Ruang AgenSUSI' }, // halaman penuh (U6), bukan tab
+];
+// Bilah bawah mobile (U10): 3 tab + Menu; Profil, Pengaturan, Ruang AgenSUSI ada di Menu.
+const MOBILE_NAV = [
+  { id: 'beranda', l: 'Beranda', icon: House },
+  { id: 'komunitas', l: 'Mading', icon: Newspaper },
+  { id: 'map', l: 'Komunitas', icon: Users },
 ];
 
 export default function DashboardRequester({ user, onLogout, navigateTo }) {
@@ -77,12 +84,15 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
   };
 
   return (
-    <DashShell user={user} roleLabel="KOMUNITAS" nav={NAV} tab={tab} onTab={onTab} notifications={notifications} onNotificationClick={openNotification} onLogout={onLogout} navigateTo={navigateTo}>
+    <DashShell user={user} roleLabel="KOMUNITAS" nav={NAV} mobileNav={MOBILE_NAV} tab={tab} onTab={onTab} notifications={notifications} onNotificationClick={openNotification} onLogout={onLogout} navigateTo={navigateTo}>
       <div ref={rootRef}>
         {tab === 'beranda' && (selected ? (
           <NeedDetail needId={selected} liveKey={liveKey} onBack={() => setSelected(null)} onChanged={reload} />
         ) : (
+          // U10: satu layar, satu aksi utama. Kosong → satu kartu sapaan + langkah + "Ajukan Kebutuhan";
+          // berisi → sapaan ringkas, daftar kebutuhan, lalu kartu Rekomendasi AI bila ada rekomendasi nyata.
           <BerandaTab
+            layout="komunitas"
             first={firstName(user?.name, 'Warga')}
             cards={cards}
             loading={needsQ.loading || projectsQ.loading}
@@ -90,15 +100,10 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
             onRetry={reload}
             onOpen={openCard}
             onCreate={() => navigateTo('request')}
-            top={(
+            bottom={(
               <RequesterAiCard
                 needs={needsQ.data?.items}
-                needsLoading={needsQ.loading}
-                needsError={needsQ.error}
-                onRetryNeeds={needsQ.refetch}
                 onOpenNeed={setSelected}
-                onCreate={() => navigateTo('request')}
-                onOpenSettings={() => onTab('setting')}
               />
             )}
           />

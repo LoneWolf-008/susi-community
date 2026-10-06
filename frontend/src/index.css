@@ -108,12 +108,17 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 /* Layar sentuh: input ≥ 16 px agar iOS tidak memperbesar halaman, tombol chip ≥ 44 px. */
 @media (pointer: coarse) {
   input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea { font-size: max(16px, 1rem) !important; }
-  button.chip-mono, a.chip-mono { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  button.chip-mono, a.chip-mono { min-height: 44px; align-items: center; justify-content: center; }
+  /* display hanya bila tidak disembunyikan: aturan ini ditulis setelah utilitas Tailwind, jadi tanpa :not(.hidden)
+     ia menimpa `hidden` (mis. tombol KELUAR `hidden md:inline-flex` di header dasbor muncul di ponsel). */
+  button.chip-mono:not(.hidden), a.chip-mono:not(.hidden) { display: inline-flex; }
 }
 
 /* Peluncur Tanya SUSI berada di atas bilah navigasi bawah dasbor (DashShell memasang data-bottom-nav). */
 @media (max-width: 767px) {
   html[data-bottom-nav] .chat-launcher { bottom: calc(4.75rem + env(safe-area-inset-bottom)); }
+  /* Bilah berikon (U10) setinggi 60 px: peluncur 16 px di atasnya, tidak menempel. */
+  html[data-bottom-nav="icons"] .chat-launcher { bottom: calc(60px + 1rem + env(safe-area-inset-bottom)); }
 }
 
 /* Hormati prefers-reduced-motion (animasi GSAP dipercepat di main.jsx). */
