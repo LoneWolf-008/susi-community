@@ -235,13 +235,32 @@ describe('Tanya SUSI: fondasi chatbot (T11, disesuaikan T12)', () => {
     const reject = async () => new Response(JSON.stringify({ error: { code: 401, message: `key ${SECRET} invalid` } }), { status: 401 });
     setLLMForTests(createOpenRouterClient({ apiKey: SECRET, model: 'anthropic/claude-haiku-4.5', fetchImpl: reject }));
     const bad = await api().get('/api/chatbot/health').set(admin.auth);
-    expect(bad.body.data).toMatchObject({ provider: 'openrouter', configured: true, status: 'error', error: 'LLMUnavailable', http_status: 401 });
+    expect(bad.body.data).toMatchObject({
+      provider: 'openrouter', configured: true, key_info: 'gagal', model_call: 'gagal', status: 'error', error: 'LLMUnavailable', http_status: 401,
+    });
     expect(JSON.stringify(bad.body)).not.toContain(SECRET);
 
-    const good = async () => new Response(JSON.stringify({ data: { label: SECRET.slice(0, 12), limit: 5, limit_remaining: 4.9, usage_daily: 0.01, usage_monthly: 0.1, is_free_tier: false } }), { status: 200 });
+    const keyBody = { data: { label: SECRET.slice(0, 12), limit: 5, limit_remaining: 4.9, usage_daily: 0.01, usage_monthly: 0.1, is_free_tier: false } };
+    const keyOk = (url) => (String(url).endsWith('/key') ? new Response(JSON.stringify(keyBody), { status: 200 }) : null);
+    // Info key lolos, panggilan model ditolak (kasus nyata 2026-10-06): status mengikuti panggilan model.
+    setLLMForTests(createOpenRouterClient({ apiKey: SECRET, model: 'anthropic/claude-haiku-4.5', fetchImpl: async (url) => keyOk(url) ?? reject() }));
+    const keyOnly = await api().get('/api/chatbot/health').set(admin.auth);
+    expect(keyOnly.body.data).toMatchObject({ key_info: 'ok', model_call: 'gagal', status: 'error', http_status: 401 });
+
+    let calls = 0;
+    const good = async (url) => {
+      calls += 1;
+      return keyOk(url) ?? new Response(JSON.stringify({
+        model: 'anthropic/claude-haiku-4.5', choices: [{ message: { content: `ok ${SECRET}` }, finish_reason: 'stop' }], usage: { prompt_tokens: 12, completion_tokens: 1 },
+      }), { status: 200 });
+    };
     setLLMForTests(createOpenRouterClient({ apiKey: SECRET, model: 'anthropic/claude-haiku-4.5', fetchImpl: good }));
     const fine = await api().get('/api/chatbot/health').set(admin.auth);
-    expect(fine.body.data).toMatchObject({ status: 'ok', credits: { limit: 5, limitRemaining: 4.9 } });
+    expect(fine.body.data).toMatchObject({ key_info: 'ok', model_call: 'ok', status: 'ok', cached: false, credits: { limit: 5, limitRemaining: 4.9 } });
     expect(JSON.stringify(fine.body)).not.toContain(SECRET.slice(0, 12));
+    // Panggilan berikutnya dalam 60 detik memakai cache: tidak ada permintaan baru ke OpenRouter.
+    const again = await api().get('/api/chatbot/health').set(admin.auth);
+    expect(again.body.data).toMatchObject({ status: 'ok', cached: true });
+    expect(calls).toBe(2);
   });
 });
