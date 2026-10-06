@@ -320,3 +320,34 @@ Putaran live di atas: **77/79**.
   250–300 jawaban LLM per hari sebelum turun ke mode hemat.
 - **Biaya putaran ini** (key baru di `backend/.env`): $0,450 total, termasuk lima putaran live (sebelum,
   putaran 1, akhir, holdout, golden) dan uji ulang kecil.
+
+## Penghalusan gaya & larangan menambah detail (PROMPT_VERSION cs2), 2026-10-06
+
+**Aturan baru:**
+- Dilarang menambah detail di luar sumber: nama menu, tombol, atau label; angka, batas, atau lama waktu;
+  kebijakan; perkiraan "mungkin/biasanya". Lebih baik mengaku belum tahu, lalu tawarkan AgenSUSI.
+- Gaya bahasa sopan dan hangat, tanpa emoji, kata baku ("tidak", bukan "gak/nggak"), kalimat pendek.
+
+**Verifikasi:**
+- Mock golden 79/79, test backend 414/414.
+- Live **hanya 6 pertanyaan** (`tests/chatbot/polish.jsonl`), dengan biaya **$0,027** (batas sesi $0,05).
+
+| Kasus | Jenis | Hasil |
+|---|---|---|
+| pol-lokasi | dari holdout | LULUS: titik dibulatkan ± 100 m; Pengaturan → Privasi → "Tampilkan lokasi komunitas di peta publik" |
+| pol-zakat | dari holdout | LULUS: daftar sebagai Komunitas → "+ Ajukan Kebutuhan" → moderasi → pilih dari pelamar |
+| pol-email | dari holdout | LULUS: email tidak bisa diubah sendiri → kontak resmi di "Tentang Kami" atau minta dihubungkan dengan AgenSUSI |
+| pol-pendiri | tidak ada di panduan | LULUS: "Saya belum punya informasi lengkap tentang pendiri…" + tawaran AgenSUSI (eskalasi disarankan) |
+| pol-waktu-balas | tidak ada di panduan | LULUS: "Saya belum punya informasi pasti tentang waktu respons AgenSUSI…" (eskalasi disarankan) |
+| pol-keluhan | keluhan | LULUS: empati, cek status di Beranda, perbaiki bila ditolak, minta dihubungkan dengan AgenSUSI |
+
+Pada keenam jawaban: 0 emoji, 0 "gak"/"nggak".
+
+**Masih perlu dibaca manusia** (aturan prompt saja tidak menghapus semuanya):
+- `pol-zakat` mengklaim "termasuk masalah yang sering kami tangani" (tidak ada datanya).
+- `pol-pendiri` dan `pol-waktu-balas` menyiratkan halaman "Tentang Kami" memuat sejarah atau jam
+  operasional; panduan hanya menyebut kontak dan lokasi.
+- `pol-keluhan` menyebut "Dua minggu termasuk lama, tapi kadang bisa terjadi" dan label status "MENUNGGU
+  MODERASI" yang tidak tertulis di panduan.
+- Bila ingin lebih ketat, langkah berikutnya: tambahkan faktanya ke `guide.js`, atau saring keluaran
+  untuk frasa perkiraan.

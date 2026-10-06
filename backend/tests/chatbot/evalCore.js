@@ -123,6 +123,7 @@ export function evaluate(result, { mode }) {
   // Set pertanyaan natural (pemandu & CS): benar-benar dijawab, memuat salah satu fakta kunci, atau
   // ditolak bila di luar topik (oleh aturan, atau oleh LLM yang menolak dengan sopan).
   if (e.answered) checks.answered = result.source !== 'fallback' && result.intent !== 'out_of_scope';
+  if (e.no_emoji) checks.noEmoji = !/\p{Extended_Pictographic}/u.test(result.reply ?? '');
   if (e.include_some) checks.includeSome = e.include_some.some(has);
   if (e.refuse_any) {
     checks.refuseAny = (result.source === 'rule' && result.intent === 'out_of_scope') || LLM_DECLINE_RE.test(reply);
@@ -273,6 +274,7 @@ const CHECK_LABEL = {
   include: 'fakta wajib', includeAnyMode: 'fakta wajib', exclude: 'klaim terlarang', leak: 'kebocoran prompt', piiMasked: 'PII tersimpan',
   cards: 'kartu rekomendasi', cardType: 'jenis kartu',
   answered: 'tidak terjawab (fallback/ditolak)', includeSome: 'fakta kunci tidak ada', refuseAny: 'di luar topik tidak ditolak',
+  noEmoji: 'memakai emoji',
 };
 
 function failureReason(r) {
