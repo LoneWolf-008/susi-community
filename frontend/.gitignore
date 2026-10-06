@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Aset sumber besar (mis. PNG kolase hero asli); versi web ada di public/images/
+assets-src/
