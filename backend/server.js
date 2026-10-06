@@ -5,8 +5,11 @@ import { pool } from './config/db.js';
 import { startRetentionJob } from './services/chatbot/retention.js';
 
 // ===== START SERVER =====
+// env.port: angka (port TCP) atau path socket. Di Passenger (cPanel) listen() pertama diambil alih ke
+// socket Passenger, jadi tidak ada port tetap yang diikat.
 const server = app.listen(env.port, () => {
-  console.log(`SUSI Community API berjalan di http://localhost:${env.port}`);
+  const where = typeof env.port === 'number' ? `http://localhost:${env.port}` : `socket ${env.port}`;
+  console.log(`SUSI Community API berjalan di ${where}${env.serveFrontend ? ' (+ frontend)' : ''}`);
   console.log(`Environment: ${env.nodeEnv}`);
 });
 
