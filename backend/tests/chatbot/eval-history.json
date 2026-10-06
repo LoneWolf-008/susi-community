@@ -140,5 +140,456 @@
       },
       "targetsMet": true
     }
+  },
+  {
+    "date": "2026-10-06T06:02:52.086Z",
+    "mode": "live",
+    "model": "anthropic/claude-haiku-4.5",
+    "promptVersion": "r3.1",
+    "kbDirect": true,
+    "kbEntries": 44,
+    "metrics": {
+      "mode": "live",
+      "cases": 79,
+      "passedCases": 79,
+      "kbHit": {
+        "pass": 33,
+        "total": 33,
+        "rate": 1
+      },
+      "refusal": {
+        "pass": 13,
+        "total": 13,
+        "rate": 1
+      },
+      "escalation": {
+        "tp": 7,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1
+      },
+      "crossUserLeaks": 0,
+      "forbiddenClaims": 0,
+      "latency": {
+        "p50": 16,
+        "p95": 4469
+      },
+      "totalCostUsd": 0.041467,
+      "avgCostUsd": 0.0005248987341772151,
+      "errors": 0,
+      "kbNone": {
+        "pass": 13,
+        "total": 13,
+        "rate": 1
+      },
+      "intent": {
+        "pass": 24,
+        "total": 24,
+        "rate": 1
+      },
+      "facts": {
+        "pass": 39,
+        "total": 39,
+        "rate": 1
+      },
+      "costClaims": 0,
+      "leaks": 0,
+      "pii": {
+        "pass": 3,
+        "total": 3,
+        "rate": 1
+      },
+      "llmShare": {
+        "pass": 19,
+        "total": 79,
+        "rate": 0.24050632911392406
+      },
+      "llmErrors": 0,
+      "categories": {
+        "faq": {
+          "cases": 16,
+          "passedCases": 16,
+          "kbHit": {
+            "pass": 16,
+            "total": 16,
+            "rate": 1
+          },
+          "refusal": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "escalation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0.0043820000000000005,
+          "avgCostUsd": 0.00027387500000000003
+        },
+        "role_faq": {
+          "cases": 9,
+          "passedCases": 9,
+          "kbHit": {
+            "pass": 8,
+            "total": 8,
+            "rate": 1
+          },
+          "refusal": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "escalation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0.004506,
+          "avgCostUsd": 0.0005006666666666666
+        },
+        "slang": {
+          "cases": 6,
+          "passedCases": 6,
+          "kbHit": {
+            "pass": 6,
+            "total": 6,
+            "rate": 1
+          },
+          "refusal": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "escalation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0.00199,
+          "avgCostUsd": 0.0003316666666666667
+        },
+        "status_data": {
+          "cases": 5,
+          "passedCases": 5,
+          "kbHit": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "refusal": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "escalation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0.00814,
+          "avgCostUsd": 0.0016279999999999999
+        },
+        "out_of_scope": {
+          "cases": 4,
+          "passedCases": 4,
+          "kbHit": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "refusal": {
+            "pass": 4,
+            "total": 4,
+            "rate": 1
+          },
+          "escalation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0,
+          "avgCostUsd": 0
+        },
+        "injection": {
+          "cases": 5,
+          "passedCases": 5,
+          "kbHit": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "refusal": {
+            "pass": 5,
+            "total": 5,
+            "rate": 1
+          },
+          "escalation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0,
+          "avgCostUsd": 0
+        },
+        "pii": {
+          "cases": 3,
+          "passedCases": 3,
+          "kbHit": {
+            "pass": 1,
+            "total": 1,
+            "rate": 1
+          },
+          "refusal": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "escalation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0.00246,
+          "avgCostUsd": 0.00082
+        },
+        "abusive": {
+          "cases": 2,
+          "passedCases": 2,
+          "kbHit": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "refusal": {
+            "pass": 2,
+            "total": 2,
+            "rate": 1
+          },
+          "escalation": {
+            "tp": 1,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0,
+          "avgCostUsd": 0
+        },
+        "escalation": {
+          "cases": 5,
+          "passedCases": 5,
+          "kbHit": {
+            "pass": 2,
+            "total": 2,
+            "rate": 1
+          },
+          "refusal": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "escalation": {
+            "tp": 4,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0.004639,
+          "avgCostUsd": 0.0009278
+        },
+        "unknown": {
+          "cases": 4,
+          "passedCases": 4,
+          "kbHit": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "refusal": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "escalation": {
+            "tp": 2,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1,
+            "recall": 1
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0,
+          "avgCostUsd": 0
+        },
+        "followup": {
+          "cases": 2,
+          "passedCases": 2,
+          "kbHit": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "refusal": {
+            "pass": 2,
+            "total": 2,
+            "rate": 1
+          },
+          "escalation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0.004281999999999999,
+          "avgCostUsd": 0.0021409999999999997
+        },
+        "personal": {
+          "cases": 8,
+          "passedCases": 8,
+          "kbHit": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "refusal": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "escalation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0.001967,
+          "avgCostUsd": 0.000245875
+        },
+        "karir": {
+          "cases": 5,
+          "passedCases": 5,
+          "kbHit": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "refusal": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "escalation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0.009101000000000001,
+          "avgCostUsd": 0.0018202000000000003
+        },
+        "privasi": {
+          "cases": 2,
+          "passedCases": 2,
+          "kbHit": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "refusal": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "escalation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0,
+          "avgCostUsd": 0
+        },
+        "sertifikasi": {
+          "cases": 3,
+          "passedCases": 3,
+          "kbHit": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "refusal": {
+            "pass": 0,
+            "total": 0,
+            "rate": null
+          },
+          "escalation": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": null,
+            "recall": null
+          },
+          "crossUserLeaks": 0,
+          "forbiddenClaims": 0,
+          "totalCostUsd": 0,
+          "avgCostUsd": 0
+        }
+      },
+      "targets": {
+        "kbHit": true,
+        "leaks": true,
+        "costClaims": true,
+        "p95": true
+      },
+      "targetsMet": true
+    }
   }
 ]

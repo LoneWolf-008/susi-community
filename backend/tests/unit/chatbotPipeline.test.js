@@ -88,7 +88,7 @@ describe('Prompt sistem (T12.3)', () => {
   });
 
   it('memuat persona, aturan inti, dan versi tercatat', () => {
-    expect(PROMPT_VERSION).toBe('r3.1');
+    expect(PROMPT_VERSION).toBe('r3.2');
     expect(prompt).toContain('Tanya SUSI');
     expect(prompt).toMatch(/Jawab hanya dari isi <kb>, <user_data>, <user_profile>, dan <recommendations>/);
     expect(prompt).toMatch(/tawarkan bantuan AgenSUSI/);

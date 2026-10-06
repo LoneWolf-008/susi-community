@@ -22,6 +22,8 @@ const PERSONAL_RES = {
   rekomendasi_proyek: [
     new RegExp(`\\b${WORK_WORD}\\b(?:\\s+\\S+){0,4}?\\s+${MATCH_WORD}\\b`),
     new RegExp(`\\b${MATCH_WORD}\\b(?:\\s+\\S+){0,3}?\\s+${WORK_WORD}\\b`),
+    // "kenapa proyek <judul kebutuhan> cocok buat saya": judul bisa jauh lebih dari 4 kata.
+    /\b(kenapa|mengapa|alasan)\b.*\b(proyek|projek|project|kebutuhan)\b.*\b(cocok|sesuai|pas)\s+(buat|untuk|bagi|dengan)\s+(saya|aku|gue|gw|gua)\b/,
   ],
   // "skill apa yang perlu saya pelajari", "karier saya", "keahlian yang paling dicari"
   karir: [
@@ -38,11 +40,16 @@ const FEATURE_HOWTO_RE = /\bcara\b/;
 
 // Urutan cek: "talenta yang cocok untuk kebutuhan saya" juga memuat kata kebutuhan + cocok.
 const PERSONAL_ORDER = ['rekomendasi_talenta', 'rekomendasi_proyek', 'karir', 'sertifikasi'];
+// "skill apa yang perlu saya pelajari supaya lebih banyak proyek cocok" memuat proyek + cocok, tetapi
+// yang ditanyakan keahlian: pola skill-gap karier dicek sebelum rekomendasi proyek.
+const SKILL_GAP_RES = PERSONAL_RES.karir.slice(1, 3);
 
 /** Intent personal yang diminta, atau null. */
 export function personalIntent(text) {
   const t = intentText(text);
   if (FEATURE_HOWTO_RE.test(t) && !PERSONAL_RES.sertifikasi.some((re) => re.test(t))) return null;
+  if (PERSONAL_RES.rekomendasi_talenta.some((re) => re.test(t))) return 'rekomendasi_talenta';
+  if (SKILL_GAP_RES.some((re) => re.test(t))) return 'karir';
   return PERSONAL_ORDER.find((intent) => PERSONAL_RES[intent].some((re) => re.test(t))) ?? null;
 }
 
