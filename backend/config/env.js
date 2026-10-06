@@ -199,7 +199,7 @@ export const env = Object.freeze({
   chatbot: Object.freeze({
     maxTokens: intOr(process.env.CHATBOT_MAX_TOKENS, 350),
     // Biaya LLM per hari (USD); bila habis → mode KB-saja. 0 = LLM dimatikan.
-    dailyBudgetUsd: numberOr(process.env.CHATBOT_DAILY_BUDGET_USD, 1),
+    dailyBudgetUsd: numberOr(process.env.CHATBOT_DAILY_BUDGET_USD, 0.25),
     messageMaxChars: 500,
     historyMessages: 6,
     // Cache jawaban LLM (LRU di memori). TTL 0 = cache dimatikan.

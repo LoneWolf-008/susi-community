@@ -80,7 +80,7 @@ dipakai rate limit login, chatbot, dan endpoint publik.
 | `OPENROUTER_MODEL`, `OPENROUTER_FALLBACK_MODELS` | — | Bawaan `anthropic/claude-haiku-4.5` |
 | `OPENROUTER_TIMEOUT_MS` | — | Bawaan 12000 |
 | `OPENROUTER_DATA_COLLECTION` | — | `deny` (bawaan, disarankan) |
-| `CHATBOT_DAILY_BUDGET_USD` | — | Bawaan 1. Bila habis, chatbot turun ke mode KB-saja sampai hari berganti; 0 = LLM mati |
+| `CHATBOT_DAILY_BUDGET_USD` | — | Bawaan **0.25** (± 60–80 jawaban AI per hari, ± $0,003–0,004 per jawaban). Bila habis, chatbot turun ke mode KB-saja sampai hari berganti; 0 = LLM mati. Naikkan bila pemakaian memang ramai |
 | `CHATBOT_RETENTION_DAYS` | — | Bawaan 90 |
 | Rate limit (`RATE_LIMIT_MAX`, `AUTH_RATE_LIMIT_*`, `CHATBOT_*_LIMIT_*`) | — | Naikkan plafon IP untuk demo ramai di satu Wi-Fi |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SEED_USER_PASSWORD` | hanya untuk seed | Dibaca `npm run seed`, bukan oleh server. Password ≥ 10 karakter |
@@ -119,7 +119,8 @@ dipakai untuk health check platform dan tidak menyentuh DB maupun LLM.
   `model_call` adalah satu panggilan model sungguhan (`max_tokens 5`, sekitar $0,00004 dengan Haiku 4.5), dan `status`
   mengikuti `model_call`.
 - Pada sesi 2026-10-06, key yang dipakai lolos `key_info` tetapi panggilan modelnya ditolak 401
-  "User not found". Hanya `model_call` yang menangkap kasus seperti ini.
+  "User not found". Penyebabnya: yang terpasang adalah **Management key** OpenRouter, yang hanya bisa
+  mengelola key lain. Pakai key dari halaman **API Keys**. Hanya `model_call` yang menangkap kasus seperti ini.
 - Hasil di-cache **60 detik** per klien LLM (`cached: true`), sehingga memuat ulang berkali-kali tidak
   menghabiskan kredit.
 - Respons hanya memuat nama kelas galat dan status HTTP. Key, pesan galat OpenRouter, dan isi jawaban
@@ -135,3 +136,26 @@ dipakai untuk health check platform dan tidak menyentuh DB maupun LLM.
 4. Unggah hasil kerja, restart backend, lalu unduh lagi untuk membuktikan volume persisten.
 5. `GET /api/chatbot/health` (token admin) → `model_call: "ok"`. Bila `gagal`, lihat `http_status`:
    401 berarti key/akun ditolak, dan 402 berarti kredit habis.
+
+## 8. Pengingat: panduan Tanya SUSI (`guide.js`)
+
+Tanya SUSI menjawab cara memakai aplikasi berdasarkan **`backend/services/chatbot/guide.js`**. Isinya:
+ringkasan SUSI, alur, kebijakan, cara menghubungi AgenSUSI, Pengaturan, dan menu per peran. AI dilarang
+menambah detail di luar panduan ini, jadi panduan yang usang membuat AI salah memandu atau terpaksa
+menjawab "belum tahu".
+
+**Perbarui `guide.js` setiap kali** ada perubahan pada:
+- nama atau urutan menu, tab, tombol, atau label di dasbor;
+- alur proyek (moderasi, lamaran, kesepakatan, verifikasi, sengketa, mundur);
+- kebijakan (biaya, syarat sertifikasi, batas undangan, retensi chat, jam layanan AgenSUSI);
+- cara kontak atau fitur akun (reset kata sandi, ubah email, hapus akun).
+
+Setelah mengubahnya:
+1. Naikkan `PROMPT_VERSION` di `services/chatbot/prompts.js`.
+2. Jalankan `npm test` di folder `backend`.
+3. Uji beberapa pertanyaan terkait secara live, misalnya
+   `npm run eval:chatbot -- --mode live --set natural.jsonl --cases <id>`. Biayanya ± $0,004 per
+   pertanyaan.
+
+Fakta FAQ yang sering ditanya sebaiknya juga dijadikan entri KB (Admin → Tanya SUSI), karena jawaban KB
+langsung lebih cepat dan gratis.

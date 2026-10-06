@@ -169,7 +169,7 @@ fallback SPA untuk Vercel/Netlify.
 | `OPENROUTER_DATA_COLLECTION` | | `deny` | `deny` = hanya provider yang tidak menyimpan/melatih dengan isi chat |
 | `OPENROUTER_REASONING_EFFORT` | | kosong | Untuk model yang berpikir dulu: `none\|minimal\|low\|medium\|high` |
 | `CHATBOT_MAX_TOKENS` | | `350` | Batas token jawaban |
-| `CHATBOT_DAILY_BUDGET_USD` | | `1` | Anggaran LLM per hari (USD). Habis → mode KB-saja sampai hari berganti; `0` = LLM dimatikan |
+| `CHATBOT_DAILY_BUDGET_USD` | | `0.25` | Anggaran LLM per hari (USD). Habis → mode KB-saja sampai hari berganti; `0` = LLM dimatikan |
 | `CHATBOT_CACHE_TTL_HOURS`, `CHATBOT_CACHE_MAX` | | `6`, `500` | Cache jawaban LLM di memori (`0` jam = mati) |
 | `CHATBOT_RATE_LIMIT_PER_MIN` | | `12` | Pesan chatbot per menit per akun |
 | `CHATBOT_ANON_RATE_LIMIT_PER_MIN`, `CHATBOT_ANON_IP_RATE_LIMIT_PER_MIN` | | `6`, `30` | Anonim per menit: per IP + sesi chat, dan plafon per IP |
