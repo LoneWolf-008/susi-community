@@ -156,7 +156,7 @@ export default function RequestPage({ user, navigateTo }) {
                 <p className="field-label">Kategori</p>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(NEED_CATEGORY).map(([value, label]) => (
-                    <button type="button" key={value} onClick={() => setForm((f) => ({ ...f, category: value }))} className={`rounded-full px-4 py-2 font-mono text-[10px] font-bold border transition-colors ${form.category === value ? 'bg-[#e62b2b] text-white border-[#e62b2b]' : 'border-[#12283c]/25 hover:border-[#12283c]'}`}>{label.toUpperCase()}</button>
+                    <button type="button" key={value} onClick={() => setForm((f) => ({ ...f, category: value }))} className={`rounded-full px-4 py-2 min-h-[44px] font-mono text-[10px] font-bold border transition-colors ${form.category === value ? 'bg-[#e62b2b] text-white border-[#e62b2b]' : 'border-[#12283c]/25 hover:border-[#12283c]'}`}>{label.toUpperCase()}</button>
                   ))}
                 </div>
                 <p className="font-mono text-[9px] opacity-50 mt-3">BINGUNG? PILIH “LAINNYA”, ADMIN AKAN MEMBANTU MENGELOMPOKKAN.</p>

@@ -45,7 +45,7 @@ export function SummaryDisclosure({ t, summary }) {
   if (!summary) return null;
   return (
     <details className={`group rounded-xl px-3 py-2 text-[12px] ${t.panel}`}>
-      <summary className="cursor-pointer list-none flex items-center justify-between gap-2 min-h-[32px] font-mono text-[10px] font-bold tracking-wider">
+      <summary className="cursor-pointer list-none flex items-center justify-between gap-2 min-h-[44px] font-mono text-[10px] font-bold tracking-wider">
         RINGKASAN YANG DIKIRIM KE AGENSUSI
         <span className="transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
       </summary>
