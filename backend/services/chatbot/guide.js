@@ -13,7 +13,7 @@ const COMMON = `Tentang SUSI Community:
 Alur proyek:
 1. Komunitas menceritakan masalah lewat formulir "+ Ajukan Kebutuhan" dengan bahasa sehari-hari (atau dicatatkan AgenSUSI bila belum terbiasa dengan website).
 2. Admin memoderasi; setelah disetujui, kebutuhan tampil di katalog proyek terbuka.
-3. Talenta melamar; komunitas memilih satu talenta setelah melihat rekam jejaknya (sistem juga memberi rekomendasi talenta dan komunitas bisa mengundang talenta melamar).
+3. Talenta melamar; komunitas memilih satu talenta dari para pelamar setelah melihat rekam jejaknya. Komunitas tidak bisa langsung memilih talenta yang belum melamar; yang bisa dilakukan adalah mengundang talenta dari rekomendasi sistem (paling banyak 5 undangan per kebutuhan) agar mereka melamar.
 4. Kedua pihak menyepakati scope (batasan pekerjaan) dan definisi selesai.
 5. Talenta mengerjakan, lalu menandai selesai dengan mengirim hasil.
 6. Komunitas memeriksa dan memverifikasi hasil, lalu memberi testimoni. Bila ada masalah serius, bisa diajukan sengketa yang dimediasi admin.
