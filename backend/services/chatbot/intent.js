@@ -37,6 +37,8 @@ const PERSONAL_RES = {
 };
 // "Bagaimana cara …" tentang fitur → panduan umum KB, bukan jawaban pribadi.
 const FEATURE_HOWTO_RE = /\bcara\b/;
+// Mengecek keaslian sertifikat orang lain → panduan verifikasi publik, bukan kelayakan sertifikasi penanya.
+const CERT_CHECK_RE = /\b(asli|palsu|keaslian|valid|cek|mengecek|ngecek|periksa|verifikasi|memverifikasi)\b/;
 
 // Urutan cek: "talenta yang cocok untuk kebutuhan saya" juga memuat kata kebutuhan + cocok.
 const PERSONAL_ORDER = ['rekomendasi_talenta', 'rekomendasi_proyek', 'karir', 'sertifikasi'];
@@ -47,7 +49,9 @@ const SKILL_GAP_RES = PERSONAL_RES.karir.slice(1, 3);
 /** Intent personal yang diminta, atau null. */
 export function personalIntent(text) {
   const t = intentText(text);
-  if (FEATURE_HOWTO_RE.test(t) && !PERSONAL_RES.sertifikasi.some((re) => re.test(t))) return null;
+  const certificate = PERSONAL_RES.sertifikasi.some((re) => re.test(t));
+  if (FEATURE_HOWTO_RE.test(t) && !certificate) return null;
+  if (certificate && CERT_CHECK_RE.test(t)) return null;
   if (PERSONAL_RES.rekomendasi_talenta.some((re) => re.test(t))) return 'rekomendasi_talenta';
   if (SKILL_GAP_RES.some((re) => re.test(t))) return 'karir';
   return PERSONAL_ORDER.find((intent) => PERSONAL_RES[intent].some((re) => re.test(t))) ?? null;
@@ -158,6 +162,18 @@ const DOMAIN = new Set([
   'kirim', 'pilih', 'keamanan', 'password', 'sandi', 'lokasi', 'iuran', 'pencatatan', 'promosi', 'jadwal',
   'laporan', 'rekap', 'pengaturan', 'ditangguhkan', 'tayang', 'masalah', 'bantuan', 'bantu', 'ubah', 'email',
   'tolak', 'hubungi', 'pelamar',
+  // Pemandu & CS: komunitas warga, UMKM, dan masalah sehari-harinya juga dijawab (saran umum + cara SUSI
+  // membantu), bukan ditolak sebagai di luar topik.
+  'warga', 'rt', 'rw', 'desa', 'kelurahan', 'kampung', 'karang', 'taruna', 'pkk', 'posyandu', 'masjid', 'dkm',
+  'remaja', 'pemuda', 'paguyuban', 'arisan', 'koperasi', 'kas', 'keuangan', 'anggota', 'pengurus', 'organisasi',
+  'kegiatan', 'rapat', 'usaha', 'bisnis', 'toko', 'warung', 'jualan', 'penjualan', 'pelanggan', 'produk', 'pesanan',
+  'stok', 'gudang', 'pembukuan', 'digital', 'online', 'internet', 'sosmed', 'instagram', 'facebook', 'tiktok',
+  'pemasaran', 'marketing', 'desain', 'logo', 'poster', 'absensi', 'inventaris', 'donasi', 'sumbangan', 'spreadsheet',
+  'excel', 'komputer', 'teknologi', 'programmer', 'developer', 'sertifikat', 'sertifikasi', 'rekomendasi', 'undang',
+  'login', 'chat', 'cs', 'keluhan', 'komplain', 'kendala',
+  // Pengerjaan proyek & pengalaman talenta.
+  'kerja', 'kerjakan', 'pekerjaan', 'sanggup', 'diterima', 'tugas', 'deadline', 'tenggat', 'klien', 'magang',
+  'pengalaman', 'mahasiswa', 'cv', 'freelance', 'jasa',
 ]);
 
 export const hasDomainTerms = (text) => tokenize(text).some((t) => variantsOf(t).some((v) => DOMAIN.has(v)));

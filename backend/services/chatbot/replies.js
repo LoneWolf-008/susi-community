@@ -14,7 +14,7 @@ export const SMALLTALK_REPLIES = {
 export const REPLIES = {
   injection: 'Maaf, saya tidak bisa mengubah aturan saya atau membagikan instruksi internal. Saya siap membantu pertanyaan seputar SUSI Community, misalnya cara mengajukan kebutuhan atau melamar proyek.',
   abusive: 'Saya mengerti mungkin Anda sedang kesal. Boleh ceritakan kendalanya dengan bahasa yang sopan supaya saya bisa membantu? Bila perlu, saya bisa menghubungkan Anda dengan AgenSUSI.',
-  outOfScope: 'Maaf, saya hanya bisa membantu pertanyaan seputar SUSI Community, misalnya cara kerja SUSI, mengajukan kebutuhan, melamar proyek, verifikasi, dan reputasi.',
+  outOfScope: 'Maaf, saya hanya bisa membantu pertanyaan seputar SUSI Community dan masalah komunitas atau UMKM Anda, misalnya cara memakai aplikasi, mengajukan kebutuhan, melamar proyek, atau kendala pencatatan dan promosi.',
   loginRequired: 'Untuk melihat data pribadi seperti status proyek, lamaran, atau notifikasi, silakan masuk ke akun Anda dulu lewat halaman Masuk. Setelah masuk, tanyakan lagi di sini.',
   escalation: 'Baik, saya bisa meneruskan percakapan ini ke AgenSUSI, tim pendamping SUSI. Tekan tombol "Hubungi AgenSUSI" agar mereka bisa membantu Anda langsung.',
   cancelled: '(Jawaban dihentikan.)',

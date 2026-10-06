@@ -2,17 +2,19 @@
 //  1. pra-pemeriksaan (guard.js): injeksi & pesan kasar ditolak tanpa LLM;
 //  2. intent: basa-basi, permintaan bicara dengan AgenSUSI, dan data pribadi anonim dijawab tetap;
 //  3. retrieval KB (FULLTEXT + pemeringkatan ulang, filter audiens);
-//  4. tidak ada entri relevan → "belum tahu"/di luar topik, tanpa LLM;
+//  4. tidak ada entri relevan: di luar topik → ditolak tanpa LLM; seputar SUSI/komunitas → LLM sebagai
+//     pemandu & CS dengan <panduan> (guide.js) + <kb_terkait> (entri yang hanya sebagian cocok);
 //  5. jalur murah: entri KB yang mencakup penuh pertanyaan dijawab langsung, lalu cache jawaban LLM;
-//  6. LLM (prompt sistem + <kb> + <user_data> + 6 giliran terakhir) bila key ada, anggaran cukup, dan
-//     pengguna tidak mematikan AI (T15); gagal/timeout → jawaban tanpa LLM + tawaran eskalasi.
+//  6. LLM (prompt sistem + <panduan> + <kb> + <user_data> + 6 giliran terakhir) bila key ada, anggaran
+//     cukup, dan pengguna tidak mematikan AI (T15); gagal/timeout → jawaban tanpa LLM + tawaran eskalasi.
 // Keluaran LLM selalu melewati filter (tautan di luar allowlist, kebocoran prompt).
 import crypto from 'node:crypto';
 import { env } from '../../config/env.js';
 import { LLMError } from '../llm/errors.js';
 import { estimateCostUsd } from '../llm/pricing.js';
-import { searchKb, audiencesFor, kbTitle, isConfident } from './kb.js';
+import { searchKbRanked, selectRelevant, selectNear, audiencesFor, kbTitle, isConfident } from './kb.js';
 import { buildSystemPrompt, PROMPT_VERSION, LEAK_MARKERS } from './prompts.js';
+import { appGuide } from './guide.js';
 import { classifyIntent, isFollowUp, hasDomainTerms, PERSONAL_INTENTS } from './intent.js';
 import { planPersonal } from './personal.js';
 import { canonicalText } from './text.js';
@@ -92,6 +94,12 @@ function makeAnswer(started, fields) {
 
 const approxTokens = (text) => Math.ceil(String(text ?? '').length / 4);
 
+// Jawaban pemandu tanpa entri KB yang cocok: bila LLM menyatakan belum punya informasinya, jawaban
+// dianggap belum terjawab (masuk Admin → Belum terjawab) dan AgenSUSI ditawarkan.
+// Hanya pernyataan orang pertama ("saya belum punya informasi…"), bukan kalimat bersyarat seperti
+// "bila Anda tidak menemukan menunya…".
+const UNSURE_RE = /\b(saya|kami) (belum|tidak) (menemukan|punya informasi|memiliki informasi|mengetahui|tahu)\b|\bbelum ada informasi\b|\b(saya|kami) belum bisa memastikan\b/i;
+
 /** Pemakaian perkiraan saat stream dihentikan sebelum provider mengirim usage (tetap dihitung ke anggaran). */
 function estimateUsage(model, messages, output) {
   const tokensIn = approxTokens(messages.map((m) => m.content).join('\n'));
@@ -139,7 +147,8 @@ async function planAnswer({ db, llm, user, message, guard = {}, history = [], ai
   const followUp = Boolean(lastUser) && isFollowUp(query);
   // Pesan lanjutan ("terus apa lagi?") dicari bersama pertanyaan sebelumnya.
   const searchText = followUp ? `${retrievalText(lastUser.content)} ${query}` : query;
-  const kbEntries = await searchKb(db, searchText, { audiences, limit: 3 });
+  const ranked = await searchKbRanked(db, searchText, { audiences });
+  const kbEntries = selectRelevant(ranked, 3);
   const top = kbEntries[0] ?? null;
   const base = {
     intent,
@@ -150,9 +159,13 @@ async function planAnswer({ db, llm, user, message, guard = {}, history = [], ai
 
   const userData = intent === 'status_data' ? await fetchUserData(db, user, classified.topics) : null;
 
-  if (!top && !userData && !followUp) {
-    if (!hasDomainTerms(query)) return final({ ...base, intent: 'out_of_scope', reply: REPLIES.outOfScope });
-    return final({ ...base, reply: FALLBACK_REPLY, source: 'fallback', escalationSuggested: true });
+  // Tanpa entri KB yang cukup cocok: pesan pertama pengunjung anonim tanpa istilah SUSI/komunitas ditolak
+  // tanpa LLM (murah, deterministik). Pengguna yang sudah masuk atau yang sedang bercakap hampir pasti
+  // bertanya seputar SUSI ("kalau saya nggak sanggup ngerjain?"), jadi diteruskan ke LLM pemandu yang
+  // menolak sendiri dengan sopan bila memang di luar topik.
+  const guideOnly = !top && !userData && !followUp;
+  if (guideOnly && !user && !lastUser && !hasDomainTerms(query)) {
+    return final({ ...base, intent: 'out_of_scope', reply: REPLIES.outOfScope });
   }
 
   const standalone = !userData && !followUp;
@@ -161,7 +174,11 @@ async function planAnswer({ db, llm, user, message, guard = {}, history = [], ai
   // Pesan bersamaran tidak di-cache: jawabannya bisa merujuk data yang disamarkan.
   const cacheKey = standalone && !guard.piiMasked ? answerCacheKey(query, audiences) : null;
   const cached = cacheKey ? answerCache.get(cacheKey) : null;
-  if (cached) return final({ ...base, reply: cached.reply, source: 'cache', cacheHit: true });
+  if (cached) {
+    const unsure = guideOnly && UNSURE_RE.test(cached.reply);
+    const guided = guideOnly ? { matched: !unsure, escalationSuggested: unsure } : {};
+    return final({ ...base, reply: cached.reply, source: 'cache', cacheHit: true, ...guided });
+  }
 
   // Tanpa LLM: data pribadi diringkas apa adanya, selain itu entri KB teratas.
   const withoutLlm = (fields = {}) => {
@@ -176,13 +193,16 @@ async function planAnswer({ db, llm, user, message, guard = {}, history = [], ai
     return plan;
   }
 
+  const role = user?.role ?? 'public';
   const messages = [
     {
       role: 'system',
       content: buildSystemPrompt({
         kbEntries,
+        nearEntries: top ? [] : selectNear(ranked, 3),
+        guide: appGuide(role),
         userData: userData ? formatUserDataForPrompt(userData) : null,
-        role: user?.role ?? 'public',
+        role,
       }),
     },
     ...toLlmMessages(truncateHistory(history)),
@@ -194,6 +214,7 @@ async function planAnswer({ db, llm, user, message, guard = {}, history = [], ai
     base,
     cacheKey,
     messages,
+    guideOnly,
     // LLM gagal → jawaban tanpa LLM + tawaran eskalasi (ringkasan data sudah menjawab, tidak perlu).
     fallback: (llmError) => withoutLlm({ llmError, escalationSuggested: !userData }).answer,
   };
@@ -241,7 +262,9 @@ function finishLlm(plan, content, result, { prefiltered = false } = {}) {
   }
   const reply = prefiltered ? content : filter.filterText(content).text;
   if (plan.cacheKey) answerCache.set(plan.cacheKey, { reply });
-  return makeAnswer(plan.started, { ...plan.base, ...llmFields, reply, source: 'llm' });
+  const unsure = plan.guideOnly && UNSURE_RE.test(reply);
+  const guided = plan.guideOnly ? { matched: !unsure, escalationSuggested: unsure } : {};
+  return makeAnswer(plan.started, { ...plan.base, ...llmFields, reply, source: 'llm', ...guided });
 }
 
 /** Jawaban utuh (POST /chatbot/message). */
