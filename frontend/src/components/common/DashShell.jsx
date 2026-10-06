@@ -121,10 +121,10 @@ export default function DashShell({ user, roleLabel, nav, tab, onTab, notificati
       </aside>
 
       {/* NAV MOBILE */}
-      <div className="lg:hidden fixed top-16 left-0 right-0 z-40 bg-[#0e2233]/95 backdrop-blur border-b border-white/10 overflow-x-auto">
+      <div data-dash-nav className="lg:hidden fixed top-16 left-0 right-0 z-40 bg-[#0e2233]/95 backdrop-blur border-b border-white/10 overflow-x-auto">
         <div className="flex gap-2 px-4 py-3 w-max">
           {nav.map((n) => (
-            <button key={n.id} onClick={() => onTab(n.id)} className={`shrink-0 rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-wider transition-colors ${tab === n.id ? 'bg-[#e62b2b] text-white' : 'bg-white/5 text-[#f2efe6]/70'}`}>
+            <button key={n.id} data-tab={n.l} onClick={() => onTab(n.id)} className={`shrink-0 rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-wider transition-colors ${tab === n.id ? 'bg-[#e62b2b] text-white' : 'bg-white/5 text-[#f2efe6]/70'}`}>
               {n.l}
             </button>
           ))}
