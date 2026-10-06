@@ -10,7 +10,7 @@ import ErrorState from '../../../components/ui/ErrorState';
 import EmptyState from '../../../components/ui/EmptyState';
 import Pagination from '../../../components/ui/Pagination';
 import { MatchBadge } from '../../../components/recommendation/MatchBits';
-import RecommendationsSection from './RecommendationsSection';
+import TalentAiCard from './AiCard';
 
 const PAGE_SIZE = 10;
 const SECTORS = ['BARAT–UTARA', 'BARAT–SELATAN', 'TIMUR–UTARA', 'TIMUR–SELATAN'];
@@ -51,10 +51,10 @@ function NeedCard({ need, onOpen }) {
 /**
  * Katalog kebutuhan terbuka (GET /needs/catalog) dengan filter, pencarian, dan paginasi.
  * `version` dinaikkan shell untuk memuat ulang (mis. setelah melamar) tanpa mereset filter.
- * R2: rekomendasi di atas (bila tanpa filter) dan urutan bawaan "Paling cocok" untuk talenta
- * berkeahlian (`sort=match`); talenta tanpa keahlian otomatis mendapat urutan terbaru.
+ * Kartu "Rekomendasi AI" paling atas (rekomendasi, tip keahlian, progres sertifikasi) dan urutan
+ * bawaan "Paling cocok" untuk talenta berkeahlian (`sort=match`); tanpa keahlian → urutan terbaru.
  */
-export default function CatalogTab({ first, stats, onOpen, onCompleteProfile, version = 0 }) {
+export default function CatalogTab({ first, stats, onOpen, onCompleteProfile, onOpenSettings, version = 0 }) {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(NO_FILTERS);
   const [sort, setSort] = useState('match');
@@ -78,8 +78,17 @@ export default function CatalogTab({ first, stats, onOpen, onCompleteProfile, ve
   const setFilter = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
   const reset = () => { setSearch(''); setFilters(NO_FILTERS); };
 
+  // "Lihat semua" di kartu AI → daftar katalog, diurutkan "Paling cocok" tanpa filter.
+  const seeAllMatches = () => {
+    reset();
+    setSort('match');
+    document.getElementById('katalog-semua')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <>
+      <TalentAiCard version={version} onOpen={onOpen} onCompleteProfile={onCompleteProfile} onOpenSettings={onOpenSettings} onSeeAll={seeAllMatches} />
+
       <div className="dash-item card-light p-8 md:p-10 mb-6">
         <p className="label-mono mb-2">Katalog Kebutuhan</p>
         <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-3">Halo, {first}.</h1>
@@ -122,10 +131,8 @@ export default function CatalogTab({ first, stats, onOpen, onCompleteProfile, ve
         ))}
       </div>
 
-      {!filtered && <RecommendationsSection version={version} onOpen={onOpen} onCompleteProfile={onCompleteProfile} />}
-
       <div className="dash-item flex items-center justify-between flex-wrap gap-3 mb-4">
-        <h2 className="text-2xl font-black tracking-tight">Semua kebutuhan terbuka</h2>
+        <h2 id="katalog-semua" className="text-2xl font-black tracking-tight scroll-mt-24">Semua kebutuhan terbuka</h2>
         <div className="flex gap-2" role="radiogroup" aria-label="Urutan katalog">
           {SORTS.map((s) => (
             <button type="button" key={s.id} role="radio" aria-checked={sort === s.id} onClick={() => setSort(s.id)} className={`rounded-full px-4 min-h-[44px] text-[11px] font-black uppercase tracking-wider transition-colors ${sort === s.id ? 'bg-[#12283c] text-[#f2efe6]' : 'border border-[#12283c]/20 hover:border-[#12283c]'}`}>

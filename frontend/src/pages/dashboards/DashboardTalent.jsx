@@ -111,6 +111,7 @@ export default function DashboardTalent({ user, onLogout, navigateTo }) {
                 version={catalogVersion}
                 onOpen={(need, opts) => { setNeedId(need.id); setFocusApply(Boolean(opts?.apply)); }}
                 onCompleteProfile={() => onTab('profil')}
+                onOpenSettings={() => onTab('setting')}
               />
             </div>
           </>
