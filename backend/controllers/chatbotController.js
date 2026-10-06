@@ -512,19 +512,45 @@ export const deleteHistory = async (req, res, next) => {
 /** Saran pertanyaan cepat sesuai peran (anonim → saran publik). */
 export const getSuggestions = (req, res) => success(res, { suggestions: suggestionsFor(req.user) });
 
-/** Admin: cek konfigurasi & key OpenRouter (kuota) tanpa memanggil model dan tanpa membocorkan key. */
+// Cek kesehatan LLM memanggil model sungguhan (berbayar walau sangat kecil), jadi hasilnya di-cache 60
+// detik per klien LLM: admin yang memuat ulang berkali-kali tidak menghabiskan kredit.
+const HEALTH_CACHE_MS = 60 * 1000;
+const healthCache = new WeakMap(); // klien LLM → { at, promise }
+
+async function checkLlm(llm) {
+  const started = Date.now();
+  const [key, call] = await Promise.allSettled([
+    llm.keyInfo(),
+    llm.complete({ messages: [{ role: 'user', content: 'Balas satu kata: ok' }], maxTokens: 5 }),
+  ]);
+  // Hanya nama kelas galat & status HTTP: key, pesan galat, dan isi respons OpenRouter tidak diteruskan.
+  const failure = (err) => ({ error: err?.name ?? 'Error', http_status: err?.status ?? null });
+  return {
+    key_info: key.status === 'fulfilled' ? 'ok' : 'gagal',
+    model_call: call.status === 'fulfilled' ? 'ok' : 'gagal',
+    // Yang menentukan status adalah panggilan model: key bisa lolos info key tetapi ditolak saat
+    // memanggil model (mis. 401 "User not found").
+    status: call.status === 'fulfilled' ? 'ok' : 'error',
+    latency_ms: Date.now() - started,
+    checked_at: new Date().toISOString(),
+    ...(key.status === 'fulfilled' ? { credits: key.value } : { key_info_error: failure(key.reason) }),
+    ...(call.status === 'fulfilled' ? { served_model: call.value.model } : failure(call.reason)),
+  };
+}
+
+/** Admin: cek info key (kuota) DAN satu panggilan model kecil (max_tokens 5), tanpa membocorkan key. */
 export const health = async (req, res, next) => {
   try {
     const llm = getLLM();
     const base = { provider: llm.name, model: llm.model, fallback_models: llm.fallbackModels, configured: llm.isConfigured() };
     if (!base.configured) return success(res, { ...base, status: 'not_configured' });
-    const started = Date.now();
-    try {
-      const credits = await llm.keyInfo();
-      return success(res, { ...base, status: 'ok', latency_ms: Date.now() - started, credits });
-    } catch (err) {
-      return success(res, { ...base, status: 'error', latency_ms: Date.now() - started, error: err.name, http_status: err.status ?? null });
+    let entry = healthCache.get(llm);
+    const cached = Boolean(entry) && Date.now() - entry.at < HEALTH_CACHE_MS;
+    if (!cached) {
+      entry = { at: Date.now(), promise: checkLlm(llm) };
+      healthCache.set(llm, entry);
     }
+    return success(res, { ...base, ...(await entry.promise), cached });
   } catch (err) {
     next(err);
   }

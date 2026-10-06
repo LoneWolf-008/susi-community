@@ -74,9 +74,10 @@ Batas biaya yang tersisa: **$0,20** (belum terpakai).
 
 ## Batasan yang diketahui (sejauh ini)
 
-1. **`GET /api/chatbot/health` tidak memanggil model**, hanya info key/kredit. Key seperti yang dipakai
-   sesi ini (info key 200, completion 401) tetap dilaporkan `ok`. Kodenya tidak diubah (di luar
-   cakupan); DEPLOY.md menjelaskan cara cek yang benar.
+1. ~~`GET /api/chatbot/health` tidak memanggil model~~ **Diperbaiki** di branch `implement/final-ai-live`.
+   - Health kini melaporkan `key_info` dan `model_call` terpisah. `model_call` adalah satu panggilan
+     `max_tokens 5`; `status` mengikuti `model_call`, dan hasilnya di-cache 60 detik.
+   - Dengan key saat ini, hasilnya `key_info: ok`, `model_call: gagal` (401), `status: error`.
 2. **Mode `COOKIE_SAMESITE=none` menolak permintaan refresh/logout tanpa `Origin`.** Peramban selalu
    mengirim `Origin` pada POST lintas situs, tetapi klien non-peramban (mis. `smoke:api`) perlu
    menambahkannya.

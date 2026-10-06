@@ -106,8 +106,25 @@ npm run seed -- --force   # paksa di production (hanya bila memang disengaja, mi
 ## 6. Health check
 
 `GET /api/health` tanpa login mengembalikan `{ "status": "OK", "timestamp": "..." }`. Endpoint ini
-dipakai untuk health check platform dan tidak menyentuh DB maupun LLM. Status LLM ada di
-`GET /api/chatbot/health` (khusus admin, belum ada tampilannya di UI), yang tidak pernah menampilkan key.
+dipakai untuk health check platform dan tidak menyentuh DB maupun LLM.
+
+**Status LLM:** `GET /api/chatbot/health`, khusus admin dan belum ada tampilannya di UI.
+
+```json
+{ "key_info": "ok", "model_call": "gagal", "status": "error", "latency_ms": 761,
+  "error": "LLMUnavailable", "http_status": 401, "credits": { … }, "cached": false }
+```
+
+- **Cek yang benar adalah `model_call`, bukan `key_info`.** `key_info` hanya membaca info key/kredit.
+  `model_call` adalah satu panggilan model sungguhan (`max_tokens 5`, sekitar $0,00004 dengan Haiku 4.5), dan `status`
+  mengikuti `model_call`.
+- Pada sesi 2026-10-06, key yang dipakai lolos `key_info` tetapi panggilan modelnya ditolak 401
+  "User not found". Hanya `model_call` yang menangkap kasus seperti ini.
+- Hasil di-cache **60 detik** per klien LLM (`cached: true`), sehingga memuat ulang berkali-kali tidak
+  menghabiskan kredit.
+- Respons hanya memuat nama kelas galat dan status HTTP. Key, pesan galat OpenRouter, dan isi jawaban
+  model tidak pernah diteruskan.
+- `status: "not_configured"` berarti key kosong dan chatbot menjawab dari KB saja.
 
 ## 7. Cek setelah deploy
 
@@ -116,8 +133,5 @@ dipakai untuk health check platform dan tidak menyentuh DB maupun LLM. Status LL
 3. Lintas domain: di DevTools → Application → Cookies, `susi_refresh_token` harus `SameSite=None` dan
    `Secure`.
 4. Unggah hasil kerja, restart backend, lalu unduh lagi untuk membuktikan volume persisten.
-5. Tanya SUSI menjawab pertanyaan yang **butuh LLM** (bukan FAQ yang dijawab langsung dari KB), dan
-   baris terbarunya di `ask_logs` berisi `model` dengan `llm_error` kosong.
-   - `GET /api/chatbot/health` (token admin) hanya membaca info key/kredit tanpa memanggil model.
-   - Akibatnya, key yang ditolak saat memanggil model tetap bisa dilaporkan `ok`. Ini terjadi pada
-     sesi 2026-10-06: info key 200, tetapi completion 401 "User not found".
+5. `GET /api/chatbot/health` (token admin) → `model_call: "ok"`. Bila `gagal`, lihat `http_status`:
+   401 berarti key/akun ditolak, dan 402 berarti kredit habis.
