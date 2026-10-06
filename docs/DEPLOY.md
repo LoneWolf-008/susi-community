@@ -1,31 +1,123 @@
-# Deploy SUSI Community (ringkas)
+# Deploy SUSI Community
 
-> Catatan: dokumen ini baru memuat bagian cookie refresh. Instruksi T16 untuk DEPLOY.md terpotong
-> setelah "cookie refresh lintas domain (sameSite none + …"; bagian lain menyusul.
+Susunan: **frontend** statis (Vite build, mis. Vercel), **backend** Express (mis. Railway/Render), dan
+**MySQL 8 / MariaDB**. Backend tidak menyajikan frontend; keduanya di-deploy terpisah.
 
-## Cookie refresh lintas domain
+## 1. Pilih cara frontend memanggil API
 
 Login menyimpan **refresh token** di cookie `susi_refresh_token` (`httpOnly`, `path=/`, 7 hari).
-Access token hanya di memori peramban; saat halaman dimuat ulang, frontend memanggil
-`POST /api/auth/refresh` dengan `credentials: 'include'` untuk mendapatkan access token baru.
+Access token hanya disimpan di memori peramban. Setiap halaman dimuat ulang, frontend memanggil
+`POST /api/auth/refresh` dengan `credentials: 'include'`. Karena itu cookie harus ikut terkirim.
 
-Pengaturan saat ini (`backend/controllers/authController.js`):
-
-| Atribut | Nilai |
-|---|---|
-| `SameSite` | `Lax` (tetap) |
-| `Secure` | `true` hanya bila `NODE_ENV=production` |
-
-Akibatnya bergantung pada cara frontend memanggil API:
-
-| Cara | Cookie refresh | Yang perlu diatur |
+| | **Satu origin (disarankan)** | **Lintas domain** |
 |---|---|---|
-| **Satu origin** (disarankan): frontend memanggil `/api/...` di domain yang sama, diteruskan ke backend oleh hosting frontend (mis. rewrite `/api/:path*` → `https://<backend>/api/:path*` di `vercel.json`) | Terkirim dengan `SameSite=Lax`, tanpa perubahan kode | `VITE_API_URL` dikosongkan (bawaan `/api`); `FRONTEND_URL` = domain frontend; `TRUST_PROXY` sesuai jumlah proxy; HTTPS |
-| **Lintas domain**: frontend di `app.example.id` memanggil `VITE_API_URL=https://api.example.id/api` | **Tidak terkirim** pada `fetch` lintas situs selama `SameSite=Lax`, sehingga login hilang setiap kali halaman dimuat ulang | Cookie harus `SameSite=None; Secure` (wajib HTTPS di kedua sisi) dan CORS `credentials: true` dengan origin persis di `FRONTEND_URL` (sudah). **Opsi `SameSite=None` belum ada di kode**; perlu perubahan kecil di `setRefreshCookie` (dan `clearCookie` saat logout) sebelum memakai cara ini |
+| Contoh | `https://susi.example.id/api/...` diteruskan hosting frontend ke backend | `https://app.example.id` memanggil `https://api.example.id/api` |
+| Frontend | `VITE_API_URL` dikosongkan (bawaan `/api`), plus rewrite `/api` di hosting (lihat bawah) | `VITE_API_URL=https://api.example.id/api` |
+| `COOKIE_SAMESITE` | `lax` (bawaan, tanpa perubahan) | `none` |
+| Cookie | `SameSite=Lax`; `Secure` bila `NODE_ENV=production` | `SameSite=None; Secure` (Secure **dipaksa**, wajib HTTPS di kedua sisi) |
+| CORS | `FRONTEND_URL` = domain frontend | `FRONTEND_URL` = origin frontend **persis** (skema + host + port, tanpa `/` di akhir). CORS sudah `credentials: true` |
+| Perlindungan CSRF | Bawaan `SameSite=Lax` | `/api/auth/refresh` & `/api/auth/logout` menolak (**403**) permintaan yang header `Origin`-nya tidak tercantum di `FRONTEND_URL`, termasuk permintaan tanpa `Origin` |
+| Risiko | — | Safari dan mode privat bisa memblokir cookie pihak ketiga meski `SameSite=None`, sehingga login hilang setiap kali halaman dimuat ulang |
 
-Catatan untuk mode lintas domain:
-- `SameSite=None` tanpa `Secure` ditolak peramban modern. Pastikan backend berjalan di balik HTTPS dan
-  `NODE_ENV=production`.
-- Beberapa peramban (Safari, mode privat) memblokir cookie pihak ketiga meski `SameSite=None`. Mode
-  satu origin menghindari masalah ini, jadi lebih aman untuk demo.
-- `FRONTEND_URL` boleh berisi beberapa origin dipisah koma (mis. domain produksi + pratinjau Vercel).
+**Satu origin di Vercel:** tambahkan rewrite `/api` **sebelum** rewrite SPA di `frontend/vercel.json`:
+
+```json
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://<domain-backend>/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
+
+`FRONTEND_URL` boleh berisi beberapa origin yang dipisah koma, mis. domain produksi dan pratinjau
+Vercel. Semuanya diterima CORS dan pemeriksaan `Origin`.
+
+Cek mode cookie: `cd backend && node scripts/check-cookie.mjs`. Skrip menjalankan aplikasi dalam dua
+mode dan login sebagai admin `.env`. Pada `lax`, perilaku lama dipastikan tidak berubah. Pada `none`,
+dipastikan `Secure` terpasang, `Origin` yang benar diterima, dan yang salah atau kosong ditolak 403.
+
+## 2. Trust proxy
+
+`TRUST_PROXY` (bawaan `1`) adalah jumlah proxy di depan backend. Nilai ini menentukan `req.ip`, yang
+dipakai rate limit login, chatbot, dan endpoint publik.
+
+- Railway/Render: `1`. Bila ditambah Cloudflare di depannya: `2`.
+- Terlalu kecil: semua pengguna terlihat ber-IP proxy, sehingga rate limit per IP terpakai bersama
+  dan cepat 429.
+- Terlalu besar: `X-Forwarded-For` bisa dipalsukan untuk melewati rate limit.
+- `true` hanya bila Anda benar-benar mempercayai seluruh rantai proxy.
+
+## 3. Disk dan memori tidak permanen
+
+- **Unggahan hasil kerja** (`UPLOAD_DIR`, bawaan `backend/uploads`) disimpan di disk lokal. Pada
+  Railway/Render tanpa volume, **berkas hilang setiap kali restart atau deploy**. Baris di DB tetap ada,
+  tetapi unduhannya 404. Pasang volume persisten dan arahkan `UPLOAD_DIR` ke sana (path absolut, atau
+  relatif terhadap folder `backend`).
+- Yang **hilang saat restart tetapi tidak merusak**:
+  - cache jawaban LLM di memori;
+  - penghitung rate limit (ter-reset).
+- Hal yang sama juga membuat rate limit **tidak dibagi antar-instans**: jalankan satu instans saja.
+- Anggaran LLM harian dihitung dari tabel `ask_logs` (DB), jadi tetap benar setelah restart.
+- Job retensi chat berjalan harian di proses server (`CHATBOT_RETENTION_DAYS`). Bila server sering
+  tidur (paket gratis), jalankan `npm run chat:retention` terjadwal (cron platform).
+
+## 4. Environment produksi (backend)
+
+| Variabel | Wajib | Catatan |
+|---|---|---|
+| `NODE_ENV` | ya | `production`: cookie `Secure`, galat 5xx tanpa detail, seed ditolak tanpa `--force`, aturan secret lebih ketat |
+| `PORT` | — | Biasanya diisi platform |
+| `TRUST_PROXY` | — | Lihat bagian 2 |
+| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | ya | `DB_PASSWORD` wajib di production |
+| `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | ya | Berbeda satu sama lain, masing-masing ≥ 32 karakter di production |
+| `JWT_ACCESS_EXPIRES`, `JWT_REFRESH_EXPIRES` | — | Bawaan `15m` / `7d` |
+| `FRONTEND_URL` | ya | Origin frontend persis, dipisah koma bila lebih dari satu |
+| `COOKIE_SAMESITE` | — | `lax` (bawaan) atau `none` (lintas domain), lihat bagian 1 |
+| `UPLOAD_DIR` | — | Arahkan ke volume persisten |
+| `LLM_PROVIDER` | — | `openrouter` (bawaan) atau `mock` |
+| `OPENROUTER_API_KEY` | — | Tanpa key, chatbot menjawab dari KB saja. Simpan hanya di secret platform dan pasang batas kredit di dashboard OpenRouter |
+| `OPENROUTER_MODEL`, `OPENROUTER_FALLBACK_MODELS` | — | Bawaan `anthropic/claude-haiku-4.5` |
+| `OPENROUTER_TIMEOUT_MS` | — | Bawaan 12000 |
+| `OPENROUTER_DATA_COLLECTION` | — | `deny` (bawaan, disarankan) |
+| `CHATBOT_DAILY_BUDGET_USD` | — | Bawaan 1. Bila habis, chatbot turun ke mode KB-saja sampai hari berganti; 0 = LLM mati |
+| `CHATBOT_RETENTION_DAYS` | — | Bawaan 90 |
+| Rate limit (`RATE_LIMIT_MAX`, `AUTH_RATE_LIMIT_*`, `CHATBOT_*_LIMIT_*`) | — | Naikkan plafon IP untuk demo ramai di satu Wi-Fi |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SEED_USER_PASSWORD` | hanya untuk seed | Dibaca `npm run seed`, bukan oleh server. Password ≥ 10 karakter |
+
+Frontend: `VITE_API_URL` (lihat bagian 1) dan `VITE_CONTACT_*`. Semua `VITE_*` ikut ter-bundle ke
+peramban, jadi jangan menaruh secret di sana.
+
+Server menolak start dengan pesan jelas bila variabel wajib kosong atau nilainya tidak valid
+(`config/env.js`).
+
+## 5. Database, migrasi, dan seed
+
+```bash
+cd backend
+npm run db:init      # buat database + jalankan migrasi (instalasi baru)
+npm run db:migrate   # deploy berikutnya: hanya migrasi yang belum jalan
+npm run seed         # data demo + admin; DITOLAK bila NODE_ENV=production
+npm run seed -- --force   # paksa di production (hanya bila memang disengaja, mis. server demo)
+```
+
+`npm run demo:reset` **mengosongkan database**: jangan dijalankan di server dengan data nyata.
+
+## 6. Health check
+
+`GET /api/health` tanpa login mengembalikan `{ "status": "OK", "timestamp": "..." }`. Endpoint ini
+dipakai untuk health check platform dan tidak menyentuh DB maupun LLM. Status LLM ada di
+`GET /api/chatbot/health` (khusus admin, belum ada tampilannya di UI), yang tidak pernah menampilkan key.
+
+## 7. Cek setelah deploy
+
+1. `GET /api/health` → 200.
+2. Login, lalu **muat ulang halaman**. Bila tetap masuk, cookie refresh ikut terkirim.
+3. Lintas domain: di DevTools → Application → Cookies, `susi_refresh_token` harus `SameSite=None` dan
+   `Secure`.
+4. Unggah hasil kerja, restart backend, lalu unduh lagi untuk membuktikan volume persisten.
+5. Tanya SUSI menjawab pertanyaan yang **butuh LLM** (bukan FAQ yang dijawab langsung dari KB), dan
+   baris terbarunya di `ask_logs` berisi `model` dengan `llm_error` kosong.
+   - `GET /api/chatbot/health` (token admin) hanya membaca info key/kredit tanpa memanggil model.
+   - Akibatnya, key yang ditolak saat memanggil model tetap bisa dilaporkan `ok`. Ini terjadi pada
+     sesi 2026-10-06: info key 200, tetapi completion 401 "User not found".
