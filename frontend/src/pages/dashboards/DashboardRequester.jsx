@@ -11,6 +11,7 @@ import { useApi } from '../../hooks/useApi';
 import { useNotifications } from '../../hooks/useNotifications';
 import { firstName } from '../../lib/format';
 import BerandaTab from './requester/BerandaTab';
+import RequesterAiCard from './requester/AiCard';
 import CommunitiesTab from './requester/CommunitiesTab';
 import ProfileTab from './requester/ProfileTab';
 import { buildBoard } from './requester/board';
@@ -89,6 +90,17 @@ export default function DashboardRequester({ user, onLogout, navigateTo }) {
             onRetry={reload}
             onOpen={openCard}
             onCreate={() => navigateTo('request')}
+            top={(
+              <RequesterAiCard
+                needs={needsQ.data?.items}
+                needsLoading={needsQ.loading}
+                needsError={needsQ.error}
+                onRetryNeeds={needsQ.refetch}
+                onOpenNeed={setSelected}
+                onCreate={() => navigateTo('request')}
+                onOpenSettings={() => onTab('setting')}
+              />
+            )}
           />
         ))}
         {tab === 'komunitas' && <MadingBoard user={user} />}

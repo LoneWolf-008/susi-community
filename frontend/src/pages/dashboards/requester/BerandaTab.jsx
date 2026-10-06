@@ -61,7 +61,7 @@ function BoardCard({ card, onOpen }) {
   );
 }
 
-export default function BerandaTab({ first, cards, loading, error, onRetry, onOpen, onCreate, createLabel = '+ Ajukan Kebutuhan', title = 'Dasbor Komunitas', intro }) {
+export default function BerandaTab({ first, cards, loading, error, onRetry, onOpen, onCreate, createLabel = '+ Ajukan Kebutuhan', title = 'Dasbor Komunitas', intro, top }) {
   const [filter, setFilter] = useState('SEMUA');
   const visible = cards.filter((c) => c.column && (filter === 'SEMUA' || c.need.category === filter));
   const actions = pendingActions(cards);
@@ -69,6 +69,7 @@ export default function BerandaTab({ first, cards, loading, error, onRetry, onOp
 
   return (
     <>
+      {top}
       <div className="dash-item card-light p-8 md:p-10 flex flex-wrap items-end justify-between gap-6 mb-6">
         <div>
           <p className="label-mono mb-2">{title}</p>
