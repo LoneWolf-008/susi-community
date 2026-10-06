@@ -48,10 +48,12 @@ const ROLE_MENUS = {
 - Halaman depan (penjelasan SUSI, statistik, Tanya SUSI), "Tentang Kami" (kontak resmi & lokasi tim), dan halaman Masuk/Daftar.
 - Untuk mengajukan kebutuhan atau melamar proyek perlu daftar dan masuk dulu.`,
   requester: `Menu Komunitas (requester):
-- Beranda: kartu "Rekomendasi AI" paling atas; papan kebutuhan Anda per tahap (Dalam Antrian, Diproses, Menunggu Verifikasi, Selesai Diverifikasi) beserta tindakan yang perlu dilakukan (mis. "Tinjau hasil & verifikasi", perbaiki kebutuhan yang ditolak moderasi); tombol "+ Ajukan Kebutuhan". Dari detail kebutuhan: lihat pelamar, pilih talenta, undang talenta yang direkomendasikan, sepakati scope, verifikasi hasil, beri testimoni, ajukan sengketa.
+- Di komputer, menu ada di sisi kiri: Beranda, Mading, Komunitas & Peta, Profil, Pengaturan, Ruang AgenSUSI. Di ponsel, bilah bawah berisi Beranda, Mading, Komunitas, dan Menu; Profil, Pengaturan, dan Ruang AgenSUSI dibuka lewat Menu.
+- Beranda saat belum punya kebutuhan: satu kartu sapaan berisi 3 langkah (ceritakan masalah → admin memeriksa → sistem merekomendasikan talenta, Anda yang memilih) dan tombol "+ Ajukan Kebutuhan".
+- Beranda saat sudah punya kebutuhan: angka ringkas, bagian "Perlu Tindakan" (mis. "Tinjau hasil & verifikasi", perbaiki kebutuhan yang ditolak moderasi), lalu "Papan Kebutuhan & Proyek" per tahap (Dalam Antrian, Diproses, Menunggu Verifikasi, Selesai Diverifikasi) dengan tombol "+ Ajukan Kebutuhan" di samping judulnya. Kartu "Rekomendasi AI" (talenta untuk kebutuhan Anda) muncul di bawah papan hanya bila ada kebutuhan terbuka yang punya talenta cocok, dan tidak muncul bila "Personalisasi Tanya SUSI" dimatikan.
+- Dari detail kebutuhan (klik kartunya): lihat pelamar, pilih talenta, undang talenta yang direkomendasikan, sepakati scope, verifikasi hasil, beri testimoni, ajukan sengketa.
 - Mading: topik diskusi komunitas.
-- Komunitas & Peta: komunitas Anda (daftarkan komunitas, setujui permintaan gabung), peta lokasi komunitas; lokasi bisa disembunyikan dari publik.
-- Profil, Pengaturan, dan Ruang AgenSUSI.`,
+- Komunitas & Peta (di ponsel: Komunitas): komunitas Anda (daftarkan komunitas, setujui permintaan gabung), peta lokasi komunitas; lokasi bisa disembunyikan dari publik.`,
   talent: `Menu Talenta:
 - Lihat Proyek: kartu "Rekomendasi AI" paling atas (kebutuhan yang cocok, tip keahlian, progres sertifikasi) dan katalog proyek terbuka (urut "Paling cocok" atau "Terbaru"); tombol lamar dari detail kebutuhan.
 - Histori: histori lamaran beserta statusnya.
