@@ -1,19 +1,22 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Route, Routes, useLocation } from 'react-router';
 import Navigation from './components/common/Navigation';
 import Footer from './components/common/Footer';
 import ChatWidget from './components/chat/ChatWidget';
 import ProtectedRoute, { GuestOnly } from './components/routing/ProtectedRoute';
-import HomePage from './pages/HomePage';
-import AuthPage from './pages/AuthPage';
-import AdminLoginPage from './pages/AdminLoginPage';
-import TentangPage from './pages/TentangPage';
-import RequestPage from './pages/RequestPage';
-import NotFoundPage from './pages/NotFoundPage';
-import DashboardPage from './pages/dashboards/DashboardPage';
-import RuangAgenPage from './pages/RuangAgenPage';
-import CertificatePage from './pages/CertificatePage';
-import VerifyCertificatePage from './pages/VerifyCertificatePage';
+import FullPageLoader from './components/ui/FullPageLoader';
+
+// U3: tiap rute dimuat malas (chunk sendiri), jadi bundle awal hanya berisi kerangka aplikasi.
+const HomePage = lazy(() => import('./pages/HomePage'));
+const AuthPage = lazy(() => import('./pages/AuthPage'));
+const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'));
+const TentangPage = lazy(() => import('./pages/TentangPage'));
+const RequestPage = lazy(() => import('./pages/RequestPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const DashboardPage = lazy(() => import('./pages/dashboards/DashboardPage'));
+const RuangAgenPage = lazy(() => import('./pages/RuangAgenPage'));
+const CertificatePage = lazy(() => import('./pages/CertificatePage'));
+const VerifyCertificatePage = lazy(() => import('./pages/VerifyCertificatePage'));
 import { RUANG_AGEN_ROLES } from './lib/chatNavigation';
 import { useAuth } from './context/authContext';
 import { useGoToSection, useNavigateTo, useTransitionNavigate } from './context/transitionContext';
@@ -58,40 +61,42 @@ export default function App() {
         />
       )}
 
-      <Routes>
-        <Route path="/" element={<HomePage navigateTo={navigateTo} onAsk={openAsk} />} />
-        <Route path="/tentang" element={<TentangPage />} />
-        {/* U5: sertifikat talenta — publik, tanpa login. */}
-        <Route path="/verifikasi/:code" element={<VerifyCertificatePage />} />
-        <Route path="/sertifikat/:code" element={<CertificatePage />} />
-        <Route path="/masuk" element={<GuestOnly><AuthPage /></GuestOnly>} />
-        <Route path="/admin" element={<AdminLoginPage />} />
-        <Route
-          path="/ajukan"
-          element={(
-            <ProtectedRoute roles={['requester']}>
-              <RequestPage user={user} navigateTo={navigateTo} />
-            </ProtectedRoute>
-          )}
-        />
-        <Route
-          path="/dashboard"
-          element={(
-            <ProtectedRoute>
-              <DashboardPage onLogout={handleLogout} navigateTo={navigateTo} />
-            </ProtectedRoute>
-          )}
-        />
-        <Route
-          path="/dashboard/ruang-agen"
-          element={(
-            <ProtectedRoute roles={RUANG_AGEN_ROLES}>
-              <RuangAgenPage navigateTo={navigateTo} />
-            </ProtectedRoute>
-          )}
-        />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+      <Suspense fallback={<FullPageLoader />}>
+        <Routes>
+          <Route path="/" element={<HomePage navigateTo={navigateTo} onAsk={openAsk} />} />
+          <Route path="/tentang" element={<TentangPage />} />
+          {/* U5: sertifikat talenta — publik, tanpa login. */}
+          <Route path="/verifikasi/:code" element={<VerifyCertificatePage />} />
+          <Route path="/sertifikat/:code" element={<CertificatePage />} />
+          <Route path="/masuk" element={<GuestOnly><AuthPage /></GuestOnly>} />
+          <Route path="/admin" element={<AdminLoginPage />} />
+          <Route
+            path="/ajukan"
+            element={(
+              <ProtectedRoute roles={['requester']}>
+                <RequestPage user={user} navigateTo={navigateTo} />
+              </ProtectedRoute>
+            )}
+          />
+          <Route
+            path="/dashboard"
+            element={(
+              <ProtectedRoute>
+                <DashboardPage onLogout={handleLogout} navigateTo={navigateTo} />
+              </ProtectedRoute>
+            )}
+          />
+          <Route
+            path="/dashboard/ruang-agen"
+            element={(
+              <ProtectedRoute roles={RUANG_AGEN_ROLES}>
+                <RuangAgenPage navigateTo={navigateTo} />
+              </ProtectedRoute>
+            )}
+          />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
 
       <ChatWidget variant="overlay" open={ask.open} seed={ask} onClose={closeAsk} />
 

@@ -1,8 +1,11 @@
+import { lazy } from 'react';
 import { useAuth } from '../../context/authContext';
-import DashboardRequester from './DashboardRequester';
-import DashboardTalent from './DashboardTalent';
-import DashboardAdmin from './DashboardAdmin';
-import DashboardLiaison from './DashboardLiaison';
+
+// U3: dasbor tiap peran di chunk sendiri; pengguna hanya mengunduh dasbor perannya.
+const DashboardRequester = lazy(() => import('./DashboardRequester'));
+const DashboardTalent = lazy(() => import('./DashboardTalent'));
+const DashboardAdmin = lazy(() => import('./DashboardAdmin'));
+const DashboardLiaison = lazy(() => import('./DashboardLiaison'));
 
 // /dashboard → dasbor sesuai peran (peran sudah dinormalkan di AuthProvider).
 const BY_ROLE = {
