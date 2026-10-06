@@ -8,6 +8,31 @@ import EmptyState from '../../../components/ui/EmptyState';
 import { BOARD_COLUMNS, pendingActions } from './board';
 
 const FILTERS = ['SEMUA', ...Object.keys(NEED_CATEGORY)];
+const STEPS = [
+  'Ceritakan masalah komunitas dengan bahasa sehari-hari.',
+  'Admin memeriksa dan menyetujui kebutuhan Anda.',
+  'Sistem merekomendasikan talenta yang cocok — Anda yang memilih.',
+];
+
+/** Beranda Komunitas tanpa kebutuhan (U10): satu kartu, satu aksi utama. */
+function EmptyHero({ first, title, createLabel, onCreate }) {
+  return (
+    <section data-beranda="kosong" className="dash-item card-light p-8 md:p-10">
+      <p className="label-mono mb-2">{title}</p>
+      <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-6">Halo, {first}.</h1>
+      <ol className="space-y-3 mb-7 max-w-xl">
+        {STEPS.map((s, i) => (
+          <li key={s} className="flex gap-3 text-sm">
+            <span className="w-6 h-6 shrink-0 rounded-full bg-[#12283c] text-[#f2efe6] flex items-center justify-center text-[11px] font-black">{i + 1}</span>
+            <span className="leading-snug pt-0.5">{s}</span>
+          </li>
+        ))}
+      </ol>
+      {onCreate && <button type="button" onClick={onCreate} className="btn-pill btn-red min-h-[44px]">{createLabel}</button>}
+      <p className="mt-5 text-xs text-[#12283c]/60 leading-relaxed max-w-xl">Pelamar selalu dinilai; talenta lain hanya disarankan bila mereka mengizinkan tampil di rekomendasi.</p>
+    </section>
+  );
+}
 const ACTION_TONE = {
   warning: 'bg-[#e62b2b] text-white',
   danger: 'bg-[#7a1a1f] text-white',
@@ -61,30 +86,45 @@ function BoardCard({ card, onOpen }) {
   );
 }
 
-export default function BerandaTab({ first, cards, loading, error, onRetry, onOpen, onCreate, createLabel = '+ Ajukan Kebutuhan', title = 'Dasbor Komunitas', intro, top }) {
+/**
+ * Papan kebutuhan & proyek. layout:
+ *  - 'classic' (bawaan; dipakai AgenSUSI "Kebutuhan Tercatat"): kartu sapaan + tombol utama di atas,
+ *    kartu "Belum ada kebutuhan" bila kosong, slot `top` di paling atas.
+ *  - 'komunitas' (U10, Beranda Komunitas): kosong → satu kartu EmptyHero; berisi → sapaan satu baris,
+ *    daftar kebutuhan dengan tombol ajukan sekunder di judul papan, lalu slot `bottom` (kartu AI).
+ */
+export default function BerandaTab({ layout = 'classic', first, cards, loading, error, onRetry, onOpen, onCreate, createLabel = '+ Ajukan Kebutuhan', title = 'Dasbor Komunitas', intro, top, bottom }) {
   const [filter, setFilter] = useState('SEMUA');
   const visible = cards.filter((c) => c.column && (filter === 'SEMUA' || c.need.category === filter));
   const actions = pendingActions(cards);
   const count = (col) => cards.filter((c) => c.column === col).length;
+  const komunitas = layout === 'komunitas';
+  const empty = !loading && !error && cards.length === 0;
+
+  if (komunitas && empty) return <EmptyHero first={first} title={title} createLabel={createLabel} onCreate={onCreate} />;
 
   return (
     <>
-      {top}
-      <div className="dash-item card-light p-8 md:p-10 flex flex-wrap items-end justify-between gap-6 mb-6">
-        <div>
-          <p className="label-mono mb-2">{title}</p>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-3">Halo, {first}.</h1>
-          <p className="text-sm text-[#12283c]/60 max-w-xl leading-relaxed">{intro || 'Ceritakan masalah komunitasmu, pilih talenta yang cocok, lalu benarkan hasilnya setelah selesai.'}</p>
+      {!komunitas && top}
+      {komunitas ? (
+        <h1 className="dash-item text-2xl md:text-3xl font-black tracking-tight mb-5">Halo, {first}.</h1>
+      ) : (
+        <div className="dash-item card-light p-8 md:p-10 flex flex-wrap items-end justify-between gap-6 mb-6">
+          <div>
+            <p className="label-mono mb-2">{title}</p>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-3">Halo, {first}.</h1>
+            <p className="text-sm text-[#12283c]/60 max-w-xl leading-relaxed">{intro || 'Ceritakan masalah komunitasmu, pilih talenta yang cocok, lalu benarkan hasilnya setelah selesai.'}</p>
+          </div>
+          {onCreate && <button type="button" onClick={onCreate} className="btn-pill btn-red">{createLabel}</button>}
         </div>
-        {onCreate && <button type="button" onClick={onCreate} className="btn-pill btn-red">{createLabel}</button>}
-      </div>
+      )}
 
       {error && <ErrorState error={error} onRetry={onRetry} />}
       {loading && cards.length === 0 && !error && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>
       )}
 
-      {!loading && !error && cards.length === 0 && (
+      {!komunitas && empty && (
         <EmptyState
           title="Belum ada kebutuhan"
           description="Ceritakan masalah komunitasmu dengan bahasa sehari-hari — misalnya “catatan iuran sering hilang”. Admin memeriksanya, lalu talenta IT bisa melamar."
@@ -100,9 +140,10 @@ export default function BerandaTab({ first, cards, loading, error, onRetry, onOp
               { t: count('DIPROSES') + count('MENUNGGU'), l: 'DALAM PROSES' },
               { t: count('SELESAI'), l: 'SELESAI' },
             ].map((s) => (
-              <div key={s.l} className="dash-item bg-[#fdfcf7] p-6 hover:bg-[#e62b2b] hover:text-white transition-colors">
+              <div key={s.l} className={`dash-item bg-[#fdfcf7] ${komunitas ? 'p-4 md:p-6' : 'p-6'} hover:bg-[#e62b2b] hover:text-white transition-colors`}>
                 <div className="text-4xl md:text-5xl font-black tabular-nums">{s.t}</div>
-                <p className="label-mono mt-1">{s.l}</p>
+                {/* Komunitas (U10): jarak huruf lebih rapat di ponsel agar label tidak meluber ke kolom sebelah. */}
+                <p className={`label-mono mt-1 ${komunitas ? '!tracking-[0.12em] md:!tracking-[.35em] break-words' : ''}`}>{s.l}</p>
               </div>
             ))}
           </div>
@@ -132,7 +173,12 @@ export default function BerandaTab({ first, cards, loading, error, onRetry, onOp
           </section>
 
           <div className="dash-item flex items-center justify-between flex-wrap gap-4 mb-4">
-            <div><h3 className="text-2xl font-black">Papan Kebutuhan & Proyek</h3><p className="label-mono mt-1">KLIK KARTU UNTUK DETAIL</p></div>
+            <div className="flex items-center flex-wrap gap-x-4 gap-y-2">
+              <div><h3 className="text-2xl font-black">Papan Kebutuhan & Proyek</h3><p className="label-mono mt-1">KLIK KARTU UNTUK DETAIL</p></div>
+              {komunitas && onCreate && (
+                <button type="button" onClick={onCreate} className="btn-pill btn-ghost-dark !py-2 !px-4 min-h-[44px] text-xs">{createLabel}</button>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2">
               {FILTERS.map((c) => (
                 <button type="button" key={c} onClick={() => setFilter(c)} className={`chip-mono transition-colors ${filter === c ? 'border-0 bg-[#e62b2b] text-white' : 'text-[#12283c] hover:border-[#e62b2b]'}`}>{c === 'SEMUA' ? 'SEMUA' : NEED_CATEGORY[c].toUpperCase()}</button>
@@ -156,6 +202,7 @@ export default function BerandaTab({ first, cards, loading, error, onRetry, onOp
               );
             })}
           </div>
+          {komunitas && bottom && <div className="mt-6">{bottom}</div>}
         </>
       )}
     </>
