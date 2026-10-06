@@ -9,6 +9,16 @@ import { communityManagers, canManageCommunity } from '../utils/communityAccess.
 // pembuat/admin bila komunitas belum punya pengurus berakun). Hanya anggota ACTIVE yang dihitung,
 // tampil sebagai anggota, dan boleh menulis atas nama komunitas.
 
+// T16: pembuat komunitas yang mematikan show_location → alamat & titik (dan sektor turunannya) tidak
+// dikirim ke peran lain, kecuali AgenSUSI & admin (butuh alamat untuk kunjungan/moderasi) dan pembuatnya.
+const SEES_EXACT_LOCATION = ['liaison', 'admin'];
+const SHOW_LOCATION = `COALESCE((SELECT us.show_location FROM user_settings us WHERE us.user_id = c.created_by), 1) AS show_location`;
+function maskLocation(row, user) {
+  const { show_location: show, ...rest } = row;
+  const hidden = !Number(show) && !SEES_EXACT_LOCATION.includes(user.role) && Number(row.created_by) !== Number(user.id);
+  return hidden ? { ...rest, address: null, lat: null, lng: null, sector: null } : rest;
+}
+
 export const list = async (req, res, next) => {
   try {
     const { sector, type, search, mine } = req.query;
@@ -29,7 +39,7 @@ export const list = async (req, res, next) => {
 
     const [rows] = await pool.query(
       `SELECT c.*, my.status AS membership_status, my.role_in AS membership_role,
-         (my.status = 'ACTIVE') AS is_member
+         (my.status = 'ACTIVE') AS is_member, ${SHOW_LOCATION}
        FROM communities c
        LEFT JOIN community_members my ON my.community_id = c.id AND my.user_id = ?
        ${where}
@@ -37,7 +47,7 @@ export const list = async (req, res, next) => {
        LIMIT ? OFFSET ?`,
       [req.user.id, ...params, pg.limit, pg.offset]
     );
-    const items = rows.map((r) => ({ ...r, is_member: Boolean(r.is_member) }));
+    const items = rows.map((r) => maskLocation({ ...r, is_member: Boolean(r.is_member) }, req.user));
     const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM communities c ${where}`, params);
     return success(res, paged(items, total, pg));
   } catch (err) {
@@ -49,7 +59,8 @@ export const getById = async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       `SELECT c.*,
-        (SELECT COUNT(*) FROM community_members cm WHERE cm.community_id = c.id AND cm.status = 'ACTIVE') AS members_count_real
+        (SELECT COUNT(*) FROM community_members cm WHERE cm.community_id = c.id AND cm.status = 'ACTIVE') AS members_count_real,
+        ${SHOW_LOCATION}
        FROM communities c WHERE c.id = ?`,
       [req.params.id]
     );
@@ -64,7 +75,7 @@ export const getById = async (req, res, next) => {
       [req.params.id]
     );
 
-    return success(res, { ...rows[0], members });
+    return success(res, { ...maskLocation(rows[0], req.user), members });
   } catch (err) {
     next(err);
   }

@@ -288,7 +288,7 @@ export default function ChatPanel({ chat, suggestions, dark = false, anonymous, 
         <p className={`mt-1.5 text-[10px] leading-snug ${t.muted}`}>
           {input.length > MAX_LENGTH - 100 ? `${input.length}/${MAX_LENGTH} karakter · ` : ''}
           {handoffActive
-            ? 'Pesan Anda dibaca AgenSUSI (tim SUSI), bukan AI. Jangan bagikan kata sandi.'
+            ? 'Pesan ke AgenSUSI tetap disimpan agar agen dapat membacanya. Pesan dibaca tim SUSI, bukan AI; jangan bagikan kata sandi.'
             : `${chat.stored === false ? 'Riwayat chat tidak disimpan (Pengaturan → Privasi). ' : ''}Jangan bagikan data pribadi. Untuk hal penting, minta bantuan AgenSUSI.`}
         </p>
       </form>
