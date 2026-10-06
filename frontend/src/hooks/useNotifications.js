@@ -17,11 +17,14 @@ export const NOTIF_META = {
   komunitas: { color: '#0f766e', label: 'KOMUNITAS' },
 };
 
-/** Bentuk item untuk DashShell: { id, title, sub, read, color, label, raw }. */
+/** Bentuk item untuk DashShell: { id, title, sub, body, time, read, color, label, raw }. */
 export const toShellNotif = (n) => ({
   id: n.id,
   title: n.title,
   sub: [n.body, timeAgo(n.created_at)].filter(Boolean).join(' · '),
+  // Tampilan mobile: isi dan waktu di baris terpisah (lebih mudah dibaca).
+  body: n.body || '',
+  time: timeAgo(n.created_at),
   read: Boolean(n.is_read),
   color: NOTIF_META[n.type]?.color,
   label: NOTIF_META[n.type]?.label || 'INFO',
