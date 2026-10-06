@@ -4,16 +4,16 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import FlowSection from '../sections/FlowSection';
 import StatsSection from '../sections/StatsSection';
 import { api } from '../lib/api';
-import photoTop from '../assets/photos/hero-top.jpg';
-import photoLeft from '../assets/photos/hero-left.jpg';
-import photoRight from '../assets/photos/hero-right.jpg';
-import photoBottom from '../assets/photos/hero-bottom.jpg';
 import { PUBLIC_SUGGESTIONS } from '../data/askSuggestions';
+import './HomeHero.css';
 
 const VISIT_KEY = 'susi_visit_recorded';
 
-// Foto Unsplash disimpan lokal agar landing tetap utuh tanpa internet (cadangan demo onsite).
-const PHOTOS = { top: photoTop, left: photoLeft, right: photoRight, bottom: photoBottom };
+// Latar hero: kolase foto komunitas (2:1), varian di public/images/hero/ (scripts/build-hero-images.mjs).
+// Lebar tampil = cover: di layar tegak lebih dari 100vw (tinggi hero ≈ 100vh × rasio 2).
+const HERO_WIDTHS = [768, 1280, 1920];
+const heroSrcSet = (ext) => HERO_WIDTHS.map((w) => `/images/hero/collage-${w}.${ext} ${w}w`).join(', ');
+const HERO_SIZES = '(max-aspect-ratio: 2/1) 200vh, 100vw';
 // Saran yang dijamin terjawab basis pengetahuan Tanya SUSI (lihat data/askSuggestions.js).
 const QUESTIONS = PUBLIC_SUGGESTIONS;
 
@@ -25,7 +25,14 @@ const Dither = () => (
 export default function HomePage({ navigateTo, onAsk }) {
   const rootRef = useRef(null);
   const heroRef = useRef(null);
+  const heroImgRef = useRef(null);
+  const [heroLoaded, setHeroLoaded] = useState(false);
   const [askInput, setAskInput] = useState('');
+
+  // Gambar dari cache bisa selesai sebelum onLoad terpasang: cek status complete sekali.
+  useEffect(() => {
+    if (heroImgRef.current?.complete && heroImgRef.current.naturalWidth > 0) setHeroLoaded(true);
+  }, []);
 
   // Catat kunjungan landing sekali per sesi browser (daily_stats). Penanda dipasang
   // sebelum request agar efek ganda StrictMode tidak mencatat dua kali.
@@ -57,22 +64,6 @@ export default function HomePage({ navigateTo, onAsk }) {
         scrollTrigger: { trigger: heroRef.current, start: 'top top', end: 'bottom top', scrub: 1.2 },
       });
 
-      /* Glow merah berdenyut pelan di belakang "solusi digital" */
-      gsap.to('.hero-glow', {
-        opacity: 0.9,
-        scale: 1.15,
-        duration: 2.8,
-        yoyo: true,
-        repeat: -1,
-        ease: 'sine.inOut',
-      });
-
-      /* Foto melayang */
-      gsap.fromTo('.fp', { autoAlpha: 0, y: 46 }, { autoAlpha: 1, y: 0, duration: 1.3, stagger: 0.14, ease: 'power3.out', delay: 0.45 });
-      gsap.utils.toArray('.fp').forEach((el, i) => {
-        gsap.to(el, { y: i % 2 === 0 ? 14 : -14, duration: 3 + i * 0.7, yoyo: true, repeat: -1, ease: 'sine.inOut', delay: 1.8 });
-      });
-
       /* Scroll indicator bounce */
       gsap.to('.scroll-arrow', { y: 8, duration: 1, yoyo: true, repeat: -1, ease: 'sine.inOut' });
 
@@ -90,66 +81,38 @@ export default function HomePage({ navigateTo, onAsk }) {
 
   return (
     <div ref={rootRef} className="bg-[#0e2233] text-[#f2efe6]">
-      {/* ===== 1. HERO — dengan 5 layer kedalaman ===== */}
+      {/* ===== 1. HERO — kolase foto komunitas sebagai latar penuh (lapisan: fallback → gambar → penggelap → teks) ===== */}
       <section
         ref={heroRef}
-        className="relative min-h-dvh flex items-center justify-center overflow-hidden px-6 pt-36 pb-44"
-        style={{ background: 'radial-gradient(120% 90% at 50% 40%, #2a4d74 0%, #1b3a5c 45%, #12283c 75%, #0e2233 100%)' }}
+        className="hero relative isolate min-h-dvh flex items-center justify-center overflow-hidden px-6 pt-36 pb-44"
       >
-        {/* LAYER 1 — Vignette radial (fokus mata ke tengah) */}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: 'radial-gradient(ellipse at center, transparent 40%, rgba(5,10,20,0.6) 100%)',
-        }} />
-
-        {/* LAYER 2 — Grain halus untuk tekstur film */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.08]" style={{
-          backgroundImage: NOISE, backgroundSize: '240px 240px',
-        }} />
-
-        {/* LAYER 3 — Glow merah besar di tengah (berdenyut pelan) */}
-        <div
-          className="hero-glow absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-          style={{
-            width: '80vw',
-            height: '60vh',
-            background: 'radial-gradient(circle, rgba(230,43,43,0.25) 0%, rgba(230,43,43,0) 65%)',
-            opacity: 0.7,
-            filter: 'blur(40px)',
-          }}
-        />
-
-        {/* Foto melayang */}
-        <div className="absolute top-[22%] md:top-24 left-4 md:left-1/2 md:-ml-[120px] w-[120px] md:w-[240px] h-[80px] md:h-[130px] rotate-[-3deg] opacity-60 md:opacity-100">
-          <div className="fp w-full h-full overflow-hidden rounded-sm ring-1 ring-white/10 bg-white/5 shadow-2xl"><img src={PHOTOS.top} alt="" className="w-full h-full object-cover" /></div>
-        </div>
-        <div className="hidden md:block absolute top-[30%] -left-8 w-[150px] h-[310px] rotate-[-4deg]">
-          <div className="fp w-full h-full overflow-hidden rounded-sm ring-1 ring-white/10 bg-white/5 shadow-2xl"><img src={PHOTOS.left} alt="" className="w-full h-full object-cover" /></div>
-        </div>
-        <div className="hidden md:block absolute top-[32%] -right-6 w-[190px] h-[230px] rotate-[3deg]">
-          <div className="fp w-full h-full overflow-hidden rounded-sm ring-1 ring-white/10 bg-white/5 shadow-2xl"><img src={PHOTOS.right} alt="" className="w-full h-full object-cover" /></div>
-        </div>
-        <div className="absolute bottom-[18%] md:-bottom-16 right-3 md:right-auto md:left-1/2 md:-ml-[190px] w-[130px] md:w-[380px] h-[90px] md:h-[220px] rotate-[3deg] opacity-60 md:opacity-100">
-          <div className="fp w-full h-full overflow-hidden rounded-sm ring-1 ring-white/10 bg-white/5 shadow-2xl"><img src={PHOTOS.bottom} alt="" className="w-full h-full object-cover" /></div>
-        </div>
+        <picture>
+          <source type="image/avif" srcSet={heroSrcSet('avif')} sizes={HERO_SIZES} />
+          <source type="image/webp" srcSet={heroSrcSet('webp')} sizes={HERO_SIZES} />
+          <img
+            ref={heroImgRef}
+            src="/images/hero/collage-1280.webp"
+            alt=""
+            aria-hidden="true"
+            width={1920}
+            height={960}
+            decoding="async"
+            fetchPriority="high"
+            onLoad={() => setHeroLoaded(true)}
+            className={`hero-bg absolute inset-0 -z-20 w-full h-full object-cover pointer-events-none ${heroLoaded ? 'is-loaded' : ''}`}
+          />
+        </picture>
+        <div aria-hidden="true" className="hero-shade absolute inset-0 -z-10 pointer-events-none" />
 
         {/* KONTEN UTAMA — parallax saat scroll */}
         <div className="hero-parallax relative z-10 max-w-5xl mx-auto text-center">
           {/* HEADING — dengan glow text-shadow pada kata merah */}
-          <h1 className="font-black tracking-tight leading-[1.08] text-[clamp(2.6rem,7.5vw,7.2rem)] text-[#f5f2e8]">
+          <h1 className="hero-title font-black tracking-tight leading-[1.08] text-[clamp(2.6rem,7.5vw,7.2rem)]">
             <span className="block overflow-hidden py-1 -my-1.5">
               <span className="hero-line block">Kami adalah</span>
             </span>
             <span className="block overflow-hidden py-3 -my-1.5 relative">
-              <span
-                className="hero-line block relative text-[#e62b2b]"
-                style={{
-                  textShadow: `
-                    0 0 30px rgba(230,43,43,0.5),
-                    0 0 60px rgba(230,43,43,0.3),
-                    0 0 100px rgba(230,43,43,0.2)
-                  `,
-                }}
-              >
+              <span className="hero-line hero-accent block relative">
                 solusi digital
               </span>
             </span>
@@ -160,10 +123,10 @@ export default function HomePage({ navigateTo, onAsk }) {
         </div>
 
         {/* Scroll indicator — di bawah hero */}
-        <div className="hero-scroll absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 text-[#f2efe6]/40">
+        <div className="hero-scroll hero-muted absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3">
           <p className="font-mono text-[9px] font-bold tracking-[0.4em]">SCROLL</p>
-          <span className="scroll-arrow block w-[1px] h-8 bg-[#f2efe6]/40 relative">
-            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 border-b border-r border-[#f2efe6]/40 rotate-45" />
+          <span className="scroll-arrow hero-muted-line block w-[1px] h-8 relative">
+            <span className="hero-muted-arrow absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 border-b border-r rotate-45" />
           </span>
         </div>
       </section>
