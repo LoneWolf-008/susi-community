@@ -96,8 +96,8 @@ async function audit(page, label) {
 
 /** Tab dasbor = tombol navigasi (bilah mobile/drawer) yang terlihat; Ruang AgenSUSI diaudit sebagai rute. */
 async function dashboardTabs(page) {
-  return page.evaluate(() => [...document.querySelectorAll('[data-dash-nav] button, nav[aria-label="Navigasi dasbor"] button')]
-    .map((b) => (b.dataset.tab || b.innerText).trim()).filter((t, i, all) => t && all.indexOf(t) === i));
+  return page.evaluate(() => [...document.querySelectorAll('[data-dash-nav] [data-tab]')]
+    .map((b) => b.dataset.tab.trim()).filter((t, i, all) => t && all.indexOf(t) === i));
 }
 
 const browser = await chromium.launch();
@@ -127,10 +127,15 @@ try {
       if (path === '/dashboard') {
         for (const tab of await dashboardTabs(page)) {
           if (/ruang agensusi/i.test(tab)) continue;
-          const button = page.locator(`[data-dash-nav] button[data-tab="${tab}"], [data-dash-nav] button:has-text("${tab}")`).filter({ visible: true }).first();
-          if (await button.count() === 0) continue;
-          await button.click();
-          // Drawer/bilah navigasi menutup sendiri; buka ulang tidak perlu untuk audit.
+          const locate = () => page.locator(`[data-dash-nav] [data-tab="${tab}"]`).filter({ visible: true }).first();
+          // Tab yang tidak ada di bilah bawah dibuka lewat drawer ("Menu").
+          if (await locate().count() === 0) {
+            const menu = page.locator('[data-dash-menu]').filter({ visible: true }).first();
+            if (await menu.count() > 0) await menu.click();
+          }
+          if (await locate().count() === 0) continue;
+          await locate().click();
+          // Drawer menutup sendiri setelah memilih tab.
           results.push({ role, ...(await audit(page, `/dashboard · ${tab}`)) });
         }
       }
