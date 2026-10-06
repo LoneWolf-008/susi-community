@@ -9,7 +9,9 @@ import crypto from 'node:crypto';
 //      entri yang hanya sebagian cocok, saran umum untuk masalah komunitas/UMKM, tolak yang di luar topik.
 // cs2: dilarang menambah detail (menu, angka, kebijakan) di luar panduan → akui belum tahu + AgenSUSI;
 //      gaya bahasa sopan & hangat, tanpa emoji, "tidak" bukan "gak", kalimat pendek.
-export const PROMPT_VERSION = 'cs2';
+// cs3: isi prompt sama; guide.js diperketat (Tentang Kami hanya kontak & lokasi, label status persis UI,
+//      panduan tidak memuat data jumlah/riwayat proyek).
+export const PROMPT_VERSION = 'cs3';
 
 // Kanari acak per proses: bila muncul di jawaban, prompt sedang dibocorkan (lihat outputFilter).
 const CANARY = `[[susi:${crypto.randomBytes(6).toString('hex')}]]`;
