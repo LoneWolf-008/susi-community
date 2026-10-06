@@ -12,6 +12,8 @@
     "db:status": "node utils/migrate.js status",
     "db:reset": "node utils/migrate.js reset",
     "seed": "node utils/seed.js",
+    "demo:reset": "node utils/migrate.js reset && node utils/seed.js --sync-kb",
+    "demo:login": "node scripts/demo-login.mjs",
     "eval:chatbot": "node tests/chatbot/runEval.js",
     "chat:retention": "node utils/chatRetention.js",
     "test": "vitest run",
