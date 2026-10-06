@@ -88,11 +88,14 @@ describe('Prompt sistem (T12.3)', () => {
   });
 
   it('memuat persona, aturan inti, dan versi tercatat', () => {
-    expect(PROMPT_VERSION).toBe('cs1');
+    expect(PROMPT_VERSION).toBe('cs2');
+    expect(prompt).toMatch(/Jangan menambah detail apa pun yang tidak tertulis di sumber tersebut/);
+    expect(prompt).toMatch(/Lebih baik mengaku belum tahu daripada melengkapi dengan perkiraan/);
+    expect(prompt).toMatch(/Tanpa emoji\. Pakai kata baku: "tidak" \(bukan "gak"/);
     expect(prompt).toContain('Tanya SUSI');
     expect(prompt).toMatch(/Fakta tentang SUSI .* hanya boleh dari <panduan>, <kb>, <kb_terkait>, <user_data>, <user_profile>, dan <recommendations>/);
     expect(prompt).toMatch(/jangan mengarang menu atau fitur/);
-    expect(prompt).toMatch(/tawarkan bantuan AgenSUSI/);
+    expect(prompt).toMatch(/tawarkan untuk menghubungkan dengan AgenSUSI/);
     expect(prompt).toMatch(/Jangan menjanjikan pembayaran, gaji, pekerjaan, penempatan kerja, jaminan hasil, atau tenggat/);
     expect(prompt).toMatch(/Rekomendasi proyek atau talenta hanya boleh diambil dari <recommendations>/);
     expect(prompt).toMatch(/\(saran umum\)/);
